@@ -1,0 +1,50 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "E-Learning Platform API Documentation",
+        "description": "Backend API endpoints for React Web and Flutter Mobile application.",
+        "contact": {
+            "email": "admin@yourdomain.com"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://127.0.0.1:8000",
+            "description": "Local Development Server"
+        }
+    ],
+    "paths": {
+        "/api/health-check": {
+            "get": {
+                "tags": [
+                    "System"
+                ],
+                "summary": "API Health Check",
+                "description": "Check if the backend API server is running smoothly.",
+                "operationId": "0debfe94c65f782b55a44d7662c39b4a",
+                "responses": {
+                    "200": {
+                        "description": "Server is healthy and up!"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "sanctum": {
+                "type": "http",
+                "description": "Enter your Sanctum token to access secured endpoints",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "System",
+            "description": "System"
+        }
+    ]
+}
