@@ -14,6 +14,14 @@ use OpenApi\Attributes as OA;
     url: "http://127.0.0.1:8000",
     description: "Local Development Server"
 )]
+#[OA\Server(
+    url: "https://dev-api.yourdomain.com",
+    description: "Development Server"
+)]
+#[OA\Server(
+    url: "https://api.yourdomain.com",
+    description: "Production Server"
+)]
 #[OA\SecurityScheme(
     securityScheme: "sanctum",
     type: "http",

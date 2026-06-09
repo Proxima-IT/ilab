@@ -28,7 +28,10 @@ return [
             'middleware' => [
                 'api' => [],
                 'asset' => [],
-                'docs' => [],
+                'docs' => [
+                    // Uncomment and add your own middleware class here to restrict access in production
+                    // \App\Http\Middleware\RestrictDocsInProduction::class,
+                ],
                 'oauth2_callback' => [],
             ],
         ],
@@ -64,7 +67,6 @@ return [
         'proxy' => false,
         'additional_config_vars' => [],
         
-        // এখানে ফিক্সটি দেওয়া হলো
         'additional_config_url' => null,
     ],
 ];
