@@ -23,6 +23,152 @@
         }
     ],
     "paths": {
+        "/api/v1/auth/register": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Register a new student",
+                "description": "Creates a new student account. Emails/SMS are dispatched via queues to maintain <300ms response.",
+                "operationId": "b9e746d77661fb8df55d0ac63e1ece77",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "email",
+                                    "password",
+                                    "device_id",
+                                    "platform"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "John Doe"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "student@domain.com"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "+8801700000000"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "SecurePass123!"
+                                    },
+                                    "device_id": {
+                                        "type": "string",
+                                        "example": "device-uuid-1234"
+                                    },
+                                    "platform": {
+                                        "type": "string",
+                                        "example": "web"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "User registered successfully"
+                    },
+                    "422": {
+                        "description": "Validation Errors"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Login for both Admin and Students",
+                "description": "Validates credentials and enforces domain/role strictness.",
+                "operationId": "a7997e7c1e3bfed64d4e56de82415931",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "password",
+                                    "portal",
+                                    "device_id",
+                                    "platform"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "example": "admin@domainname.com"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "example": "password"
+                                    },
+                                    "portal": {
+                                        "type": "string",
+                                        "example": "admin",
+                                        "enum": [
+                                            "admin",
+                                            "student"
+                                        ]
+                                    },
+                                    "device_id": {
+                                        "type": "string",
+                                        "example": "browser-uuid-1234"
+                                    },
+                                    "platform": {
+                                        "type": "string",
+                                        "example": "web"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login successful"
+                    },
+                    "401": {
+                        "description": "Invalid credentials"
+                    },
+                    "403": {
+                        "description": "Unauthorized access to this portal"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/logout": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Logout user and revoke token",
+                "operationId": "f6b8957b4c0b25636613a9f0512a8ba9",
+                "responses": {
+                    "200": {
+                        "description": "Logged out successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/health-check": {
             "get": {
                 "tags": [
@@ -50,6 +196,10 @@
         }
     },
     "tags": [
+        {
+            "name": "Authentication",
+            "description": "Endpoints for user registration, login, and device tracking"
+        },
         {
             "name": "System",
             "description": "System"
