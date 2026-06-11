@@ -169,6 +169,158 @@
                 ]
             }
         },
+        "/api/v1/auth/forgot-password": {
+            "post": {
+                "tags": [
+                    "Password Recovery"
+                ],
+                "summary": "Request Password Reset OTP",
+                "description": "Sends a 6-digit OTP to the provided email or phone number.",
+                "operationId": "093d7dcd3aef205b2df8b7ee0265d446",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "identifier"
+                                ],
+                                "properties": {
+                                    "identifier": {
+                                        "type": "string",
+                                        "example": "student@domain.com or +8801700000000"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OTP Sent successfully (or silently ignored if user does not exist)"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/reset-password": {
+            "post": {
+                "tags": [
+                    "Password Recovery"
+                ],
+                "summary": "Reset Password using OTP",
+                "description": "Verifies the OTP and updates the user's password.",
+                "operationId": "53e6ad1f6dee291101a79f86a2dd1c1c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "identifier",
+                                    "otp",
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "identifier": {
+                                        "type": "string",
+                                        "example": "student@domain.com"
+                                    },
+                                    "otp": {
+                                        "type": "string",
+                                        "example": "123456"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "NewSecurePass123!"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "NewSecurePass123!"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password reset successfully"
+                    },
+                    "400": {
+                        "description": "Invalid or expired OTP"
+                    }
+                }
+            }
+        },
+        "/api/v1/student/profile": {
+            "get": {
+                "tags": [
+                    "Student Profile"
+                ],
+                "summary": "Get Student Profile & Dashboard Data",
+                "description": "Returns the authenticated student's profile along with their enrolled courses and progress.",
+                "operationId": "ab016aa14ac89526a467edca803e25f4",
+                "responses": {
+                    "200": {
+                        "description": "Profile retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Student Profile"
+                ],
+                "summary": "Update Student Profile",
+                "operationId": "247a56793cc8233d1134d243d2e0396c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "bio": {
+                                        "type": "string"
+                                    },
+                                    "district": {
+                                        "type": "string"
+                                    },
+                                    "education_level": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Profile updated successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/health-check": {
             "get": {
                 "tags": [
@@ -199,6 +351,14 @@
         {
             "name": "Authentication",
             "description": "Endpoints for user registration, login, and device tracking"
+        },
+        {
+            "name": "Password Recovery",
+            "description": "Endpoints for requesting OTPs and resetting user passwords"
+        },
+        {
+            "name": "Student Profile",
+            "description": "Endpoints for student dashboard and profile management"
         },
         {
             "name": "System",
