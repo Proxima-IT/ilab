@@ -169,6 +169,78 @@
                 ]
             }
         },
+        "/api/v1/courses": {
+            "get": {
+                "tags": [
+                    "Course Catalog"
+                ],
+                "summary": "List all published courses",
+                "description": "Returns a paginated list of published courses for the storefront.",
+                "operationId": "3522f88b734e2061541a8dbd0b6be53c",
+                "responses": {
+                    "200": {
+                        "description": "List of courses retrieved"
+                    }
+                }
+            }
+        },
+        "/api/v1/courses/{slug}": {
+            "get": {
+                "tags": [
+                    "Course Catalog"
+                ],
+                "summary": "Get full course details by slug",
+                "description": "Returns course details including the section and lesson hierarchy. Paid video URLs are hidden from guests.",
+                "operationId": "0c45ecab08c0edb745cbb12ced0b8e90",
+                "parameters": [
+                    {
+                        "name": "slug",
+                        "in": "path",
+                        "description": "The course slug (e.g., complete-laravel-react-bootcamp)",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Course details retrieved"
+                    },
+                    "404": {
+                        "description": "Course not found"
+                    }
+                }
+            }
+        },
+        "/api/v1/learn/courses/{slug}/syllabus": {
+            "get": {
+                "tags": [
+                    "Learning Experience"
+                ],
+                "summary": "Get full course syllabus with playable videos",
+                "description": "Returns the sections and lessons. Only enrolled students will see the actual video_url for paid lessons.",
+                "operationId": "e452e2026ef23de381015e9405141894",
+                "parameters": [
+                    {
+                        "name": "slug",
+                        "in": "path",
+                        "description": "Course slug",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Syllabus retrieved successfully"
+                    },
+                    "403": {
+                        "description": "Not enrolled in this course"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/v1/auth/forgot-password": {
             "post": {
                 "tags": [
@@ -257,6 +329,88 @@
                 }
             }
         },
+        "/api/v1/learn/lessons/{id}/complete": {
+            "post": {
+                "tags": [
+                    "Learning Experience"
+                ],
+                "summary": "Mark a lesson as completed",
+                "description": "Records the lesson as finished and returns the updated total course progress percentage.",
+                "operationId": "e881eab91c08faea91134f3d4f8dd228",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Lesson ID",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Progress updated successfully"
+                    },
+                    "403": {
+                        "description": "Not enrolled"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/learn/lessons/{id}/time": {
+            "put": {
+                "tags": [
+                    "Learning Experience"
+                ],
+                "summary": "Sync video player watch time",
+                "description": "The frontend video player should call this silently every 10-15 seconds to save the user's resume point.",
+                "operationId": "da9861bcfdf092b02c0809f0a6615ec5",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Lesson ID",
+                        "required": true
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "watch_seconds"
+                                ],
+                                "properties": {
+                                    "watch_seconds": {
+                                        "description": "Current video timestamp in seconds",
+                                        "type": "integer",
+                                        "example": 145
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Watch time synced successfully"
+                    },
+                    "403": {
+                        "description": "Not enrolled"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/v1/student/profile": {
             "get": {
                 "tags": [
@@ -321,6 +475,78 @@
                 ]
             }
         },
+        "/api/v1/checkout/init": {
+            "post": {
+                "tags": [
+                    "Checkout & Enrollment"
+                ],
+                "summary": "Initialize UddoktaPay Checkout",
+                "description": "Calculates the final price securely and returns the UddoktaPay payment URL. If the course is 100% free (via coupon or base price), it enrolls the user instantly.",
+                "operationId": "b25513a3f79c7b58084daf284e3f54aa",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "course_id"
+                                ],
+                                "properties": {
+                                    "course_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "coupon_code": {
+                                        "type": "string",
+                                        "example": "REACT50"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Checkout initialized successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "is_free": {
+                                                    "type": "boolean",
+                                                    "example": false
+                                                },
+                                                "payment_url": {
+                                                    "type": "string",
+                                                    "example": "https://pay.uddoktapay.com/checkout/12345"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid coupon or already enrolled"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/health-check": {
             "get": {
                 "tags": [
@@ -353,12 +579,23 @@
             "description": "Endpoints for user registration, login, and device tracking"
         },
         {
+            "name": "Course Catalog",
+            "description": "Public endpoints for browsing the course catalog"
+        },
+        {
+            "name": "Learning Experience"
+        },
+        {
             "name": "Password Recovery",
             "description": "Endpoints for requesting OTPs and resetting user passwords"
         },
         {
             "name": "Student Profile",
             "description": "Endpoints for student dashboard and profile management"
+        },
+        {
+            "name": "Checkout & Enrollment",
+            "description": "Secure course purchasing using UddoktaPay"
         },
         {
             "name": "System",
