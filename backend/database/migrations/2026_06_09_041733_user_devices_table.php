@@ -10,14 +10,23 @@ return new class extends Migration
     {
         Schema::create('devices', function (Blueprint $table) {
             $table->id();
+
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->string('device_id')->unique(); // Unique hardware ID from Flutter
-            $table->string('platform'); // e.g., 'android', 'ios', 'web'
-            $table->string('fcm_token')->nullable(); // For push notifications
-            $table->string('drm_key')->nullable(); // AES key for offline downloads
+
+            $table->string('device_id');
+            $table->string('device_hash');
+            $table->enum('platform', ['web', 'android', 'ios']);
+            $table->string('fcm_token')->nullable();
+            $table->string('drm_key')->nullable();
+
             $table->boolean('is_active')->default(true);
             $table->timestamp('last_active_at')->useCurrent();
+
             $table->timestamps();
+
+            $table->unique(['user_id', 'device_hash']);
+            $table->index('platform');
+            $table->index('is_active');
         });
     }
 

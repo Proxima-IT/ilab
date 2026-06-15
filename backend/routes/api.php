@@ -1,120 +1,178 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\SwaggerConfig;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\StudentProfileController;
-use App\Http\Controllers\Api\V1\UddoktaPayCheckoutController;
-use App\Http\Controllers\Api\V1\Admin\AdminProfileController;
-
+use App\Http\Controllers\Api\V1\CourseController;
 use App\Http\Controllers\Api\V1\LessonController;
 use App\Http\Controllers\Api\V1\ProgressController;
+use App\Http\Controllers\Api\V1\UddoktaPayCheckoutController;
+use App\Http\Controllers\Api\V1\Admin\AdminProfileController;
+use App\Http\Controllers\Api\V1\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Admin\StaffController;
 use App\Http\Controllers\Api\V1\Admin\CategoryController;
-use App\Http\Controllers\Api\V1\Admin\CourseController;
+use App\Http\Controllers\Api\V1\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Api\V1\Admin\SectionController;
 use App\Http\Controllers\Api\V1\Admin\LessonController as AdminLessonController;
 use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\EnrollmentController as AdminEnrollmentController;
-use App\Http\Controllers\Api\V1\Admin\DashboardController;
 
-
-
-// Version 1 API Routing
 Route::prefix('v1')->group(function () {
 
-    // Public Authentication Routes
-    Route::middleware('throttle:60,1')->prefix('auth')->group(function () {
-        Route::post('/register', [AuthController::class, 'register']);
-        Route::post('/login', [AuthController::class, 'login']);
+    /*
+    |--------------------------------------------------------------------------
+    | System
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/health-check', [SwaggerConfig::class, 'healthCheck'])
+        ->middleware('throttle:30,1');
 
+    /*
+    |--------------------------------------------------------------------------
+    | Public Authentication Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('auth')
+        ->middleware('throttle:10,1')
+        ->group(function () {
+            Route::post('/register', [AuthController::class, 'register']);
+            Route::post('/login', [AuthController::class, 'login']);
 
-        Route::post('/forgot-password', [PasswordResetController::class, 'forgotPassword']);
-        Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']);
-    });
+            Route::post('/forgot-password', [PasswordResetController::class, 'forgotPassword']);
+            Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']);
+        });
 
+    /*
+    |--------------------------------------------------------------------------
+    | Public Course Catalog Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('courses')
+        ->middleware('throttle:60,1')
+        ->group(function () {
+            Route::get('/', [CourseController::class, 'index']);
+            Route::get('/{slug}', [CourseController::class, 'show'])
+                ->where('slug', '[A-Za-z0-9\-]+');
+        });
 
+    /*
+    |--------------------------------------------------------------------------
+    | Public Payment Webhook Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::post('/webhook/uddoktapay', [UddoktaPayCheckoutController::class, 'webhook'])
+        ->middleware('throttle:30,1');
 
-
-    // ==========================================
-// PUBLIC COURSE CATALOG APIs
-// ==========================================
-    Route::prefix('courses')->group(function () {
-        Route::get('/', [\App\Http\Controllers\Api\V1\CourseController::class, 'index']);
-        Route::get('/{slug}', [\App\Http\Controllers\Api\V1\CourseController::class, 'show']);
-    });
-
-
-
-    // ==========================================
-// PUBLIC WEBHOOKS (For UddoktaPay servers)
-// ==========================================
-    Route::post('/webhook/uddoktapay', [UddoktaPayCheckoutController::class, 'webhook']);
-
-    // Optional: Simple redirects for the user after payment is done
+    /*
+    |--------------------------------------------------------------------------
+    | Public Payment Redirect Routes
+    |--------------------------------------------------------------------------
+    */
     Route::get('/checkout/uddoktapay/success', function () {
-        return redirect('https://domainname.com/dashboard/learning?payment=success'); // Redirect to React
-    });
-    Route::get('/checkout/uddoktapay/cancel', function () {
-        return redirect('https://domainname.com/course-details?payment=failed'); // Redirect to React
-    });
+        return redirect(config('app.frontend_url', 'https://domainname.com') . '/dashboard/learning?payment=success');
+    })->middleware('throttle:30,1');
 
-    // Protected Routes (Require valid Sanctum Bearer Token)
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/checkout/uddoktapay/cancel', function () {
+        return redirect(config('app.frontend_url', 'https://domainname.com') . '/course-details?payment=failed');
+    })->middleware('throttle:30,1');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Protected User Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
 
         Route::post('/auth/logout', [AuthController::class, 'logout']);
 
-        Route::post('/checkout/init', [UddoktaPayCheckoutController::class, 'initiatePayment']);
+        /*
+        |--------------------------------------------------------------------------
+        | Payment Routes
+        |--------------------------------------------------------------------------
+        */
+        Route::post('/checkout/init', [UddoktaPayCheckoutController::class, 'initiatePayment'])
+            ->middleware('throttle:20,1');
 
-        // ==========================================
-        // STUDENT APIs (Documented in Swagger)
-        // ==========================================
+        /*
+        |--------------------------------------------------------------------------
+        | Student Routes
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('student')->group(function () {
             Route::get('/profile', [StudentProfileController::class, 'show']);
             Route::put('/profile', [StudentProfileController::class, 'update']);
 
-            // 
+            Route::get('/progress/{course_id}', [ProgressController::class, 'courseProgress'])
+                ->whereNumber('course_id');
         });
 
-        // ==========================================
-        // LEARNING EXPERIENCE (STUDENT APP)
-        // ==========================================
+        /*
+        |--------------------------------------------------------------------------
+        | Learning Routes
+        |--------------------------------------------------------------------------
+        */
         Route::prefix('learn')->group(function () {
-            Route::get('/courses/{slug}/syllabus', [LessonController::class, 'getSyllabus']);
-            Route::post('/lessons/{id}/complete', [ProgressController::class, 'markComplete']);
+            Route::get('/courses/{slug}/syllabus', [LessonController::class, 'getSyllabus'])
+                ->where('slug', '[A-Za-z0-9\-]+');
 
-            // Add the new heartbeat route here
-            Route::put('/lessons/{id}/time', [ProgressController::class, 'syncWatchTime']);
+            Route::post('/lessons/{id}/complete', [ProgressController::class, 'markComplete'])
+                ->whereNumber('id');
+
+            Route::put('/lessons/{id}/time', [ProgressController::class, 'syncWatchTime'])
+                ->whereNumber('id')
+                ->middleware('throttle:60,1');
         });
 
-        // ==========================================
-        // ADMIN & INSTRUCTOR APIs (Hidden from Swagger)
-        // ==========================================
-        Route::prefix('admin')->group(function () {
-            Route::get('/profile', [AdminProfileController::class, 'show']);
-            Route::put('/profile', [AdminProfileController::class, 'update']);
+        /*
+        |--------------------------------------------------------------------------
+        | Admin Routes
+        |--------------------------------------------------------------------------
+        | Important:
+        | Add role/permission middleware after creating it.
+        | Example: ->middleware(['auth:sanctum', 'role:admin'])
+        |--------------------------------------------------------------------------
+        */
+        Route::prefix('admin')
+            ->middleware('can:access-admin-panel')
+            ->group(function () {
+                Route::get('/profile', [AdminProfileController::class, 'show']);
+                Route::put('/profile', [AdminProfileController::class, 'update']);
 
-            // Admin Dashboard Overview
-            Route::get('/dashboard', [DashboardController::class, 'index']);
+                Route::get('/dashboard', [DashboardController::class, 'index']);
 
-            // Super Admin Only: Staff Management
-            Route::get('/staff', [StaffController::class, 'index']);
-            Route::post('/staff', [StaffController::class, 'store']);
-            Route::delete('/staff/{id}', [StaffController::class, 'destroy']);
+                /*
+                |--------------------------------------------------------------------------
+                | Super Admin Staff Management
+                |--------------------------------------------------------------------------
+                */
+                Route::prefix('staff')
+                    ->middleware('can:manage-staff')
+                    ->group(function () {
+                        Route::get('/', [StaffController::class, 'index']);
+                        Route::post('/', [StaffController::class, 'store']);
+                        Route::delete('/{id}', [StaffController::class, 'destroy'])
+                            ->whereNumber('id');
+                    });
 
+                /*
+                |--------------------------------------------------------------------------
+                | Admin Content Management
+                |--------------------------------------------------------------------------
+                */
+                Route::apiResource('categories', CategoryController::class);
+                Route::apiResource('courses', AdminCourseController::class);
+                Route::apiResource('sections', SectionController::class);
+                Route::apiResource('lessons', AdminLessonController::class);
 
-            // Course Catalog Management
-            Route::apiResource('categories', CategoryController::class);
-            Route::apiResource('courses', CourseController::class);
-            Route::apiResource('sections', SectionController::class);
-            Route::apiResource('lessons', AdminLessonController::class);
-
-            // Financials & E-Commerce
-            Route::apiResource('coupons', CouponController::class);
-            Route::apiResource('enrollments', AdminEnrollmentController::class);
-
-        });
-
+                /*
+                |--------------------------------------------------------------------------
+                | Admin Financial Management
+                |--------------------------------------------------------------------------
+                */
+                Route::apiResource('coupons', CouponController::class);
+                Route::apiResource('enrollments', AdminEnrollmentController::class);
+            });
     });
 });

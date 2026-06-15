@@ -4,125 +4,131 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Carbon\Carbon;
+use Illuminate\Validation\Rules\Password;
 use OpenApi\Attributes as OA;
 
-#[OA\Tag(name: "Password Recovery", description: "Endpoints for requesting OTPs and resetting user passwords")]
+#[OA\Tag(name: 'Password Recovery', description: 'Endpoints for requesting OTPs and resetting user passwords')]
 class PasswordResetController extends Controller
 {
-    #[OA\Post(
-        path: "/api/v1/auth/forgot-password",
-        summary: "Request Password Reset OTP",
-        description: "Sends a 6-digit OTP to the provided email or phone number.",
-        tags: ["Password Recovery"],
-        requestBody: new OA\RequestBody(
-            required: true,
-            content: new OA\JsonContent(
-                required: ["identifier"],
-                properties: [
-                    new OA\Property(property: "identifier", type: "string", example: "student@domain.com or +8801700000000")
-                ]
-            )
-        ),
-        responses: [
-            new OA\Response(response: 200, description: "OTP Sent successfully (or silently ignored if user does not exist)")
-        ]
-    )]
-    public function forgotPassword(Request $request)
+    public function forgotPassword(Request $request): JsonResponse
     {
-        $request->validate([
-            'identifier' => 'required|string',
+        $validated = $request->validate([
+            'identifier' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[^\r\n]+$/',
+            ],
         ]);
 
-        $user = User::where('email', $request->identifier)
-                    ->orWhere('phone', $request->identifier)
-                    ->first();
+        $user = User::query()
+            ->where('email', $validated['identifier'])
+            ->orWhere('phone', $validated['identifier'])
+            ->first();
 
-        // Security: Always return success to prevent user enumeration
-        if (!$user) {
-            return response()->json([
-                'success' => true,
-                'message' => 'If an account matches that email or phone, an OTP has been sent.'
-            ]);
+        if (! $user) {
+            return $this->forgotPasswordSuccessResponse();
         }
 
-        // Generate a 6-digit OTP
-        $otp = rand(100000, 999999);
+        $otp = random_int(100000, 999999);
+        $identifierKey = $this->passwordResetIdentifier($user);
 
-        // Store OTP in the database for 15 minutes
         DB::table('password_reset_tokens')->updateOrInsert(
-            ['email' => $user->email ?? $user->phone],
-            ['token' => Hash::make($otp), 'created_at' => now()]
+            ['email' => $identifierKey],
+            [
+                'token' => Hash::make((string) $otp),
+                'created_at' => now(),
+            ]
         );
 
-        // TODO: Dispatch Job to send OTP via Email or BulkSMS BD here (Queue)
+        // TODO: Dispatch queued job to send OTP via Email or BulkSMS BD.
+        // Example:
+        // SendPasswordResetOtpJob::dispatch($user, $otp);
+
+        return $this->forgotPasswordSuccessResponse();
+    }
+
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'identifier' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[^\r\n]+$/',
+            ],
+            'otp' => ['required', 'numeric', 'digits:6'],
+            'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()->symbols()],
+        ]);
+
+        $user = User::query()
+            ->where('email', $validated['identifier'])
+            ->orWhere('phone', $validated['identifier'])
+            ->first();
+
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Invalid or expired OTP.',
+                'errors' => null,
+            ], 400);
+        }
+
+        $identifierKey = $this->passwordResetIdentifier($user);
+
+        $record = DB::table('password_reset_tokens')
+            ->where('email', $identifierKey)
+            ->first();
+
+        if (
+            ! $record ||
+            ! Hash::check((string) $validated['otp'], $record->token) ||
+            Carbon::parse($record->created_at)->addMinutes(15)->isPast()
+        ) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Invalid or expired OTP.',
+                'errors' => null,
+            ], 400);
+        }
+
+        $user->update([
+            'password' => Hash::make($validated['password']),
+        ]);
+
+        $user->tokens()->delete();
+
+        DB::table('password_reset_tokens')
+            ->where('email', $identifierKey)
+            ->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'If an account matches that email or phone, an OTP has been sent.'
+            'data' => null,
+            'message' => 'Password reset successfully. Please log in with your new password.',
+            'errors' => null,
         ]);
     }
 
-    #[OA\Post(
-        path: "/api/v1/auth/reset-password",
-        summary: "Reset Password using OTP",
-        description: "Verifies the OTP and updates the user's password.",
-        tags: ["Password Recovery"],
-        requestBody: new OA\RequestBody(
-            required: true,
-            content: new OA\JsonContent(
-                required: ["identifier", "otp", "password", "password_confirmation"],
-                properties: [
-                    new OA\Property(property: "identifier", type: "string", example: "student@domain.com"),
-                    new OA\Property(property: "otp", type: "string", example: "123456"),
-                    new OA\Property(property: "password", type: "string", format: "password", example: "NewSecurePass123!"),
-                    new OA\Property(property: "password_confirmation", type: "string", format: "password", example: "NewSecurePass123!")
-                ]
-            )
-        ),
-        responses: [
-            new OA\Response(response: 200, description: "Password reset successfully"),
-            new OA\Response(response: 400, description: "Invalid or expired OTP")
-        ]
-    )]
-    public function resetPassword(Request $request)
+    private function forgotPasswordSuccessResponse(): JsonResponse
     {
-        $request->validate([
-            'identifier' => 'required|string',
-            'otp' => 'required|numeric|digits:6',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
-
-        $user = User::where('email', $request->identifier)
-                    ->orWhere('phone', $request->identifier)
-                    ->first();
-
-        if (!$user) {
-            return response()->json(['success' => false, 'message' => 'Invalid request.'], 400);
-        }
-
-        $record = DB::table('password_reset_tokens')
-                     ->where('email', $user->email ?? $user->phone)
-                     ->first();
-
-        // Check if OTP exists, is correct, and is not older than 15 minutes
-        if (!$record || !Hash::check($request->otp, $record->token) || Carbon::parse($record->created_at)->addMinutes(15)->isPast()) {
-            return response()->json(['success' => false, 'message' => 'Invalid or expired OTP.'], 400);
-        }
-
-        // Update password and clear existing active sessions
-        $user->update(['password' => Hash::make($request->password)]);
-        $user->tokens()->delete(); // Force logout from all devices
-
-        // Delete the used OTP
-        DB::table('password_reset_tokens')->where('email', $user->email ?? $user->phone)->delete();
-
         return response()->json([
             'success' => true,
-            'message' => 'Password reset successfully. Please log in with your new password.'
+            'data' => null,
+            'message' => 'If an account matches that email or phone, an OTP has been sent.',
+            'errors' => null,
         ]);
+    }
+
+    private function passwordResetIdentifier(User $user): string
+    {
+        return $user->email ?: $user->phone;
     }
 }

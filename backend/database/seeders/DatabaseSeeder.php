@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use App\Models\Category;
 use App\Models\Course;
-use App\Models\Section;
 use App\Models\Lesson;
+use App\Models\Section;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -15,90 +15,200 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Create Core Users
-        $admin = User::create([
-            'name' => 'Super Admin',
-            'email' => 'admin@domainname.com',
-            'phone' => '+8801700000001',
-            'password' => Hash::make('password'),
-            'role' => 'super_admin',
-            'email_verified_at' => now(),
-            'phone_verified_at' => now(),
-        ]);
+        /*
+        |--------------------------------------------------------------------------
+        | Demo Users
+        |--------------------------------------------------------------------------
+        */
+        $admin = User::updateOrCreate(
+            ['email' => 'admin@domainname.com'],
+            [
+                'name' => 'Super Admin',
+                'phone' => '+8801700000001',
+                'password' => Hash::make('Password123!'),
+                'role' => 'super_admin',
+                'status' => true,
+                'email_verified_at' => now(),
+                'phone_verified_at' => now(),
+                'provider' => null,
+                'provider_id' => null,
+                'notification_prefs' => [
+                    'email' => true,
+                    'sms' => true,
+                    'push' => true,
+                ],
+            ]
+        );
 
-        $instructor = User::create([
-            'name' => 'Tahsin Ahmad',
-            'email' => 'instructor@domainname.com',
-            'phone' => '+8801700000002',
-            'password' => Hash::make('password'),
-            'role' => 'admin', // Admins can create courses
-            'bio' => 'Backend Specialist & Tech Educator',
-        ]);
+        $instructor = User::updateOrCreate(
+            ['email' => 'instructor@domainname.com'],
+            [
+                'name' => 'Tahsin Ahmad',
+                'phone' => '+8801700000002',
+                'password' => Hash::make('Password123!'),
+                'role' => 'admin',
+                'bio' => 'Backend Specialist & Tech Educator',
+                'status' => true,
+                'email_verified_at' => now(),
+                'phone_verified_at' => now(),
+                'provider' => null,
+                'provider_id' => null,
+                'notification_prefs' => [
+                    'email' => true,
+                    'sms' => true,
+                    'push' => true,
+                ],
+            ]
+        );
 
-        $student = User::create([
-            'name' => 'Demo Student',
-            'email' => 'student@domainname.com',
-            'phone' => '+8801700000003',
-            'password' => Hash::make('password'),
-            'role' => 'student',
-        ]);
+        $student = User::updateOrCreate(
+            ['email' => 'student@domainname.com'],
+            [
+                'name' => 'Demo Student',
+                'phone' => '+8801700000003',
+                'password' => Hash::make('Password123!'),
+                'role' => 'student',
+                'status' => true,
+                'email_verified_at' => now(),
+                'phone_verified_at' => now(),
+                'provider' => null,
+                'provider_id' => null,
+                'notification_prefs' => [
+                    'email' => true,
+                    'sms' => true,
+                    'push' => true,
+                ],
+            ]
+        );
 
-        // 2. Create Categories
-        $catWeb = Category::create(['name' => 'Web Development', 'slug' => 'web-development', 'type' => 'course']);
-        $catApp = Category::create(['name' => 'Mobile App', 'slug' => 'mobile-app', 'type' => 'course']);
+        /*
+        |--------------------------------------------------------------------------
+        | Categories
+        |--------------------------------------------------------------------------
+        */
+        $catWeb = Category::updateOrCreate(
+            ['slug' => 'web-development'],
+            [
+                'name' => 'Web Development',
+                'type' => 'course',
+            ]
+        );
 
-        // 3. Create a Master Course
-        $course = Course::create([
-            'instructor_id' => $instructor->id,
-            'category_id' => $catWeb->id,
-            'title' => 'Complete Laravel & React Bootcamp',
-            'slug' => 'complete-laravel-react-bootcamp',
-            'description' => 'Master decoupled architecture by building a real-world EdTech platform from scratch.',
-            'thumbnail' => 'https://via.placeholder.com/800x450.png?text=Laravel+React+Bootcamp',
-            'price' => 5000.00,
-            'discount_price' => 2500.00,
-            'status' => 'published',
-            'type' => 'self_paced',
-            'level' => 'Intermediate',
-            'language' => 'Bengali',
-            'tags' => ['Laravel', 'React', 'API', 'Web'],
-        ]);
+        $catApp = Category::updateOrCreate(
+            ['slug' => 'mobile-app'],
+            [
+                'name' => 'Mobile App',
+                'type' => 'course',
+            ]
+        );
 
-        // 4. Create Sections & Lessons
-        $section1 = Section::create(['course_id' => $course->id, 'title' => 'Module 1: API Architecture', 'order' => 1]);
-        
-        Lesson::create([
-            'section_id' => $section1->id,
-            'title' => 'Introduction to Decoupled Systems',
-            'type' => 'video',
-            'video_url' => 'dQw4w9WgXcQ', // Dummy YouTube ID
-            'duration' => 600,
-            'is_free' => true, // Preview lesson
-            'order' => 1,
-        ]);
+        /*
+        |--------------------------------------------------------------------------
+        | Course
+        |--------------------------------------------------------------------------
+        */
+        $course = Course::updateOrCreate(
+            ['slug' => 'complete-laravel-react-bootcamp'],
+            [
+                'instructor_id' => $instructor->id,
+                'category_id' => $catWeb->id,
+                'title' => 'Complete Laravel & React Bootcamp',
+                'description' => 'Master decoupled architecture by building a real-world EdTech platform from scratch.',
+                'thumbnail' => 'https://via.placeholder.com/800x450.png?text=Laravel+React+Bootcamp',
+                'intro_video' => 'dQw4w9WgXcQ',
+                'price' => 5000.00,
+                'discount_price' => 2500.00,
+                'sale_starts_at' => now()->subDay(),
+                'sale_ends_at' => now()->addDays(7),
+                'status' => 'published',
+                'type' => 'self_paced',
+                'level' => 'intermediate',
+                'language' => 'Bengali',
+                'tags' => ['Laravel', 'React', 'API', 'Web'],
+                'prerequisites' => ['Basic PHP', 'Basic JavaScript'],
+                'meta_title' => 'Complete Laravel & React Bootcamp',
+                'meta_description' => 'Learn Laravel API and React frontend by building a production-style EdTech platform.',
+            ]
+        );
 
-        Lesson::create([
-            'section_id' => $section1->id,
-            'title' => 'Database Schema Design',
-            'type' => 'video',
-            'video_url' => 'dQw4w9WgXcQ',
-            'duration' => 1200,
-            'is_free' => false,
-            'order' => 2,
-        ]);
+        /*
+        |--------------------------------------------------------------------------
+        | Sections
+        |--------------------------------------------------------------------------
+        */
+        $section1 = Section::updateOrCreate(
+            [
+                'course_id' => $course->id,
+                'order' => 1,
+            ],
+            [
+                'title' => 'Module 1: API Architecture',
+                'unlock_at' => null,
+            ]
+        );
 
-        $section2 = Section::create(['course_id' => $course->id, 'title' => 'Module 2: React Frontend', 'order' => 2]);
-        
-        Lesson::create([
-            'section_id' => $section2->id,
-            'title' => 'Setting up Vite and Tailwind',
-            'type' => 'video',
-            'video_url' => 'dQw4w9WgXcQ',
-            'duration' => 900,
-            'is_free' => false,
-            'order' => 1,
-        ]);
+        $section2 = Section::updateOrCreate(
+            [
+                'course_id' => $course->id,
+                'order' => 2,
+            ],
+            [
+                'title' => 'Module 2: React Frontend',
+                'unlock_at' => null,
+            ]
+        );
 
-        echo "✅ Database seeded successfully with Users, Categories, and a Course Hierarchy!\n";
+        /*
+        |--------------------------------------------------------------------------
+        | Lessons
+        |--------------------------------------------------------------------------
+        */
+        Lesson::updateOrCreate(
+            [
+                'section_id' => $section1->id,
+                'order' => 1,
+            ],
+            [
+                'title' => 'Introduction to Decoupled Systems',
+                'type' => 'video',
+                'video_url' => 'dQw4w9WgXcQ',
+                'duration' => 600,
+                'is_free' => true,
+                'content' => null,
+            ]
+        );
+
+        Lesson::updateOrCreate(
+            [
+                'section_id' => $section1->id,
+                'order' => 2,
+            ],
+            [
+                'title' => 'Database Schema Design',
+                'type' => 'video',
+                'video_url' => 'dQw4w9WgXcQ',
+                'duration' => 1200,
+                'is_free' => false,
+                'content' => null,
+            ]
+        );
+
+        Lesson::updateOrCreate(
+            [
+                'section_id' => $section2->id,
+                'order' => 1,
+            ],
+            [
+                'title' => 'Setting up Vite and Tailwind',
+                'type' => 'video',
+                'video_url' => 'dQw4w9WgXcQ',
+                'duration' => 900,
+                'is_free' => false,
+                'content' => null,
+            ]
+        );
+
+        $this->command->info('Database seeded successfully with users, categories, course sections, and lessons.');
+        $this->command->warn('Demo password for all seeded users: Password123!');
     }
 }

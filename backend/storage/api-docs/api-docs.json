@@ -1,9 +1,10 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "title": "E-Learning Platform API Documentation",
-        "description": "Backend API endpoints for React Web and Flutter Mobile application.",
+        "title": "iLab EdTech API Documentation",
+        "description": "Versioned REST API documentation for the iLab React Web SPA and Android/iOS mobile applications.",
         "contact": {
+            "name": "Proxima IT",
             "email": "admin@yourdomain.com"
         },
         "version": "1.0.0"
@@ -29,7 +30,7 @@
                     "Authentication"
                 ],
                 "summary": "Register a new student",
-                "description": "Creates a new student account. Emails/SMS are dispatched via queues to maintain <300ms response.",
+                "description": "Phone number is required. Email is optional. Registration creates an unverified account and sends phone OTP.",
                 "operationId": "b9e746d77661fb8df55d0ac63e1ece77",
                 "requestBody": {
                     "required": true,
@@ -38,8 +39,9 @@
                             "schema": {
                                 "required": [
                                     "name",
-                                    "email",
+                                    "phone",
                                     "password",
+                                    "password_confirmation",
                                     "device_id",
                                     "platform"
                                 ],
@@ -48,27 +50,43 @@
                                         "type": "string",
                                         "example": "John Doe"
                                     },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "01700000000"
+                                    },
                                     "email": {
                                         "type": "string",
                                         "format": "email",
-                                        "example": "student@domain.com"
-                                    },
-                                    "phone": {
-                                        "type": "string",
-                                        "example": "+8801700000000"
+                                        "example": "john@gmail.com",
+                                        "nullable": true
                                     },
                                     "password": {
                                         "type": "string",
                                         "format": "password",
                                         "example": "SecurePass123!"
                                     },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "SecurePass123!"
+                                    },
                                     "device_id": {
                                         "type": "string",
-                                        "example": "device-uuid-1234"
+                                        "example": "web-browser-uuid-123"
                                     },
                                     "platform": {
                                         "type": "string",
-                                        "example": "web"
+                                        "example": "web",
+                                        "enum": [
+                                            "web",
+                                            "android",
+                                            "ios"
+                                        ]
+                                    },
+                                    "fcm_token": {
+                                        "type": "string",
+                                        "example": "firebase-token",
+                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -78,10 +96,13 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "User registered successfully"
+                        "description": "Registration successful"
+                    },
+                    "409": {
+                        "description": "Account exists but phone verification is pending"
                     },
                     "422": {
-                        "description": "Validation Errors"
+                        "description": "Validation error"
                     }
                 }
             }
@@ -91,8 +112,8 @@
                 "tags": [
                     "Authentication"
                 ],
-                "summary": "Login for both Admin and Students",
-                "description": "Validates credentials and enforces domain/role strictness.",
+                "summary": "Login with phone/email and password",
+                "description": "User can login with phone or email. Phone-first accounts must verify phone before token is issued.",
                 "operationId": "a7997e7c1e3bfed64d4e56de82415931",
                 "requestBody": {
                     "required": true,
@@ -100,24 +121,25 @@
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "email",
+                                    "login",
                                     "password",
                                     "portal",
                                     "device_id",
                                     "platform"
                                 ],
                                 "properties": {
-                                    "email": {
+                                    "login": {
                                         "type": "string",
-                                        "example": "admin@domainname.com"
+                                        "example": "01700000000"
                                     },
                                     "password": {
                                         "type": "string",
-                                        "example": "password"
+                                        "format": "password",
+                                        "example": "SecurePass123!"
                                     },
                                     "portal": {
                                         "type": "string",
-                                        "example": "admin",
+                                        "example": "student",
                                         "enum": [
                                             "admin",
                                             "student"
@@ -125,11 +147,21 @@
                                     },
                                     "device_id": {
                                         "type": "string",
-                                        "example": "browser-uuid-1234"
+                                        "example": "web-browser-uuid-123"
                                     },
                                     "platform": {
                                         "type": "string",
-                                        "example": "web"
+                                        "example": "web",
+                                        "enum": [
+                                            "web",
+                                            "android",
+                                            "ios"
+                                        ]
+                                    },
+                                    "fcm_token": {
+                                        "type": "string",
+                                        "example": null,
+                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -141,11 +173,79 @@
                     "200": {
                         "description": "Login successful"
                     },
-                    "401": {
-                        "description": "Invalid credentials"
-                    },
                     "403": {
-                        "description": "Unauthorized access to this portal"
+                        "description": "Phone verification required or unauthorized portal access"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/google": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Google registration/login",
+                "description": "Google users can login without phone verification, but profile remains incomplete until phone is added and verified.",
+                "operationId": "99255feaa276a172f099d622bac7eaab",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "id_token",
+                                    "portal",
+                                    "device_id",
+                                    "platform"
+                                ],
+                                "properties": {
+                                    "id_token": {
+                                        "type": "string",
+                                        "example": "eyJhbGciOiJSUzI1NiIsImtpZCI6..."
+                                    },
+                                    "portal": {
+                                        "type": "string",
+                                        "example": "student",
+                                        "enum": [
+                                            "student"
+                                        ]
+                                    },
+                                    "device_id": {
+                                        "type": "string",
+                                        "example": "web-browser-uuid-123"
+                                    },
+                                    "platform": {
+                                        "type": "string",
+                                        "example": "web",
+                                        "enum": [
+                                            "web",
+                                            "android",
+                                            "ios"
+                                        ]
+                                    },
+                                    "fcm_token": {
+                                        "type": "string",
+                                        "example": "firebase-token",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful response"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error"
                     }
                 }
             }
@@ -155,11 +255,14 @@
                 "tags": [
                     "Authentication"
                 ],
-                "summary": "Logout user and revoke token",
+                "summary": "Logout user and revoke current token",
                 "operationId": "f6b8957b4c0b25636613a9f0512a8ba9",
                 "responses": {
                     "200": {
                         "description": "Logged out successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
                     }
                 },
                 "security": [
@@ -190,14 +293,17 @@
                     "Course Catalog"
                 ],
                 "summary": "Get full course details by slug",
-                "description": "Returns course details including the section and lesson hierarchy. Paid video URLs are hidden from guests.",
+                "description": "Returns course details including section and lesson hierarchy. Paid video URLs are hidden from guests.",
                 "operationId": "0c45ecab08c0edb745cbb12ced0b8e90",
                 "parameters": [
                     {
                         "name": "slug",
                         "in": "path",
-                        "description": "The course slug (e.g., complete-laravel-react-bootcamp)",
-                        "required": true
+                        "description": "The course slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ],
                 "responses": {
@@ -215,8 +321,8 @@
                 "tags": [
                     "Learning Experience"
                 ],
-                "summary": "Get full course syllabus with playable videos",
-                "description": "Returns the sections and lessons. Only enrolled students will see the actual video_url for paid lessons.",
+                "summary": "Get full course syllabus",
+                "description": "Returns sections and lessons for enrolled students. Direct video URLs are not exposed.",
                 "operationId": "e452e2026ef23de381015e9405141894",
                 "parameters": [
                     {
@@ -232,6 +338,9 @@
                     },
                     "403": {
                         "description": "Not enrolled in this course"
+                    },
+                    "404": {
+                        "description": "Course not found"
                     }
                 },
                 "security": [
@@ -241,101 +350,13 @@
                 ]
             }
         },
-        "/api/v1/auth/forgot-password": {
-            "post": {
-                "tags": [
-                    "Password Recovery"
-                ],
-                "summary": "Request Password Reset OTP",
-                "description": "Sends a 6-digit OTP to the provided email or phone number.",
-                "operationId": "093d7dcd3aef205b2df8b7ee0265d446",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "identifier"
-                                ],
-                                "properties": {
-                                    "identifier": {
-                                        "type": "string",
-                                        "example": "student@domain.com or +8801700000000"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "OTP Sent successfully (or silently ignored if user does not exist)"
-                    }
-                }
-            }
-        },
-        "/api/v1/auth/reset-password": {
-            "post": {
-                "tags": [
-                    "Password Recovery"
-                ],
-                "summary": "Reset Password using OTP",
-                "description": "Verifies the OTP and updates the user's password.",
-                "operationId": "53e6ad1f6dee291101a79f86a2dd1c1c",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "identifier",
-                                    "otp",
-                                    "password",
-                                    "password_confirmation"
-                                ],
-                                "properties": {
-                                    "identifier": {
-                                        "type": "string",
-                                        "example": "student@domain.com"
-                                    },
-                                    "otp": {
-                                        "type": "string",
-                                        "example": "123456"
-                                    },
-                                    "password": {
-                                        "type": "string",
-                                        "format": "password",
-                                        "example": "NewSecurePass123!"
-                                    },
-                                    "password_confirmation": {
-                                        "type": "string",
-                                        "format": "password",
-                                        "example": "NewSecurePass123!"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Password reset successfully"
-                    },
-                    "400": {
-                        "description": "Invalid or expired OTP"
-                    }
-                }
-            }
-        },
         "/api/v1/learn/lessons/{id}/complete": {
             "post": {
                 "tags": [
                     "Learning Experience"
                 ],
                 "summary": "Mark a lesson as completed",
-                "description": "Records the lesson as finished and returns the updated total course progress percentage.",
+                "description": "Marks a lesson complete only if the student is enrolled and has watched enough of the lesson.",
                 "operationId": "e881eab91c08faea91134f3d4f8dd228",
                 "parameters": [
                     {
@@ -350,7 +371,10 @@
                         "description": "Progress updated successfully"
                     },
                     "403": {
-                        "description": "Not enrolled"
+                        "description": "Not enrolled or watch threshold not met"
+                    },
+                    "404": {
+                        "description": "Lesson not found"
                     }
                 },
                 "security": [
@@ -366,7 +390,7 @@
                     "Learning Experience"
                 ],
                 "summary": "Sync video player watch time",
-                "description": "The frontend video player should call this silently every 10-15 seconds to save the user's resume point.",
+                "description": "Frontend video player should call this every 10-15 seconds to save resume point.",
                 "operationId": "da9861bcfdf092b02c0809f0a6615ec5",
                 "parameters": [
                     {
@@ -386,7 +410,6 @@
                                 ],
                                 "properties": {
                                     "watch_seconds": {
-                                        "description": "Current video timestamp in seconds",
                                         "type": "integer",
                                         "example": 145
                                     }
@@ -402,70 +425,9 @@
                     },
                     "403": {
                         "description": "Not enrolled"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            }
-        },
-        "/api/v1/student/profile": {
-            "get": {
-                "tags": [
-                    "Student Profile"
-                ],
-                "summary": "Get Student Profile & Dashboard Data",
-                "description": "Returns the authenticated student's profile along with their enrolled courses and progress.",
-                "operationId": "ab016aa14ac89526a467edca803e25f4",
-                "responses": {
-                    "200": {
-                        "description": "Profile retrieved successfully"
                     },
-                    "401": {
-                        "description": "Unauthenticated"
-                    }
-                },
-                "security": [
-                    {
-                        "sanctum": []
-                    }
-                ]
-            },
-            "put": {
-                "tags": [
-                    "Student Profile"
-                ],
-                "summary": "Update Student Profile",
-                "operationId": "247a56793cc8233d1134d243d2e0396c",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "properties": {
-                                    "name": {
-                                        "type": "string"
-                                    },
-                                    "bio": {
-                                        "type": "string"
-                                    },
-                                    "district": {
-                                        "type": "string"
-                                    },
-                                    "education_level": {
-                                        "type": "string"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "Profile updated successfully"
+                    "422": {
+                        "description": "Validation error"
                     }
                 },
                 "security": [
@@ -547,19 +509,55 @@
                 ]
             }
         },
-        "/api/health-check": {
+        "/api/v1/health-check": {
             "get": {
                 "tags": [
                     "System"
                 ],
                 "summary": "API Health Check",
-                "description": "Check if the backend API server is running smoothly.",
-                "operationId": "0debfe94c65f782b55a44d7662c39b4a",
+                "description": "Check if the backend API server is running.",
+                "operationId": "91d0c2203a1efb282f8c3f5ad4652202",
                 "responses": {
                     "200": {
-                        "description": "Server is healthy and up!"
+                        "description": "Server is healthy.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "healthy"
+                                                },
+                                                "service": {
+                                                    "type": "string",
+                                                    "example": "iLab API"
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "API is running."
+                                        },
+                                        "errors": {
+                                            "type": "string",
+                                            "example": null,
+                                            "nullable": true
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
-                }
+                },
+                "security": []
             }
         }
     },
@@ -567,8 +565,7 @@
         "securitySchemes": {
             "sanctum": {
                 "type": "http",
-                "description": "Enter your Sanctum token to access secured endpoints",
-                "bearerFormat": "JWT",
+                "description": "Laravel Sanctum Bearer Token. Example: Bearer {access_token}",
                 "scheme": "bearer"
             }
         }
@@ -576,7 +573,7 @@
     "tags": [
         {
             "name": "Authentication",
-            "description": "Endpoints for user registration, login, and device tracking"
+            "description": "Endpoints for registration, login, Google login, logout, and device tracking"
         },
         {
             "name": "Course Catalog",
@@ -586,20 +583,12 @@
             "name": "Learning Experience"
         },
         {
-            "name": "Password Recovery",
-            "description": "Endpoints for requesting OTPs and resetting user passwords"
-        },
-        {
-            "name": "Student Profile",
-            "description": "Endpoints for student dashboard and profile management"
-        },
-        {
             "name": "Checkout & Enrollment",
             "description": "Secure course purchasing using UddoktaPay"
         },
         {
             "name": "System",
-            "description": "System"
+            "description": "System health and API status endpoints"
         }
     ]
 }
