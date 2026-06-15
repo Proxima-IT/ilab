@@ -15,7 +15,9 @@ use App\Http\Controllers\Api\V1\Admin\CategoryController;
 use App\Http\Controllers\Api\V1\Admin\CourseController;
 use App\Http\Controllers\Api\V1\Admin\SectionController;
 use App\Http\Controllers\Api\V1\Admin\LessonController as AdminLessonController;
-
+use App\Http\Controllers\Api\V1\Admin\CouponController;
+use App\Http\Controllers\Api\V1\Admin\EnrollmentController as AdminEnrollmentController;
+use App\Http\Controllers\Api\V1\Admin\DashboardController;
 
 
 
@@ -93,6 +95,9 @@ Route::prefix('v1')->group(function () {
             Route::get('/profile', [AdminProfileController::class, 'show']);
             Route::put('/profile', [AdminProfileController::class, 'update']);
 
+            // Admin Dashboard Overview
+            Route::get('/dashboard', [DashboardController::class, 'index']);
+
             // Super Admin Only: Staff Management
             Route::get('/staff', [StaffController::class, 'index']);
             Route::post('/staff', [StaffController::class, 'store']);
@@ -104,6 +109,10 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('courses', CourseController::class);
             Route::apiResource('sections', SectionController::class);
             Route::apiResource('lessons', AdminLessonController::class);
+
+            // Financials & E-Commerce
+            Route::apiResource('coupons', CouponController::class);
+            Route::apiResource('enrollments', AdminEnrollmentController::class);
 
         });
 
