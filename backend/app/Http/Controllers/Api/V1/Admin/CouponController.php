@@ -3,138 +3,220 @@
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Coupon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class CouponController extends Controller
 {
-    /**
-     * Helper to restrict creation/editing to platform owners/admins
-     */
-    private function canModify($user)
+    public function index(Request $request): JsonResponse
     {
-        return in_array($user->role, ['super_admin', 'admin']);
-    }
-
-    public function index(Request $request)
-    {
-        $user = $request->user();
-
-        // Security: Managers, Admins, and Super Admins can view. Instructors are strictly blocked.
-        if (!in_array($user->role, ['super_admin', 'admin', 'manager'])) {
-            return response()->json(['success' => false, 'message' => 'Access denied. You do not have permission to view financials.'], 403);
+        if (! $this->canView($request->user())) {
+            return $this->forbiddenResponse('Access denied. You do not have permission to view coupons.');
         }
 
-        $coupons = DB::table('coupons')->orderBy('created_at', 'desc')->get();
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100', 'regex:/^[^\r\n]+$/'],
+            'type' => ['nullable', 'string', 'in:percentage,fixed'],
+            'status' => ['nullable', 'string', 'in:active,inactive,expired'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $coupons = Coupon::query()
+            ->when(! empty($validated['search']), function ($query) use ($validated) {
+                $query->where('code', 'like', '%' . strtoupper($validated['search']) . '%');
+            })
+            ->when(! empty($validated['type']), function ($query) use ($validated) {
+                $query->where('type', $validated['type']);
+            })
+            ->when(! empty($validated['status']), function ($query) use ($validated) {
+                if ($validated['status'] === 'active') {
+                    $query->where('is_active', true)
+                        ->where(function ($q) {
+                            $q->whereNull('expires_at')
+                                ->orWhere('expires_at', '>', now());
+                        });
+                }
+
+                if ($validated['status'] === 'inactive') {
+                    $query->where('is_active', false);
+                }
+
+                if ($validated['status'] === 'expired') {
+                    $query->whereNotNull('expires_at')
+                        ->where('expires_at', '<=', now());
+                }
+            })
+            ->latest()
+            ->paginate($validated['per_page'] ?? 20);
 
         return response()->json([
             'success' => true,
             'data' => $coupons,
-            'message' => 'Coupons retrieved successfully.'
+            'message' => 'Coupons retrieved successfully.',
+            'errors' => null,
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
-        if (!$this->canModify($request->user())) {
-            return response()->json(['success' => false, 'message' => 'Access denied. Admins only.'], 403);
+        if (! $this->canCreateOrUpdate($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot create coupons.');
         }
 
-        $request->validate([
-            'code' => 'required|string|max:50|unique:coupons,code',
-            'type' => 'required|in:percentage,fixed',
-            'value' => 'required|numeric|min:0',
-            'course_id' => 'nullable|exists:courses,id', // Null means it works on ALL courses
-            'max_uses' => 'nullable|integer|min:1',
-            'expires_at' => 'required|date|after:today',
-            'is_active' => 'boolean'
+        $validated = $request->validate([
+            'code' => [
+                'required',
+                'string',
+                'max:50',
+                'regex:/^[A-Za-z0-9_-]+$/',
+                'unique:coupons,code',
+            ],
+            'type' => ['required', 'string', 'in:percentage,fixed'],
+            'value' => ['required', 'numeric', 'min:0'],
+            'course_id' => ['nullable', 'integer', 'exists:courses,id'],
+            'max_uses' => ['nullable', 'integer', 'min:1'],
+            'expires_at' => ['required', 'date', 'after:today'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
-        $couponId = DB::table('coupons')->insertGetId([
-            'code' => strtoupper($request->code),
-            'type' => $request->type,
-            'value' => $request->value,
-            'course_id' => $request->course_id,
-            'max_uses' => $request->max_uses,
+        if ($validated['type'] === 'percentage' && $validated['value'] > 100) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Percentage coupon value cannot be greater than 100.',
+                'errors' => [
+                    'value' => ['Percentage coupon value cannot be greater than 100.'],
+                ],
+            ], 422);
+        }
+
+        $coupon = Coupon::create([
+            'code' => strtoupper($validated['code']),
+            'type' => $validated['type'],
+            'value' => $validated['value'],
+            'course_id' => $validated['course_id'] ?? null,
+            'max_uses' => $validated['max_uses'] ?? null,
             'used_count' => 0,
-            'expires_at' => $request->expires_at,
-            'is_active' => $request->is_active ?? true,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'expires_at' => $validated['expires_at'],
+            'is_active' => $validated['is_active'] ?? true,
         ]);
-
-        $coupon = DB::table('coupons')->where('id', $couponId)->first();
 
         return response()->json([
             'success' => true,
             'data' => $coupon,
-            'message' => 'Coupon created successfully.'
+            'message' => 'Coupon created successfully.',
+            'errors' => null,
         ], 201);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, int $id): JsonResponse
     {
-        if (!$this->canModify($request->user())) {
-            return response()->json(['success' => false, 'message' => 'Access denied. Admins only.'], 403);
+        if (! $this->canCreateOrUpdate($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot update coupons.');
         }
 
-        $request->validate([
-            'code' => 'required|string|max:50|unique:coupons,code,' . $id,
-            'type' => 'required|in:percentage,fixed',
-            'value' => 'required|numeric|min:0',
-            'course_id' => 'nullable|exists:courses,id',
-            'max_uses' => 'nullable|integer|min:1',
-            'expires_at' => 'required|date',
-            'is_active' => 'boolean'
+        $coupon = Coupon::findOrFail($id);
+
+        $validated = $request->validate([
+            'code' => [
+                'required',
+                'string',
+                'max:50',
+                'regex:/^[A-Za-z0-9_-]+$/',
+                Rule::unique('coupons', 'code')->ignore($coupon->id),
+            ],
+            'type' => ['required', 'string', 'in:percentage,fixed'],
+            'value' => ['required', 'numeric', 'min:0'],
+            'course_id' => ['nullable', 'integer', 'exists:courses,id'],
+            'max_uses' => ['nullable', 'integer', 'min:1'],
+            'expires_at' => ['required', 'date'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
-        DB::table('coupons')->where('id', $id)->update([
-            'code' => strtoupper($request->code),
-            'type' => $request->type,
-            'value' => $request->value,
-            'course_id' => $request->course_id,
-            'max_uses' => $request->max_uses,
-            'expires_at' => $request->expires_at,
-            'is_active' => $request->has('is_active') ? $request->is_active : true,
-            'updated_at' => now(),
-        ]);
+        if ($validated['type'] === 'percentage' && $validated['value'] > 100) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Percentage coupon value cannot be greater than 100.',
+                'errors' => [
+                    'value' => ['Percentage coupon value cannot be greater than 100.'],
+                ],
+            ], 422);
+        }
 
-        $coupon = DB::table('coupons')->where('id', $id)->first();
+        $coupon->update([
+            'code' => strtoupper($validated['code']),
+            'type' => $validated['type'],
+            'value' => $validated['value'],
+            'course_id' => $validated['course_id'] ?? null,
+            'max_uses' => $validated['max_uses'] ?? null,
+            'expires_at' => $validated['expires_at'],
+            'is_active' => $validated['is_active'] ?? $coupon->is_active,
+        ]);
 
         return response()->json([
             'success' => true,
-            'data' => $coupon,
-            'message' => 'Coupon updated successfully.'
+            'data' => $coupon->fresh(),
+            'message' => 'Coupon updated successfully.',
+            'errors' => null,
         ]);
     }
 
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        if (!$this->canModify($request->user())) {
-            return response()->json(['success' => false, 'message' => 'Access denied. Admins only.'], 403);
+        if (! $this->canDelete($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot delete coupons.');
         }
 
-        $coupon = DB::table('coupons')->where('id', $id)->first();
-        
-        if (!$coupon) {
-            return response()->json(['success' => false, 'message' => 'Coupon not found.'], 404);
-        }
+        $coupon = Coupon::findOrFail($id);
 
-        // Security: Financial Ledger Protection
-        // If a coupon was used, deleting it breaks the history of how a student got a discount.
         if ($coupon->used_count > 0) {
-            DB::table('coupons')->where('id', $id)->update(['is_active' => false]);
+            $coupon->update([
+                'is_active' => false,
+            ]);
+
             return response()->json([
-                'success' => true, 
-                'message' => 'This coupon has already been used by students. To protect your financial records, it has been deactivated instead of deleted.'
+                'success' => true,
+                'data' => null,
+                'message' => 'This coupon has already been used. It has been deactivated instead of deleted.',
+                'errors' => null,
             ]);
         }
 
-        DB::table('coupons')->where('id', $id)->delete();
+        $coupon->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Coupon deleted successfully.'
+            'data' => null,
+            'message' => 'Coupon deleted successfully.',
+            'errors' => null,
         ]);
+    }
+
+    private function canView($user): bool
+    {
+        return in_array($user->role, ['super_admin', 'admin', 'manager'], true);
+    }
+
+    private function canCreateOrUpdate($user): bool
+    {
+        return in_array($user->role, ['super_admin', 'admin', 'manager'], true);
+    }
+
+    private function canDelete($user): bool
+    {
+        return in_array($user->role, ['super_admin', 'admin'], true);
+    }
+
+    private function forbiddenResponse(string $message): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'data' => null,
+            'message' => $message,
+            'errors' => null,
+        ], 403);
     }
 }

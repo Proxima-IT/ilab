@@ -4,99 +4,162 @@ namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
 {
-    /**
-     * Helper to restrict structural changes to platform owners/admins
-     */
-    private function canModify($user)
+    public function index(Request $request): JsonResponse
     {
-        return in_array($user->role, ['super_admin', 'admin']);
-    }
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100', 'regex:/^[^\r\n]+$/'],
+            'type' => ['nullable', 'string', 'in:course,ebook,bundle'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
 
-    public function index()
-    {
-        // All admin panel staff can view categories
-        $categories = Category::orderBy('name')->get();
+        $categories = Category::query()
+            ->withCount('courses')
+            ->when(! empty($validated['search']), function ($query) use ($validated) {
+                $query->where('name', 'like', '%' . $validated['search'] . '%')
+                    ->orWhere('slug', 'like', '%' . $validated['search'] . '%');
+            })
+            ->when(! empty($validated['type']), function ($query) use ($validated) {
+                $query->where('type', $validated['type']);
+            })
+            ->orderBy('name')
+            ->paginate($validated['per_page'] ?? 20);
 
         return response()->json([
             'success' => true,
             'data' => $categories,
-            'message' => 'Categories retrieved successfully.'
+            'message' => 'Categories retrieved successfully.',
+            'errors' => null,
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
-        if (!$this->canModify($request->user())) {
-            return response()->json(['success' => false, 'message' => 'Access denied. Admins only.'], 403);
+        if (! $this->canCreateOrUpdate($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot create categories.');
         }
 
-        $request->validate([
-            'name' => 'required|string|max:255|unique:categories,name',
-            'type' => 'nullable|string' // e.g., 'course', 'ebook'
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'regex:/^[^\r\n]+$/', 'unique:categories,name'],
+            'type' => ['nullable', 'string', 'in:course,ebook,bundle'],
         ]);
 
         $category = Category::create([
-            'name' => $request->name,
-            'slug' => Str::slug($request->name),
-            'type' => $request->type ?? 'course',
+            'name' => $validated['name'],
+            'slug' => $this->uniqueSlug($validated['name']),
+            'type' => $validated['type'] ?? 'course',
         ]);
 
         return response()->json([
             'success' => true,
             'data' => $category,
-            'message' => 'Category created successfully.'
+            'message' => 'Category created successfully.',
+            'errors' => null,
         ], 201);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, int $id): JsonResponse
     {
-        if (!$this->canModify($request->user())) {
-            return response()->json(['success' => false, 'message' => 'Access denied. Admins only.'], 403);
+        if (! $this->canCreateOrUpdate($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot update categories.');
         }
 
         $category = Category::findOrFail($id);
 
-        $request->validate([
-            'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
-            'type' => 'nullable|string'
+        $validated = $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                'regex:/^[^\r\n]+$/',
+                Rule::unique('categories', 'name')->ignore($category->id),
+            ],
+            'type' => ['nullable', 'string', 'in:course,ebook,bundle'],
         ]);
 
         $category->update([
-            'name' => $request->name,
-            'slug' => Str::slug($request->name),
-            'type' => $request->type ?? $category->type,
+            'name' => $validated['name'],
+            'slug' => $this->uniqueSlug($validated['name'], $category->id),
+            'type' => $validated['type'] ?? $category->type,
         ]);
 
         return response()->json([
             'success' => true,
-            'data' => $category,
-            'message' => 'Category updated successfully.'
+            'data' => $category->fresh(),
+            'message' => 'Category updated successfully.',
+            'errors' => null,
         ]);
     }
 
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        if (!$this->canModify($request->user())) {
-            return response()->json(['success' => false, 'message' => 'Access denied. Admins only.'], 403);
+        if (! $this->canDelete($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot delete categories.');
         }
 
-        $category = Category::findOrFail($id);
-        
-        // Prevent deleting a category that already has courses attached to it
-        if ($category->courses()->count() > 0) {
-            return response()->json(['success' => false, 'message' => 'Cannot delete a category that contains courses.'], 400);
+        $category = Category::withCount('courses')->findOrFail($id);
+
+        if ($category->courses_count > 0) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Cannot delete a category that contains courses.',
+                'errors' => null,
+            ], 400);
         }
 
         $category->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Category deleted successfully.'
+            'data' => null,
+            'message' => 'Category deleted successfully.',
+            'errors' => null,
         ]);
+    }
+
+    private function canCreateOrUpdate($user): bool
+    {
+        return in_array($user->role, ['super_admin', 'admin', 'manager'], true);
+    }
+
+    private function canDelete($user): bool
+    {
+        return in_array($user->role, ['super_admin', 'admin'], true);
+    }
+
+    private function uniqueSlug(string $name, ?int $ignoreId = null): string
+    {
+        $baseSlug = Str::slug($name);
+        $slug = $baseSlug;
+        $counter = 1;
+
+        while (
+            Category::query()
+                ->where('slug', $slug)
+                ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+                ->exists()
+        ) {
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+        }
+
+        return $slug;
+    }
+
+    private function forbiddenResponse(string $message): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'data' => null,
+            'message' => $message,
+            'errors' => null,
+        ], 403);
     }
 }

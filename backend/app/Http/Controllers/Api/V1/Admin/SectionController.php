@@ -3,136 +3,186 @@
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Section;
 use App\Models\Course;
+use App\Models\Section;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SectionController extends Controller
 {
-    /**
-     * Helper to verify if the user has permission to manage content inside a specific course.
-     * Admins/Managers can manage all. Instructors can only manage their own.
-     */
-    private function canManageSection($user, $courseId)
+    public function index(Request $request): JsonResponse
     {
-        if (in_array($user->role, ['super_admin', 'admin', 'manager'])) {
-            return true;
+        if (! $this->canView($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot view sections.');
         }
 
-        if ($user->role === 'instructor') {
-            $course = Course::findOrFail($courseId);
-            return $course->instructor_id === $user->id;
-        }
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100', 'regex:/^[^\r\n]+$/'],
+            'course_id' => ['nullable', 'integer', 'exists:courses,id'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
 
-        return false;
-    }
+        $query = Section::query()
+            ->with('course:id,title,slug,instructor_id')
+            ->withCount('lessons');
 
-    public function index(Request $request)
-    {
-        $user = $request->user();
-        $query = Section::with('course:id,title');
-
-        // Optional: Filter by course_id if the frontend passes it in the URL
-        if ($request->has('course_id')) {
-            $query->where('course_id', $request->course_id);
-        }
-
-        // Instructors only see sections for courses they own
-        if ($user->role === 'instructor') {
-            $query->whereHas('course', function ($q) use ($user) {
-                $q->where('instructor_id', $user->id);
+        if ($request->user()->role === 'instructor') {
+            $query->whereHas('course', function ($q) use ($request) {
+                $q->where('instructor_id', $request->user()->id);
             });
         }
 
-        // Sort by course, then by the visual order
-        $sections = $query->orderBy('course_id')->orderBy('order', 'asc')->get();
+        $query
+            ->when(! empty($validated['search']), function ($query) use ($validated) {
+                $query->where('title', 'like', '%' . $validated['search'] . '%');
+            })
+            ->when(! empty($validated['course_id']), function ($query) use ($validated) {
+                $query->where('course_id', $validated['course_id']);
+            });
+
+        $sections = $query
+            ->orderBy('course_id')
+            ->orderBy('order')
+            ->paginate($validated['per_page'] ?? 20);
 
         return response()->json([
             'success' => true,
             'data' => $sections,
-            'message' => 'Sections retrieved successfully.'
+            'message' => 'Sections retrieved successfully.',
+            'errors' => null,
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        $request->validate([
-            'course_id' => 'required|exists:courses,id',
-            'title' => 'required|string|max:255',
-            'order' => 'nullable|integer'
-        ]);
-
-        // Security: Can this user add a section to this specific course?
-        if (!$this->canManageSection($user, $request->course_id)) {
-            return response()->json(['success' => false, 'message' => 'Access denied. You do not own this course.'], 403);
+        if (! $this->canCreateOrUpdate($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot create sections.');
         }
 
-        // Auto-calculate the next order number if the frontend doesn't provide one
-        $order = $request->order ?? (Section::where('course_id', $request->course_id)->max('order') + 1);
+        $validated = $request->validate([
+            'course_id' => ['required', 'integer', 'exists:courses,id'],
+            'title' => ['required', 'string', 'max:255', 'regex:/^[^\r\n]+$/'],
+            'order' => ['nullable', 'integer', 'min:1'],
+            'unlock_at' => ['nullable', 'date'],
+        ]);
+
+        if (! $this->canManageCourse($request->user(), (int) $validated['course_id'])) {
+            return $this->forbiddenResponse('Access denied. You can only manage sections in your allowed courses.');
+        }
+
+        $order = $validated['order'] ?? ((int) Section::where('course_id', $validated['course_id'])->max('order') + 1);
 
         $section = Section::create([
-            'course_id' => $request->course_id,
-            'title' => $request->title,
-            'order' => $order
+            'course_id' => $validated['course_id'],
+            'title' => $validated['title'],
+            'order' => $order,
+            'unlock_at' => $validated['unlock_at'] ?? null,
         ]);
 
         return response()->json([
             'success' => true,
-            'data' => $section,
-            'message' => 'Section created successfully.'
+            'data' => $section->load('course:id,title,slug'),
+            'message' => 'Section created successfully.',
+            'errors' => null,
         ], 201);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, int $id): JsonResponse
     {
-        $user = $request->user();
-        $section = Section::findOrFail($id);
-
-        // Security: Can this user update a section in this specific course?
-        if (!$this->canManageSection($user, $section->course_id)) {
-            return response()->json(['success' => false, 'message' => 'Access denied. You can only update sections in your own courses.'], 403);
+        if (! $this->canCreateOrUpdate($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot update sections.');
         }
 
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'order' => 'nullable|integer'
+        $section = Section::findOrFail($id);
+
+        if (! $this->canManageCourse($request->user(), (int) $section->course_id)) {
+            return $this->forbiddenResponse('Access denied. You can only update sections in your allowed courses.');
+        }
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255', 'regex:/^[^\r\n]+$/'],
+            'order' => ['nullable', 'integer', 'min:1'],
+            'unlock_at' => ['nullable', 'date'],
         ]);
 
         $section->update([
-            'title' => $request->title,
-            'order' => $request->order ?? $section->order
+            'title' => $validated['title'],
+            'order' => $validated['order'] ?? $section->order,
+            'unlock_at' => $validated['unlock_at'] ?? $section->unlock_at,
         ]);
 
         return response()->json([
             'success' => true,
-            'data' => $section,
-            'message' => 'Section updated successfully.'
+            'data' => $section->fresh()->load('course:id,title,slug'),
+            'message' => 'Section updated successfully.',
+            'errors' => null,
         ]);
     }
 
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $user = $request->user();
-
-        // Security: ONLY Super Admin and Admin can delete. Block Managers and Instructors.
-        if (!in_array($user->role, ['super_admin', 'admin'])) {
-            return response()->json(['success' => false, 'message' => 'Access denied. Only Admins can delete records.'], 403);
+        if (! $this->canDelete($request->user())) {
+            return $this->forbiddenResponse('Access denied. Only Super Admin and Admin can delete sections.');
         }
 
-        $section = Section::findOrFail($id);
-        
-        // Safety lock: Prevent deleting a section if it already has video lessons inside it
-        if ($section->lessons()->count() > 0) {
-            return response()->json(['success' => false, 'message' => 'Cannot delete a section that contains lessons. Delete or move the lessons first.'], 400);
+        $section = Section::withCount('lessons')->findOrFail($id);
+
+        if ($section->lessons_count > 0) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Cannot delete a section that contains lessons. Delete or move the lessons first.',
+                'errors' => null,
+            ], 400);
         }
 
         $section->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Section deleted successfully.'
+            'data' => null,
+            'message' => 'Section deleted successfully.',
+            'errors' => null,
         ]);
+    }
+
+    private function canView($user): bool
+    {
+        return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor'], true);
+    }
+
+    private function canCreateOrUpdate($user): bool
+    {
+        return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor'], true);
+    }
+
+    private function canDelete($user): bool
+    {
+        return in_array($user->role, ['super_admin', 'admin'], true);
+    }
+
+    private function canManageCourse($user, int $courseId): bool
+    {
+        if (in_array($user->role, ['super_admin', 'admin', 'manager'], true)) {
+            return true;
+        }
+
+        if ($user->role === 'instructor') {
+            return Course::where('id', $courseId)
+                ->where('instructor_id', $user->id)
+                ->exists();
+        }
+
+        return false;
+    }
+
+    private function forbiddenResponse(string $message): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'data' => null,
+            'message' => $message,
+            'errors' => null,
+        ], 403);
     }
 }

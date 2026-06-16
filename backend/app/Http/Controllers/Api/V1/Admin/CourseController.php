@@ -4,139 +4,338 @@ namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Course;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class CourseController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        // Instructors only see their own courses. Others see the full catalog.
-        if ($user->role === 'instructor') {
-            $courses = Course::with('category:id,name')
-                ->where('instructor_id', $user->id)
-                ->orderBy('created_at', 'desc')
-                ->get();
-        } else {
-            $courses = Course::with(['category:id,name', 'instructor:id,name'])
-                ->orderBy('created_at', 'desc')
-                ->get();
+        if (! $this->canView($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot view courses.');
         }
+
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100', 'regex:/^[^\r\n]+$/'],
+            'status' => ['nullable', 'string', 'in:draft,published,archived'],
+            'type' => ['nullable', 'string', 'in:self_paced,batch,free'],
+            'level' => ['nullable', 'string', 'in:beginner,intermediate,advanced'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'instructor_id' => ['nullable', 'integer', 'exists:users,id'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $query = Course::query()
+            ->with([
+                'category:id,name,slug',
+                'instructor:id,name,email,phone,avatar,role',
+            ])
+            ->withCount('enrollments');
+
+        if ($request->user()->role === 'instructor') {
+            $query->where('instructor_id', $request->user()->id);
+        }
+
+        $query
+            ->when(! empty($validated['search']), function ($query) use ($validated) {
+                $query->where(function ($subQuery) use ($validated) {
+                    $subQuery->where('title', 'like', '%' . $validated['search'] . '%')
+                        ->orWhere('slug', 'like', '%' . $validated['search'] . '%');
+                });
+            })
+            ->when(! empty($validated['status']), function ($query) use ($validated) {
+                $query->where('status', $validated['status']);
+            })
+            ->when(! empty($validated['type']), function ($query) use ($validated) {
+                $query->where('type', $validated['type']);
+            })
+            ->when(! empty($validated['level']), function ($query) use ($validated) {
+                $query->where('level', $validated['level']);
+            })
+            ->when(! empty($validated['category_id']), function ($query) use ($validated) {
+                $query->where('category_id', $validated['category_id']);
+            })
+            ->when(
+                ! empty($validated['instructor_id']) && $request->user()->role !== 'instructor',
+                function ($query) use ($validated) {
+                    $query->where('instructor_id', $validated['instructor_id']);
+                }
+            );
+
+        $courses = $query
+            ->latest()
+            ->paginate($validated['per_page'] ?? 20);
 
         return response()->json([
             'success' => true,
             'data' => $courses,
-            'message' => 'Courses retrieved successfully.'
+            'message' => 'Courses retrieved successfully.',
+            'errors' => null,
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'category_id' => 'required|exists:categories,id',
-            'description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
-            'discount_price' => 'nullable|numeric|min:0',
-            'status' => 'required|in:draft,published',
-            // Admins/Managers can assign a course to someone else. Instructors cannot.
-            'instructor_id' => 'nullable|exists:users,id' 
-        ]);
-
-        // Security: Force instructors to own the courses they create
-        $instructorId = $request->instructor_id ?? $user->id;
-        if ($user->role === 'instructor') {
-            $instructorId = $user->id;
+        if (! $this->canCreateOrUpdate($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot create courses.');
         }
 
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255', 'regex:/^[^\r\n]+$/'],
+            'category_id' => ['required', 'integer', 'exists:categories,id'],
+            'description' => ['required', 'string'],
+            'thumbnail' => ['nullable', 'string', 'max:500'],
+            'intro_video' => ['nullable', 'string', 'max:500'],
+            'price' => ['required', 'numeric', 'min:0'],
+            'discount_price' => ['nullable', 'numeric', 'min:0'],
+            'sale_starts_at' => ['nullable', 'date'],
+            'sale_ends_at' => ['nullable', 'date', 'after_or_equal:sale_starts_at'],
+            'status' => ['required', 'string', 'in:draft,published,archived'],
+            'type' => ['required', 'string', 'in:self_paced,batch,free'],
+            'level' => ['required', 'string', 'in:beginner,intermediate,advanced'],
+            'language' => ['nullable', 'string', 'max:100'],
+            'tags' => ['nullable', 'array'],
+            'tags.*' => ['string', 'max:50'],
+            'prerequisites' => ['nullable', 'array'],
+            'prerequisites.*' => ['string', 'max:255'],
+            'meta_title' => ['nullable', 'string', 'max:255'],
+            'meta_description' => ['nullable', 'string', 'max:500'],
+            'instructor_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->whereIn('role', ['admin', 'instructor']),
+            ],
+        ]);
+
+        if (! $this->isDiscountValid($validated)) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Discount price cannot be greater than regular price.',
+                'errors' => [
+                    'discount_price' => ['Discount price cannot be greater than regular price.'],
+                ],
+            ], 422);
+        }
+
+        $instructorId = $this->resolveInstructorId($request, $validated);
+
         $course = Course::create([
-            'title' => $request->title,
-            'slug' => Str::slug($request->title) . '-' . uniqid(), // Prevent slug collisions
-            'category_id' => $request->category_id,
+            'title' => $validated['title'],
+            'slug' => $this->uniqueSlug($validated['title']),
+            'category_id' => $validated['category_id'],
             'instructor_id' => $instructorId,
-            'description' => $request->description,
-            'price' => $request->price,
-            'discount_price' => $request->discount_price,
-            'status' => $request->status,
+            'description' => $validated['description'],
+            'thumbnail' => $validated['thumbnail'] ?? null,
+            'intro_video' => $validated['intro_video'] ?? null,
+            'price' => $validated['price'],
+            'discount_price' => $validated['discount_price'] ?? null,
+            'sale_starts_at' => $validated['sale_starts_at'] ?? null,
+            'sale_ends_at' => $validated['sale_ends_at'] ?? null,
+            'status' => $validated['status'],
+            'type' => $validated['type'],
+            'level' => $validated['level'],
+            'language' => $validated['language'] ?? 'Bengali',
+            'tags' => $validated['tags'] ?? null,
+            'prerequisites' => $validated['prerequisites'] ?? null,
+            'meta_title' => $validated['meta_title'] ?? null,
+            'meta_description' => $validated['meta_description'] ?? null,
         ]);
 
         return response()->json([
             'success' => true,
-            'data' => $course,
-            'message' => 'Course created successfully.'
+            'data' => $course->load(['category:id,name,slug', 'instructor:id,name,email,role']),
+            'message' => 'Course created successfully.',
+            'errors' => null,
         ], 201);
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, int $id): JsonResponse
     {
-        $user = $request->user();
-        $course = Course::findOrFail($id);
-
-        // Security: Instructors can only update their own courses
-        if ($user->role === 'instructor' && $course->instructor_id !== $user->id) {
-            return response()->json(['success' => false, 'message' => 'Access denied. You can only update your own courses.'], 403);
+        if (! $this->canCreateOrUpdate($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot update courses.');
         }
 
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'category_id' => 'required|exists:categories,id',
-            'description' => 'nullable|string',
-            'price' => 'required|numeric|min:0',
-            'discount_price' => 'nullable|numeric|min:0',
-            'status' => 'required|in:draft,published',
-            'instructor_id' => 'nullable|exists:users,id'
+        $course = Course::findOrFail($id);
+
+        if (! $this->canAccessCourse($request->user(), $course)) {
+            return $this->forbiddenResponse('Access denied. You can only update your own courses.');
+        }
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255', 'regex:/^[^\r\n]+$/'],
+            'category_id' => ['required', 'integer', 'exists:categories,id'],
+            'description' => ['required', 'string'],
+            'thumbnail' => ['nullable', 'string', 'max:500'],
+            'intro_video' => ['nullable', 'string', 'max:500'],
+            'price' => ['required', 'numeric', 'min:0'],
+            'discount_price' => ['nullable', 'numeric', 'min:0'],
+            'sale_starts_at' => ['nullable', 'date'],
+            'sale_ends_at' => ['nullable', 'date', 'after_or_equal:sale_starts_at'],
+            'status' => ['required', 'string', 'in:draft,published,archived'],
+            'type' => ['required', 'string', 'in:self_paced,batch,free'],
+            'level' => ['required', 'string', 'in:beginner,intermediate,advanced'],
+            'language' => ['nullable', 'string', 'max:100'],
+            'tags' => ['nullable', 'array'],
+            'tags.*' => ['string', 'max:50'],
+            'prerequisites' => ['nullable', 'array'],
+            'prerequisites.*' => ['string', 'max:255'],
+            'meta_title' => ['nullable', 'string', 'max:255'],
+            'meta_description' => ['nullable', 'string', 'max:500'],
+            'instructor_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->whereIn('role', ['admin', 'instructor']),
+            ],
         ]);
 
-        // Security: Instructors cannot transfer ownership to someone else
-        $instructorId = $request->instructor_id ?? $course->instructor_id;
-        if ($user->role === 'instructor') {
-            $instructorId = $course->instructor_id; // Lock it to the original
+        if (! $this->isDiscountValid($validated)) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Discount price cannot be greater than regular price.',
+                'errors' => [
+                    'discount_price' => ['Discount price cannot be greater than regular price.'],
+                ],
+            ], 422);
+        }
+
+        $instructorId = $course->instructor_id;
+
+        if ($request->user()->role !== 'instructor') {
+            $instructorId = $validated['instructor_id'] ?? $course->instructor_id;
         }
 
         $course->update([
-            'title' => $request->title,
-            // Only update slug if title changed to keep SEO/URLs stable
-            'slug' => $request->title !== $course->title ? Str::slug($request->title) . '-' . uniqid() : $course->slug,
-            'category_id' => $request->category_id,
+            'title' => $validated['title'],
+            'slug' => $validated['title'] !== $course->title
+                ? $this->uniqueSlug($validated['title'], $course->id)
+                : $course->slug,
+            'category_id' => $validated['category_id'],
             'instructor_id' => $instructorId,
-            'description' => $request->description,
-            'price' => $request->price,
-            'discount_price' => $request->discount_price,
-            'status' => $request->status,
+            'description' => $validated['description'],
+            'thumbnail' => $validated['thumbnail'] ?? null,
+            'intro_video' => $validated['intro_video'] ?? null,
+            'price' => $validated['price'],
+            'discount_price' => $validated['discount_price'] ?? null,
+            'sale_starts_at' => $validated['sale_starts_at'] ?? null,
+            'sale_ends_at' => $validated['sale_ends_at'] ?? null,
+            'status' => $validated['status'],
+            'type' => $validated['type'],
+            'level' => $validated['level'],
+            'language' => $validated['language'] ?? 'Bengali',
+            'tags' => $validated['tags'] ?? null,
+            'prerequisites' => $validated['prerequisites'] ?? null,
+            'meta_title' => $validated['meta_title'] ?? null,
+            'meta_description' => $validated['meta_description'] ?? null,
         ]);
 
         return response()->json([
             'success' => true,
-            'data' => $course,
-            'message' => 'Course updated successfully.'
+            'data' => $course->fresh()->load(['category:id,name,slug', 'instructor:id,name,email,role']),
+            'message' => 'Course updated successfully.',
+            'errors' => null,
         ]);
     }
 
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $user = $request->user();
-
-        // Security: ONLY Super Admin and Admin can delete.
-        if (!in_array($user->role, ['super_admin', 'admin'])) {
-            return response()->json(['success' => false, 'message' => 'Access denied. Only Admins can delete records.'], 403);
+        if (! $this->canDelete($request->user())) {
+            return $this->forbiddenResponse('Access denied. Only Super Admin and Admin can delete courses.');
         }
 
-        $course = Course::findOrFail($id);
-        
-        // Optional safety: don't delete if students are actively enrolled
-        if ($course->enrollments()->count() > 0) {
-            return response()->json(['success' => false, 'message' => 'Cannot delete a course that has active students. Please unpublish it instead.'], 400);
+        $course = Course::withCount('enrollments')->findOrFail($id);
+
+        if ($course->enrollments_count > 0) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Cannot delete a course that has enrollments. Archive it instead.',
+                'errors' => null,
+            ], 400);
         }
 
         $course->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Course deleted successfully.'
+            'data' => null,
+            'message' => 'Course deleted successfully.',
+            'errors' => null,
         ]);
+    }
+
+    private function canView($user): bool
+    {
+        return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor', 'content_manager'], true);
+    }
+
+    private function canCreateOrUpdate($user): bool
+    {
+        return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor', 'content_manager'], true);
+    }
+
+    private function canDelete($user): bool
+    {
+        return in_array($user->role, ['super_admin', 'admin'], true);
+    }
+
+    private function canAccessCourse($user, Course $course): bool
+    {
+        if ($user->role === 'instructor') {
+            return (int) $course->instructor_id === (int) $user->id;
+        }
+
+        return in_array($user->role, ['super_admin', 'admin', 'manager', 'content_manager'], true);
+    }
+
+    private function resolveInstructorId(Request $request, array $validated): int
+    {
+        if ($request->user()->role === 'instructor') {
+            return $request->user()->id;
+        }
+
+        return $validated['instructor_id'] ?? $request->user()->id;
+    }
+
+    private function isDiscountValid(array $data): bool
+    {
+        if (! isset($data['discount_price']) || $data['discount_price'] === null) {
+            return true;
+        }
+
+        return (float) $data['discount_price'] <= (float) $data['price'];
+    }
+
+    private function uniqueSlug(string $title, ?int $ignoreId = null): string
+    {
+        $baseSlug = Str::slug($title);
+        $slug = $baseSlug;
+        $counter = 1;
+
+        while (
+            Course::query()
+                ->where('slug', $slug)
+                ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
+                ->exists()
+        ) {
+            $slug = $baseSlug . '-' . $counter;
+            $counter++;
+        }
+
+        return $slug;
+    }
+
+    private function forbiddenResponse(string $message): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'data' => null,
+            'message' => $message,
+            'errors' => null,
+        ], 403);
     }
 }

@@ -22,7 +22,15 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->timestamp('phone_verified_at')->nullable();
 
-            $table->enum('role', ['super_admin', 'admin', 'content_manager', 'student'])->default('student');
+            $table->enum('role', [
+                'super_admin',
+                'admin',
+                'manager',
+                'instructor',
+                'content_manager',
+                'student',
+            ])->default('student');
+
             $table->string('avatar')->nullable();
             $table->string('district')->nullable();
             $table->string('education_level')->nullable();

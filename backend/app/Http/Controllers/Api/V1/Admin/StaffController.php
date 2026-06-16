@@ -4,51 +4,99 @@ namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class StaffController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => 'Access denied. Super Admin only.'], 403);
-        }
+        $this->authorizeSuperAdmin($request);
 
-        // UPDATED: Now includes 'instructor' in the fetch list
-        $staff = User::whereIn('role', ['admin', 'manager', 'instructor', 'super_admin'])
-                     ->orderBy('role')
-                     ->get(['id', 'name', 'email', 'phone', 'role', 'created_at']);
+        $staff = User::query()
+            ->whereIn('role', [
+                'super_admin',
+                'admin',
+                'manager',
+                'instructor',
+                'content_manager',
+            ])
+            ->select([
+                'id',
+                'name',
+                'email',
+                'phone',
+                'role',
+                'status',
+                'created_at',
+            ])
+            ->latest()
+            ->paginate(20);
 
         return response()->json([
             'success' => true,
             'data' => $staff,
-            'message' => 'Staff and Instructors retrieved.'
+            'message' => 'Staff list retrieved successfully.',
+            'errors' => null,
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => 'Access denied. Super Admin only.'], 403);
-        }
+        $this->authorizeSuperAdmin($request);
 
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'phone' => 'nullable|string|max:20|unique:users',
-            'password' => 'required|string|min:8',
-            // UPDATED: Now allows creation of instructors
-            'role' => 'required|in:admin,manager,instructor', 
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+
+            'email' => [
+                'nullable',
+                'email',
+                'max:255',
+                'unique:users,email',
+            ],
+
+            'phone' => [
+                'nullable',
+                'string',
+                'max:20',
+                'unique:users,phone',
+            ],
+
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+            ],
+
+            'role' => [
+                'required',
+                'in:admin,manager,instructor,content_manager',
+            ],
         ]);
 
         $staff = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'phone' => $request->phone,
-            'password' => Hash::make($request->password),
-            'role' => $request->role,
-            'email_verified_at' => now(), 
+            'name' => $validated['name'],
+            'email' => $validated['email'] ?? null,
+            'phone' => $validated['phone'] ?? null,
+
+            'password' => Hash::make(
+                $validated['password']
+            ),
+
+            'role' => $validated['role'],
+
+            'status' => true,
+
+            'email_verified_at' =>
+                !empty($validated['email'])
+                    ? now()
+                    : null,
+
+            'phone_verified_at' =>
+                !empty($validated['phone'])
+                    ? now()
+                    : null,
         ]);
 
         return response()->json([
@@ -58,33 +106,72 @@ class StaffController extends Controller
                 'name' => $staff->name,
                 'role' => $staff->role,
             ],
-            'message' => ucfirst($staff->role) . ' account created successfully.'
+            'message' => ucfirst(
+                str_replace('_', ' ', $staff->role)
+            ) . ' account created successfully.',
+            'errors' => null,
         ], 201);
     }
 
-    public function destroy(Request $request, $id)
+    public function destroy(
+        Request $request,
+        int $id
+    ): JsonResponse
     {
-        if ($request->user()->role !== 'super_admin') {
-            return response()->json(['success' => false, 'message' => 'Access denied. Super Admin only.'], 403);
-        }
+        $this->authorizeSuperAdmin($request);
 
         $staff = User::findOrFail($id);
 
-        // Security: Prevent Super Admin from accidentally deleting themselves
-        if ($staff->id === $request->user()->id) {
-            return response()->json(['success' => false, 'message' => 'You cannot revoke your own super admin access.'], 403);
+        if (
+            $staff->id === $request->user()->id
+        ) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' =>
+                    'You cannot delete your own account.',
+                'errors' => null,
+            ], 403);
         }
 
-        // UPDATED: Allow deletion of instructors as well
-        if (!in_array($staff->role, ['admin', 'manager', 'instructor'])) {
-            return response()->json(['success' => false, 'message' => 'Invalid target. Can only revoke admin, manager, or instructor accounts.'], 400);
+        if (
+            !in_array(
+                $staff->role,
+                [
+                    'admin',
+                    'manager',
+                    'instructor',
+                    'content_manager',
+                ],
+                true
+            )
+        ) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Invalid target account.',
+                'errors' => null,
+            ], 400);
         }
 
         $staff->delete();
 
         return response()->json([
             'success' => true,
-            'message' => ucfirst($staff->role) . ' access revoked successfully.'
+            'data' => null,
+            'message' => 'Staff account removed successfully.',
+            'errors' => null,
         ]);
+    }
+
+    private function authorizeSuperAdmin(
+        Request $request
+    ): void
+    {
+        abort_if(
+            $request->user()->role !== 'super_admin',
+            403,
+            'Super Admin access required.'
+        );
     }
 }
