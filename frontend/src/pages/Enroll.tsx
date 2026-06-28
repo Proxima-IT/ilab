@@ -1,0 +1,604 @@
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { useMemo, useState, useEffect } from "react";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  CheckCircle2,
+  CreditCard,
+  Loader2,
+  Lock,
+  LogIn,
+  Mail,
+  Smartphone,
+  Tag,
+  ShieldCheck,
+  Sparkles,
+  User as UserIcon,
+  Wallet,
+  X,
+} from "lucide-react";
+
+import { Header } from "@/components/site/Header";
+import { Footer } from "@/components/site/Footer";
+import { fetchCourseBySlug, type CourseDetails } from "@/services/courses";
+import { useAuth } from "@/lib/auth";
+import {
+  createUddoktaPayCheckout,
+  validateCoupon,
+  type CouponResult,
+} from "@/services/payments";
+import { absoluteUrl } from "@/lib/seo";
+
+type Method = "bkash" | "nagad" | "rocket" | "upay" | "card";
+
+const METHODS: { id: Method; name: string; tag: string; gradient: string; emoji: string }[] = [
+  { id: "bkash", name: "bKash", tag: "Most popular", gradient: "from-pink-500 to-pink-600", emoji: "📱" },
+  { id: "nagad", name: "Nagad", tag: "Mobile wallet", gradient: "from-orange-500 to-rose-500", emoji: "💸" },
+  { id: "rocket", name: "Rocket", tag: "DBBL", gradient: "from-purple-600 to-fuchsia-600", emoji: "🚀" },
+  { id: "upay", name: "Upay", tag: "UCB", gradient: "from-emerald-500 to-teal-600", emoji: "💳" },
+  { id: "card", name: "Card", tag: "Visa · MasterCard · Amex", gradient: "from-slate-700 to-slate-900", emoji: "💳" },
+];
+
+export default function EnrollPage() {
+  const { slug } = useParams();
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const [course, setCourse] = useState<CourseDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!slug) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+
+    fetchCourseBySlug(slug).then((res) => {
+      if (cancelled) return;
+      if (!res) {
+        setError(true);
+        setLoading(false);
+        return;
+      }
+      setCourse(res);
+      setLoading(false);
+      document.title = `Enroll in ${res.title} — iLab BD`;
+    }).catch(() => {
+      if (!cancelled) {
+        setError(true);
+        setLoading(false);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [slug]);
+
+  const fullName = user?.name ?? "";
+  const email = user?.email ?? "";
+  const [phone, setPhone] = useState("");
+  const [method, setMethod] = useState<Method>("bkash");
+  const [agree, setAgree] = useState(true);
+
+  const [couponInput, setCouponInput] = useState("");
+  const [coupon, setCoupon] = useState<CouponResult | null>(null);
+  const [couponState, setCouponState] = useState<"idle" | "checking" | "invalid">("idle");
+
+  const [submitting, setSubmitting] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const pricing = useMemo(() => {
+    if (!course) return { base: 0, couponDiscount: 0, subtotal: 0, tax: 0, total: 0 };
+    const base = course.price;
+    const couponDiscount = coupon ? Math.round((base * coupon.percentOff) / 100) : 0;
+    const subtotal = base - couponDiscount;
+    const tax = 0; // no VAT for now
+    const total = subtotal + tax;
+    return { base, couponDiscount, subtotal, tax, total };
+  }, [course, coupon]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (error || !course) {
+    return (
+      <div className="min-h-screen grid place-items-center bg-background px-6 text-center">
+        <div>
+          <p className="text-lg font-bold">Course not found</p>
+          <Link to="/courses" className="mt-4 inline-block rounded-full bg-primary text-primary-foreground px-5 py-2 text-sm font-semibold">
+            Browse courses
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  async function applyCoupon() {
+    if (!couponInput.trim()) return;
+    setCouponState("checking");
+    const result = await validateCoupon(couponInput);
+    if (result) {
+      setCoupon(result);
+      setCouponState("idle");
+    } else {
+      setCoupon(null);
+      setCouponState("invalid");
+    }
+  }
+
+  function clearCoupon() {
+    setCoupon(null);
+    setCouponInput("");
+    setCouponState("idle");
+  }
+
+  function validate() {
+    const next: Record<string, string> = {};
+    if (!/^(?:\+?880|0)1[3-9]\d{8}$/.test(phone.replace(/\s|-/g, ""))) next.phone = "Enter a valid BD mobile number (e.g. 017XXXXXXXX)";
+    if (!agree) next.agree = "You must accept the terms to continue";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+    setSubmitting(true);
+    try {
+      const result = await createUddoktaPayCheckout({
+        courseId: course.id,
+        courseSlug: course.slug,
+        courseTitle: course.title,
+        fullName: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        amount: pricing.total,
+        coupon: coupon?.code,
+      });
+      // Real flow → window.location.href = result.paymentUrl
+      navigate({ to: "/enroll/success", search: { invoice_id: result.invoiceId } });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (!isAuthenticated || !user) {
+    return <LoginRequired course={course} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header />
+
+      <main className="flex-1">
+        {/* breadcrumb */}
+        <div className="border-b border-border bg-surface/50">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between text-sm">
+            <Link
+              to="/courses/$slug"
+              params={{ slug: course.slug }}
+              className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to course
+            </Link>
+            <div className="inline-flex items-center gap-2 text-xs font-semibold text-success">
+              <Lock className="h-3.5 w-3.5" /> Secure 256-bit checkout
+            </div>
+          </div>
+        </div>
+
+        <div className="container mx-auto px-4 py-8 lg:py-12">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+            className="max-w-3xl mb-8"
+          >
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary-dark">Enroll · Step 1 of 2</p>
+            <h1 className="mt-2 text-2xl md:text-4xl font-extrabold text-foreground">
+              Complete your enrollment
+            </h1>
+            <p className="mt-2 text-muted-foreground text-sm md:text-base">
+              You're one step away from joining <span className="font-semibold text-foreground">{course.title}</span>.
+            </p>
+          </motion.div>
+
+          <form onSubmit={onSubmit} className="grid lg:grid-cols-[1fr_400px] gap-8 items-start">
+            {/* LEFT — form */}
+            <div className="space-y-6">
+              {/* Signed-in account */}
+              <FormCard
+                step="1"
+                title="Your account"
+                subtitle="We'll send your invoice and access details to this email."
+              >
+                <div className="rounded-xl border border-border bg-surface/60 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="grid place-items-center h-11 w-11 rounded-full bg-gradient-to-br from-primary to-primary-glow text-white font-bold">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-foreground inline-flex items-center gap-1.5">
+                        <UserIcon className="h-3.5 w-3.5 text-muted-foreground" /> {user.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground inline-flex items-center gap-1.5 mt-0.5">
+                        <Mail className="h-3.5 w-3.5" /> {user.email}
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-success/10 text-success px-2.5 py-1 text-[11px] font-bold">
+                      <BadgeCheck className="h-3.5 w-3.5" /> Verified
+                    </span>
+                  </div>
+                </div>
+                <Field
+                  label="Mobile number (Bangladesh)"
+                  type="tel"
+                  error={errors.phone}
+                  value={phone}
+                  onChange={setPhone}
+                  placeholder="017XXXXXXXX"
+                  autoComplete="tel"
+                  hint="Used for payment confirmation OTP from your wallet."
+                />
+              </FormCard>
+
+              {/* Coupon */}
+              <FormCard step="2" title="Have a coupon?" subtitle="Try ILAB10, ILAB20 or EID2026.">
+                {coupon ? (
+                  <div className="flex items-center gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3">
+                    <BadgeCheck className="h-5 w-5 text-success" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-foreground">{coupon.code} applied</p>
+                      <p className="text-xs text-muted-foreground">{coupon.label}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearCoupon}
+                      className="rounded-full p-1.5 hover:bg-foreground/5 transition"
+                      aria-label="Remove coupon"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                          value={couponInput}
+                          onChange={(e) => {
+                            setCouponInput(e.target.value.toUpperCase());
+                            setCouponState("idle");
+                          }}
+                          placeholder="Enter coupon code"
+                          className="w-full rounded-xl border border-border bg-background pl-10 pr-3 py-3 text-sm font-mono uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-primary/40"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={applyCoupon}
+                        disabled={couponState === "checking" || !couponInput.trim()}
+                        className="rounded-xl bg-foreground text-background px-5 text-sm font-semibold disabled:opacity-50 hover:opacity-90 transition"
+                      >
+                        {couponState === "checking" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply"}
+                      </button>
+                    </div>
+                    {couponState === "invalid" && (
+                      <p className="mt-2 text-xs text-destructive">Invalid or expired coupon code.</p>
+                    )}
+                  </div>
+                )}
+              </FormCard>
+
+              {/* Payment method */}
+              <FormCard
+                step="3"
+                title="Payment method"
+                subtitle="Powered by UddoktaPay — all popular Bangladeshi wallets supported."
+              >
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {METHODS.map((m) => {
+                    const active = method === m.id;
+                    return (
+                      <button
+                        type="button"
+                        key={m.id}
+                        onClick={() => setMethod(m.id)}
+                        className={`relative text-left rounded-xl border-2 p-3.5 transition ${
+                          active
+                            ? "border-primary bg-primary/5 shadow-sm"
+                            : "border-border hover:border-foreground/20 hover:bg-surface"
+                        }`}
+                      >
+                        <div className={`grid place-items-center h-9 w-9 rounded-lg bg-gradient-to-br ${m.gradient} text-white text-base font-bold`}>
+                          {m.emoji}
+                        </div>
+                        <p className="mt-2.5 text-sm font-bold text-foreground">{m.name}</p>
+                        <p className="text-[11px] text-muted-foreground leading-tight">{m.tag}</p>
+                        {active && (
+                          <span className="absolute top-2 right-2 grid place-items-center h-5 w-5 rounded-full bg-primary text-primary-foreground">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-4 rounded-xl bg-surface/70 border border-border/70 p-4 text-sm text-muted-foreground flex items-start gap-3">
+                  {method === "card" ? <CreditCard className="h-5 w-5 mt-0.5 text-foreground shrink-0" /> : <Smartphone className="h-5 w-5 mt-0.5 text-foreground shrink-0" />}
+                  <p>
+                    You'll be redirected to the secure <span className="font-semibold text-foreground">UddoktaPay</span> gateway to complete your{" "}
+                    <span className="font-semibold text-foreground capitalize">{method}</span> payment.
+                  </p>
+                </div>
+              </FormCard>
+
+              {/* Trust row */}
+              <div className="grid sm:grid-cols-3 gap-3 text-xs">
+                <Trust icon={<ShieldCheck className="h-4 w-4 text-success" />} text="30-day money-back guarantee" />
+                <Trust icon={<Lock className="h-4 w-4 text-success" />} text="Encrypted, PCI-compliant checkout" />
+                <Trust icon={<Sparkles className="h-4 w-4 text-accent" />} text="Lifetime access · free updates" />
+              </div>
+            </div>
+
+            {/* RIGHT — order summary */}
+            <aside className="lg:sticky lg:top-24">
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: 0.1 }}
+                className="rounded-2xl border border-border bg-card shadow-card overflow-hidden"
+              >
+                <div className="p-5 border-b border-border">
+                  <div className="flex gap-3">
+                    <img src={course.cover} alt="" className="h-16 w-24 rounded-lg object-cover shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-primary-dark">{course.category}</p>
+                      <p className="mt-0.5 text-sm font-bold text-foreground line-clamp-2">{course.title}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">by {course.instructor}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-5 space-y-2.5 text-sm">
+                  <Row label="Course price" value={`৳${pricing.base.toLocaleString()}`} />
+                  {course.originalPrice && course.originalPrice > course.price && (
+                    <Row
+                      label="Instant discount"
+                      value={`− ৳${(course.originalPrice - course.price).toLocaleString()}`}
+                      muted
+                    />
+                  )}
+                  {coupon && (
+                    <Row
+                      label={`Coupon (${coupon.code})`}
+                      value={`− ৳${pricing.couponDiscount.toLocaleString()}`}
+                      highlight
+                    />
+                  )}
+                  <Row label="VAT" value="৳0" muted />
+                </div>
+
+                <div className="px-5 py-4 bg-surface/70 border-t border-border flex items-baseline justify-between">
+                  <span className="text-sm font-semibold text-muted-foreground">Total payable</span>
+                  <span className="text-2xl font-extrabold text-foreground tabular-nums">৳{pricing.total.toLocaleString()}</span>
+                </div>
+
+                <div className="p-5 space-y-3">
+                  <label className="flex items-start gap-2.5 text-xs text-muted-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agree}
+                      onChange={(e) => setAgree(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-[hsl(var(--primary))]"
+                    />
+                    <span>
+                      I agree to iLab's <span className="underline">Terms</span> and{" "}
+                      <span className="underline">Refund Policy</span>, and authorize this payment via UddoktaPay.
+                    </span>
+                  </label>
+                  {errors.agree && <p className="text-xs text-destructive">{errors.agree}</p>}
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-full gradient-orange py-3.5 text-sm font-bold text-white shadow-orange-glow hover:scale-[1.02] active:scale-[0.99] transition-transform disabled:opacity-70 disabled:cursor-wait disabled:hover:scale-100"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> Redirecting to UddoktaPay…
+                      </>
+                    ) : (
+                      <>
+                        <Wallet className="h-4 w-4" /> Pay ৳{pricing.total.toLocaleString()} securely
+                      </>
+                    )}
+                  </button>
+
+                  <p className="text-[11px] text-center text-muted-foreground inline-flex items-center justify-center gap-1.5 w-full">
+                    <Lock className="h-3 w-3" /> Secured by UddoktaPay · You won't be charged until you confirm
+                  </p>
+                </div>
+              </motion.div>
+
+              <p className="mt-4 text-xs text-muted-foreground text-center">
+                Need help? <a href="mailto:support@ilab.com.bd" className="text-primary font-semibold hover:underline">support@ilab.com.bd</a>
+              </p>
+            </aside>
+          </form>
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  );
+}
+
+/* --------------------- bits --------------------- */
+
+function FormCard({
+  step,
+  title,
+  subtitle,
+  children,
+}: {
+  step: string;
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.35 }}
+      className="rounded-2xl border border-border bg-card p-5 md:p-6 shadow-card"
+    >
+      <div className="flex items-start gap-3 mb-4">
+        <span className="grid place-items-center h-8 w-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shrink-0">
+          {step}
+        </span>
+        <div>
+          <h2 className="text-base md:text-lg font-bold text-foreground">{title}</h2>
+          {subtitle && <p className="text-xs md:text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
+        </div>
+      </div>
+      <div className="space-y-4">{children}</div>
+    </motion.div>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+  error,
+  hint,
+  autoComplete,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  type?: string;
+  error?: string;
+  hint?: string;
+  autoComplete?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-semibold text-foreground/80">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        className={`mt-1.5 w-full rounded-xl border bg-background px-3.5 py-3 text-sm focus:outline-none focus:ring-2 transition ${
+          error
+            ? "border-destructive focus:ring-destructive/30"
+            : "border-border focus:ring-primary/40 focus:border-primary/50"
+        }`}
+      />
+      {error ? (
+        <p className="mt-1 text-xs text-destructive">{error}</p>
+      ) : hint ? (
+        <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+      ) : null}
+    </label>
+  );
+}
+
+function Row({ label, value, muted, highlight }: { label: string; value: string; muted?: boolean; highlight?: boolean }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className={muted ? "text-muted-foreground" : "text-foreground/80"}>{label}</span>
+      <span
+        className={`font-semibold tabular-nums ${
+          highlight ? "text-success" : muted ? "text-muted-foreground" : "text-foreground"
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function Trust({ icon, text }: { icon: React.ReactNode; text: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5">
+      {icon}
+      <span className="text-foreground/80 font-medium">{text}</span>
+    </div>
+  );
+}
+
+function LoginRequired({ course }: { course: CourseDetails }) {
+  const redirect = `/enroll/${course.slug}`;
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header />
+      <main className="flex-1 grid place-items-center px-4 py-16">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="w-full max-w-md rounded-2xl border border-border bg-card shadow-card p-7 text-center"
+        >
+          <div className="mx-auto grid place-items-center h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary-glow text-white">
+            <Lock className="h-7 w-7" />
+          </div>
+          <h1 className="mt-5 text-2xl font-extrabold text-foreground">Login required</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Enrollment is only available to signed-in students. Please log in or create a free account to enroll in{" "}
+            <span className="font-semibold text-foreground">{course.title}</span>.
+          </p>
+
+          <div className="mt-4 rounded-xl border border-border bg-surface/60 p-3 flex items-center gap-3 text-left">
+            <img src={course.cover} alt="" className="h-12 w-16 rounded-md object-cover shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary-dark">{course.category}</p>
+              <p className="text-sm font-bold text-foreground line-clamp-1">{course.title}</p>
+              <p className="text-xs text-muted-foreground">৳{course.price.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-2.5">
+            <Link
+              to="/login"
+              search={{ redirect }}
+              className="inline-flex items-center justify-center gap-2 rounded-full gradient-orange py-3 text-sm font-bold text-white shadow-orange-glow hover:scale-[1.02] transition-transform"
+            >
+              <LogIn className="h-4 w-4" /> Login to continue
+            </Link>
+            <Link
+              to="/signup"
+              search={{ redirect }}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card py-3 text-sm font-bold text-foreground hover:bg-surface transition"
+            >
+              Create a free account
+            </Link>
+            <Link
+              to="/courses/$slug"
+              params={{ slug: course.slug }}
+              className="mt-1 text-xs text-muted-foreground hover:text-foreground transition"
+            >
+              ← Back to course details
+            </Link>
+          </div>
+        </motion.div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
