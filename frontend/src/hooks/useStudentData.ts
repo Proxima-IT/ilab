@@ -6,13 +6,24 @@ import {
   useContext,
 } from "react";
 import { useAuth } from "@/lib/auth";
-import { fetchCourses, type Course } from "@/services/courses";
-import { studentProfileService } from "@/services/student/profile.service";
+import {
+  imageUrl,
+  normalizeLevel,
+  normalizeMode,
+  toNumber,
+  type Course,
+} from "@/services/course-catalog.service";
+import {
+  studentProfileService,
+  type StudentProfileUser,
+} from "@/services/student/profile.service";
+import { authStore } from "@/lib/auth";
 
 export type StudentData = {
   name: string;
   email: string;
   avatar: string;
+  profileUser: StudentProfileUser;
   level: number;
   xp: number;
   xpMax: number;
@@ -26,27 +37,63 @@ export type EnrolledCourseInfo = {
   progress: number;
   status: string;
   enrollmentId: string;
+  firstLessonId: string | null;
+  completedLessons: number;
+  totalLessons: number;
+  totalHours: number;
 };
 
 export type StudentContextType = {
   loading: boolean;
   student: StudentData | null;
+  profileUser: StudentProfileUser | null;
   enrolledCoursesList: EnrolledCourseInfo[];
   refetch: () => Promise<void>;
   updateCourseProgress: (courseId: string, progress: number) => void;
 };
 
+function isUnauthorizedError(error: unknown): boolean {
+  const status = (error as { response?: { status?: number } }).response?.status;
+  return status === 401 || status === 403;
+}
+
 type LaravelEnrollment = {
   id?: number | string;
   course_id?: number | string;
   status?: string;
-  progress_percentage?: number | string | null;
   course?: {
     id?: number | string;
     title?: string;
     slug?: string;
     thumbnail?: string | null;
+    price?: number | string | null;
+    discount_price?: number | string | null;
+    level?: string | null;
+    type?: string | null;
     created_at?: string;
+    category?: {
+      name?: string | null;
+    } | null;
+    instructor?: {
+      name?: string | null;
+    } | null;
+    sections?: Array<{
+      id?: number | string;
+      lessons?: Array<{
+        id?: number | string;
+        duration?: number | string | null;
+      }>;
+    }>;
+  } | null;
+};
+
+type LaravelLessonProgress = {
+  lesson_id?: number | string;
+  is_completed?: boolean | number;
+  lesson?: {
+    section?: {
+      course_id?: number | string;
+    } | null;
   } | null;
 };
 
@@ -58,18 +105,14 @@ function buildAvatar(name: string): string {
   )}`;
 }
 
-function getSavedProgress(email: string, courseId: string, fallback = 0): number {
-  if (typeof window === "undefined") return fallback;
+function resolveAvatar(avatar: string | null | undefined, name: string): string {
+  if (!avatar) return buildAvatar(name);
 
-  const savedProgress = window.localStorage.getItem(
-    `ilab.progress.${email}.${courseId}`
-  );
+  if (/^https?:\/\//i.test(avatar)) {
+    return avatar;
+  }
 
-  if (!savedProgress) return fallback;
-
-  const parsed = Number.parseInt(savedProgress, 10);
-
-  return Number.isFinite(parsed) ? parsed : fallback;
+  return imageUrl(avatar);
 }
 
 function saveProgress(email: string, courseId: string, progress: number) {
@@ -81,47 +124,68 @@ function saveProgress(email: string, courseId: string, progress: number) {
   );
 }
 
-function normalizeLaravelCourse(
+function normalizeLaravelEnrollment(
   enrollment: LaravelEnrollment,
-  fallbackCourses: Course[]
-): Course | null {
-  const courseId = enrollment.course_id ?? enrollment.course?.id;
-  const courseSlug = enrollment.course?.slug;
-
-  const matchedCourse = fallbackCourses.find(
-    (course) =>
-      String(course.id) === String(courseId) ||
-      Boolean(courseSlug && course.slug === courseSlug)
-  );
-
-  if (matchedCourse) return matchedCourse;
-
+  progressItems: LaravelLessonProgress[]
+): EnrolledCourseInfo | null {
   if (!enrollment.course?.id || !enrollment.course?.title || !enrollment.course?.slug) {
     return null;
   }
 
-  return {
+  const courseId = String(enrollment.course.id);
+  const lessons = (enrollment.course.sections || []).flatMap((section) =>
+    section.lessons || []
+  );
+  const lessonIds = new Set(lessons.map((lesson) => String(lesson.id)));
+  const completedLessons = progressItems.filter((progress) => {
+    const progressCourseId = progress.lesson?.section?.course_id;
+
+    return (
+      Boolean(progress.is_completed) &&
+      lessonIds.has(String(progress.lesson_id)) &&
+      String(progressCourseId) === courseId
+    );
+  }).length;
+  const totalLessons = lessons.length;
+  const progress =
+    totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+  const totalSeconds = lessons.reduce((total, lesson) => {
+    return total + toNumber(lesson.duration);
+  }, 0);
+  const totalHours = Math.round((totalSeconds / 3600) * 10) / 10;
+
+  const course: Course = {
     id: String(enrollment.course.id),
     slug: enrollment.course.slug,
     title: enrollment.course.title,
-    instructor: "Instructor",
-    category: "Mobile",
-    level: "Beginner",
-    mode: "Online",
-    rating: 4.8,
+    instructor: enrollment.course.instructor?.name || "Instructor",
+    category: enrollment.course.category?.name || "Course",
+    level: normalizeLevel(enrollment.course.level || undefined),
+    mode: normalizeMode(enrollment.course.type || undefined),
+    rating: 0,
     students: 0,
-    hours: 20,
-    lessons: 30,
-    price: 0,
-    cover:
-      enrollment.course.thumbnail ||
-      "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=900&q=80",
+    hours: totalHours,
+    lessons: totalLessons,
+    price: toNumber(enrollment.course.discount_price ?? enrollment.course.price),
+    cover: imageUrl(enrollment.course.thumbnail),
     createdAt: enrollment.course.created_at || new Date().toISOString(),
+  };
+
+  return {
+    course,
+    progress,
+    status: enrollment.status || "active",
+    enrollmentId: String(enrollment.id || `enrollment-${course.id}`),
+    firstLessonId: lessons[0]?.id ? String(lessons[0].id) : null,
+    completedLessons,
+    totalLessons,
+    totalHours,
   };
 }
 
 export function useStudentDataValue(): StudentContextType {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [loading, setLoading] = useState(true);
   const [student, setStudent] = useState<StudentData | null>(null);
   const [enrolledCoursesList, setEnrolledCoursesList] = useState<
@@ -144,51 +208,26 @@ export function useStudentDataValue(): StudentContextType {
 
       const name = profileUser.name || user.name || "Student";
       const email = profileUser.email || user.email || "";
-      const avatar = profileUser.avatar || buildAvatar(name);
-
-      const coursesResponse = await fetchCourses({ perPage: 100 });
-      const allCourses = coursesResponse.items;
+      const avatar = resolveAvatar(profileUser.avatar, name);
 
       const apiEnrollments = Array.isArray(profileUser.enrollments)
         ? (profileUser.enrollments as LaravelEnrollment[])
+        : [];
+      const apiProgress = Array.isArray(profileUser.progress)
+        ? (profileUser.progress as LaravelLessonProgress[])
         : [];
 
       const enrolledList: EnrolledCourseInfo[] = [];
       const processedCourseIds = new Set<string>();
 
       for (const enrollment of apiEnrollments) {
-        const course = normalizeLaravelCourse(enrollment, allCourses);
+        const enrolledCourse = normalizeLaravelEnrollment(enrollment, apiProgress);
 
-        if (!course || processedCourseIds.has(course.id)) continue;
+        if (!enrolledCourse || processedCourseIds.has(enrolledCourse.course.id)) continue;
 
-        processedCourseIds.add(course.id);
+        processedCourseIds.add(enrolledCourse.course.id);
 
-        const apiProgress = Number(enrollment.progress_percentage ?? 0);
-        const safeApiProgress = Number.isFinite(apiProgress) ? apiProgress : 0;
-        const progress = getSavedProgress(email, course.id, safeApiProgress);
-
-        enrolledList.push({
-          course,
-          progress,
-          status: enrollment.status || "active",
-          enrollmentId: String(enrollment.id || `enrollment-${course.id}`),
-        });
-      }
-
-      if (enrolledList.length === 0) {
-        const freeCourse = allCourses.find((course) => course.price === 0) || allCourses[0];
-
-        if (freeCourse) {
-          const progress = getSavedProgress(email, freeCourse.id, 25);
-          saveProgress(email, freeCourse.id, progress);
-
-          enrolledList.push({
-            course: freeCourse,
-            progress,
-            status: "active",
-            enrollmentId: "demo-enrollment",
-          });
-        }
+        enrolledList.push(enrolledCourse);
       }
 
       const totalCourses = enrolledList.length;
@@ -209,6 +248,7 @@ export function useStudentDataValue(): StudentContextType {
         name,
         email,
         avatar,
+        profileUser,
         level,
         xp: xpCurrent,
         xpMax,
@@ -221,10 +261,18 @@ export function useStudentDataValue(): StudentContextType {
     } catch (error) {
       console.error("Error loading student data:", error);
 
+      if (isUnauthorizedError(error)) {
+        authStore.clearSession();
+        setStudent(null);
+        setEnrolledCoursesList([]);
+        return;
+      }
+
       setStudent({
         name: user.name || "Student",
         email: user.email || "",
-        avatar: user.avatar || buildAvatar(user.name || "Student"),
+        avatar: resolveAvatar(user.avatar, user.name || "Student"),
+        profileUser: user as StudentProfileUser,
         level: 1,
         xp: 0,
         xpMax: 1000,
@@ -237,7 +285,7 @@ export function useStudentDataValue(): StudentContextType {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     void loadStudentData();
@@ -258,6 +306,7 @@ export function useStudentDataValue(): StudentContextType {
   return {
     loading,
     student,
+    profileUser: student?.profileUser ?? null,
     enrolledCoursesList,
     refetch: loadStudentData,
     updateCourseProgress,

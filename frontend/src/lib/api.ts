@@ -42,7 +42,10 @@ api.interceptors.response.use(
 
       if (window.location.pathname.startsWith("/admin")) {
         window.location.href = "/admin/login";
-      } else if (window.location.pathname.startsWith("/dashboard")) {
+      } else if (
+        window.location.pathname.startsWith("/dashboard") ||
+        window.location.pathname === "/profile"
+      ) {
         window.location.href = "/login";
       }
     }

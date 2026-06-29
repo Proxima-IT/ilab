@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Menu, Flame, LogOut } from "lucide-react";
+import { Bell, Menu, LogOut } from "lucide-react";
 import { useStudent } from "@/hooks/useStudentData";
 import { notificationsData } from "@/lib/mockData";
 import { SiteLogo } from "@/components/site/SiteLogo";
@@ -38,6 +38,16 @@ export default function DashboardNavbar({
   const { student, loading } = useStudent();
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const latestNotifications = notificationsData.slice(0, 10).map((notification, index) => ({
+    ...notification,
+    read:
+      "read" in notification
+        ? Boolean((notification as { read?: boolean }).read)
+        : index > 1,
+  }));
+  const unreadCount = latestNotifications.filter(
+    (notification) => !notification.read
+  ).length;
 
   const pageTitle = pageTitles[pathname] || pathname.includes("/player")
     ? "Class Player"
@@ -126,7 +136,7 @@ export default function DashboardNavbar({
               transition={{ repeat: Infinity, duration: 2 }}
               className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-accent text-accent-foreground text-[9px] font-mono rounded-full flex items-center justify-center accent-glow"
             >
-              3
+              {unreadCount}
             </motion.span>
           </button>
 
@@ -136,28 +146,51 @@ export default function DashboardNavbar({
                 initial={{ opacity: 0, y: -10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                className="absolute right-0 top-12 w-72 glass-card p-3 space-y-2"
+                className="absolute right-0 top-12 w-72 glass-card p-2 space-y-1.5"
               >
-                {notificationsData.map((notification) => (
+                {latestNotifications.map((notification) => (
                   <div
                     key={notification.id}
-                    className="flex items-start gap-2 p-2 rounded-lg hover:bg-secondary/30 transition-colors cursor-pointer"
+                    className={`flex items-start gap-2 rounded-lg p-2 transition-colors cursor-pointer ${
+                      notification.read
+                        ? "bg-transparent hover:bg-secondary/20"
+                        : "bg-primary/10 hover:bg-primary/15"
+                    }`}
                   >
                     <span
                       className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                        notification.type === "success"
+                        notification.read
+                          ? "bg-muted-foreground/35"
+                          : notification.type === "success"
                           ? "bg-primary"
                           : notification.type === "warning"
                           ? "bg-accent"
                           : "bg-muted-foreground"
                       }`}
                     />
-                    <div>
-                      <p className="text-xs text-foreground font-ui">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-0.5 flex items-center justify-between gap-2">
+                        <span
+                          className={`font-ui text-[9px] font-semibold uppercase tracking-normal ${
+                            notification.read
+                              ? "text-muted-foreground"
+                              : "text-primary"
+                          }`}
+                        >
+                          {notification.read ? "Read" : "Unread"}
+                        </span>
+                        <span className="shrink-0 text-[9px] text-muted-foreground">
+                          {notification.time}
+                        </span>
+                      </div>
+                      <p
+                        className={`font-ui text-[11px] leading-snug ${
+                          notification.read
+                            ? "text-muted-foreground"
+                            : "text-foreground"
+                        }`}
+                      >
                         {notification.text}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {notification.time}
                       </p>
                     </div>
                   </div>
@@ -165,11 +198,6 @@ export default function DashboardNavbar({
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-
-        <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full text-accent font-display text-xs bg-accent/10 border border-accent/20">
-          <span>{student.streak}</span>
-          <Flame className="w-3.5 h-3.5" />
         </div>
 
         <button

@@ -1,10 +1,38 @@
-import { useParams, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Calendar, Clock } from "lucide-react";
+import { ArrowLeft, Calendar } from "lucide-react";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { fetchPostBySlug, fetchPosts, type BlogPost } from "@/services/blog";
-import { useEffect, useState } from "react";
+
+function setMeta(name: string, content: string, property = false) {
+  const selector = property ? `meta[property="${name}"]` : `meta[name="${name}"]`;
+  let tag = document.head.querySelector<HTMLMetaElement>(selector);
+
+  if (!tag) {
+    tag = document.createElement("meta");
+    tag.setAttribute(property ? "property" : "name", name);
+    document.head.appendChild(tag);
+  }
+
+  tag.content = content;
+}
+
+function applyPostSeo(post: BlogPost) {
+  document.title = post.metaTitle;
+  setMeta("description", post.metaDescription);
+  setMeta("robots", "index,follow");
+  setMeta("og:type", "article", true);
+  setMeta("og:title", post.metaTitle, true);
+  setMeta("og:description", post.metaDescription, true);
+  setMeta("og:image", post.cover, true);
+  setMeta("og:url", window.location.href, true);
+  setMeta("twitter:card", "summary_large_image");
+  setMeta("twitter:title", post.metaTitle);
+  setMeta("twitter:description", post.metaDescription);
+  setMeta("twitter:image", post.cover);
+}
 
 export default function BlogPostPage() {
   const { slug } = useParams();
@@ -15,39 +43,46 @@ export default function BlogPostPage() {
 
   useEffect(() => {
     if (!slug) return;
+
     let cancelled = false;
     setLoading(true);
     setError(false);
 
-    Promise.all([
-      fetchPostBySlug(slug),
-      fetchPosts()
-    ]).then(([postRes, allRes]) => {
-      if (cancelled) return;
-      if (!postRes) {
-        setError(true);
-        setLoading(false);
-        return;
-      }
-      setPost(postRes);
-      setRelated(allRes.filter((p) => p.slug !== slug).slice(0, 2));
-      setLoading(false);
-      document.title = `${postRes.title} — iLab BD Blog`;
-    }).catch(() => {
-      if (!cancelled) {
-        setError(true);
-        setLoading(false);
-      }
-    });
+    Promise.all([fetchPostBySlug(slug), fetchPosts()])
+      .then(([postResponse, allPosts]) => {
+        if (cancelled) return;
 
-    return () => { cancelled = true; };
+        if (!postResponse) {
+          setError(true);
+          return;
+        }
+
+        setPost(postResponse);
+        setRelated(allPosts.filter((item) => item.slug !== slug).slice(0, 2));
+        applyPostSeo(postResponse);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [slug]);
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
+      <main className="min-h-screen bg-background">
+        <Header />
+        <section className="pt-32 pb-20">
+          <div className="mx-auto max-w-4xl px-4">
+            <div className="h-96 rounded-3xl bg-card animate-pulse" />
+          </div>
+        </section>
+      </main>
     );
   }
 
@@ -56,7 +91,9 @@ export default function BlogPostPage() {
       <main className="min-h-screen grid place-items-center bg-background">
         <div className="text-center">
           <h1 className="text-2xl font-bold">Article not found</h1>
-          <Link to="/blog" className="mt-4 inline-block text-primary font-semibold">Back to blog →</Link>
+          <Link to="/blog" className="mt-4 inline-block text-primary font-semibold">
+            Back to blog
+          </Link>
         </div>
       </main>
     );
@@ -78,17 +115,22 @@ export default function BlogPostPage() {
             transition={{ duration: 0.4 }}
             className="mt-6"
           >
-            <span className="rounded-full bg-primary/10 text-primary-dark px-2.5 py-1 text-xs font-semibold">{post.category}</span>
+            <span className="rounded-full bg-primary/10 text-primary-dark px-2.5 py-1 text-xs font-semibold">
+              {post.category}
+            </span>
             <h1 className="mt-4 text-3xl md:text-5xl font-extrabold tracking-tight text-foreground leading-tight">
               {post.title}
             </h1>
             <p className="mt-4 text-lg text-muted-foreground">{post.excerpt}</p>
 
-            <div className="mt-6 flex items-center gap-4 text-sm text-muted-foreground">
+            <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <img src={post.author.avatar} alt={post.author.name} className="h-9 w-9 rounded-full object-cover" />
               <span className="font-semibold text-foreground">{post.author.name}</span>
-              <span className="inline-flex items-center gap-1.5"><Calendar className="h-4 w-4" /> {post.date}</span>
-              <span className="inline-flex items-center gap-1.5"><Clock className="h-4 w-4" /> {post.readTime}</span>
+              {post.date && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Calendar className="h-4 w-4" /> {post.date}
+                </span>
+              )}
             </div>
           </motion.header>
         </div>
@@ -98,8 +140,10 @@ export default function BlogPostPage() {
         </div>
 
         <div className="mt-12 mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 space-y-6">
-          {post.content.map((p, i) => (
-            <p key={i} className="text-lg leading-relaxed text-foreground/90">{p}</p>
+          {post.content.map((paragraph, index) => (
+            <p key={index} className="text-lg leading-relaxed text-foreground/90">
+              {paragraph}
+            </p>
           ))}
         </div>
       </article>
@@ -109,17 +153,17 @@ export default function BlogPostPage() {
           <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
             <h2 className="text-2xl font-bold text-foreground">Keep reading</h2>
             <div className="mt-6 grid md:grid-cols-2 gap-6">
-              {related.map((p) => (
+              {related.map((item) => (
                 <Link
-                  key={p.slug}
-                  to={`/blog/${p.slug}`}
+                  key={item.slug}
+                  to={`/blog/${item.slug}`}
                   className="group rounded-2xl overflow-hidden bg-card border border-border hover:shadow-card hover:-translate-y-1 transition-all flex"
                 >
-                  <img src={p.cover} alt="" className="h-32 w-40 object-cover shrink-0 group-hover:scale-105 transition-transform duration-500" />
+                  <img src={item.cover} alt="" className="h-32 w-40 object-cover shrink-0 group-hover:scale-105 transition-transform duration-500" />
                   <div className="p-5 min-w-0">
-                    <p className="text-xs font-semibold text-primary-dark uppercase tracking-wider">{p.category}</p>
-                    <p className="mt-1.5 font-bold text-foreground line-clamp-2">{p.title}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{p.readTime}</p>
+                    <p className="text-xs font-semibold text-primary-dark uppercase tracking-wider">{item.category}</p>
+                    <p className="mt-1.5 font-bold text-foreground line-clamp-2">{item.title}</p>
+                    {item.date && <p className="mt-1 text-xs text-muted-foreground">{item.date}</p>}
                   </div>
                 </Link>
               ))}

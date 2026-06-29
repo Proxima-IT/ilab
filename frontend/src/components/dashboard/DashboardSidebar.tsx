@@ -26,7 +26,7 @@ export default function DashboardSidebar({ onClose }: { onClose?: () => void }) 
 
   if (loading || !student) {
     return (
-      <div className="flex flex-col h-full py-4 px-4 space-y-4 animate-pulse">
+      <div className="flex flex-col h-full py-4 px-4 space-y-4 animate-pulse bg-white">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-muted" />
           <div className="flex-1 space-y-2">
@@ -45,10 +45,10 @@ export default function DashboardSidebar({ onClose }: { onClose?: () => void }) 
   }
 
   return (
-    <div className="flex flex-col h-full py-4">
+    <div className="flex flex-col h-full py-4 bg-white">
       {/* Student Identity */}
       <div className="px-4 pb-4 mb-4 border-b border-border/30">
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-3">
           <div className="relative">
             <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-primary/50 animate-pulse-glow">
               <img src={student.avatar} alt="" className="w-full h-full object-cover" />
@@ -58,25 +58,8 @@ export default function DashboardSidebar({ onClose }: { onClose?: () => void }) 
             <p className="font-ui font-semibold text-foreground text-sm truncate">
               {student.name}
             </p>
-            <div className="flex items-center gap-1 mt-0.5">
-              <span className="text-xs px-1.5 py-0.5 rounded glass-card text-accent font-mono">
-                {t('level')} {student.level}
-              </span>
-            </div>
           </div>
         </div>
-        {/* XP Bar */}
-        <div className="relative h-1.5 rounded-full bg-secondary overflow-hidden">
-          <motion.div
-            className="absolute inset-y-0 left-0 rounded-full bg-primary"
-            initial={{ width: 0 }}
-            animate={{ width: `${(student.xp / student.xpMax) * 100}%` }}
-            transition={{ duration: 1, delay: 0.3 }}
-          />
-        </div>
-        <p className="text-[10px] text-muted-foreground mt-1 font-mono">
-          {student.xp}/{student.xpMax} XP
-        </p>
       </div>
 
       {/* Nav Items */}

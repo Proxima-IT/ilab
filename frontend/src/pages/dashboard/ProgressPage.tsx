@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useStudent } from '@/hooks/useStudentData';
 import { quizData, studyTimeData } from '@/lib/mockData';
-import { Target, CheckCircle2, Trophy, Flame, Calendar } from 'lucide-react';
+import { Target, CheckCircle2, Trophy } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, ReferenceLine, CartesianGrid } from 'recharts';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
@@ -164,19 +164,6 @@ export default function ProgressPage() {
         </div>
       </motion.div>
 
-      <motion.div variants={item} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {[
-          { icon: Flame, label: t('currentStreak'), value: `${student.streak} ${t('days')}`, glow: 'accent-glow' },
-          { icon: Trophy, label: t('maxStreak'), value: `15 ${t('days')}`, glow: '' },
-          { icon: Calendar, label: t('totalActiveDays'), value: `32 ${t('days')}`, glow: '' },
-        ].map((s, i) => (
-          <div key={i} className={`glass-card p-4 text-center ${s.glow}`}>
-            <s.icon className="w-6 h-6 text-primary mx-auto" />
-            <p className="font-display text-xl text-foreground mt-2 text-glow-primary">{s.value}</p>
-            <p className="text-[10px] text-muted-foreground font-ui mt-1">{s.label}</p>
-          </div>
-        ))}
-      </motion.div>
     </motion.div>
   );
 }

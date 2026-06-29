@@ -150,6 +150,9 @@ export default function App() {
             <Route path="resources" element={<ResourcesPage />} />
             <Route path="profile" element={<ProfilePage />} />
           </Route>
+          <Route path="/profile" element={<StudentPortalWrapper />}>
+            <Route index element={<ProfilePage />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

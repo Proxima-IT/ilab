@@ -1,10 +1,9 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { weeklyActivity, analyticsData, liveSessions, achievementsList } from '@/lib/mockData';
+import { analyticsData } from '@/lib/mockData';
 import { useStudent } from '@/hooks/useStudentData';
 import { Link } from "react-router-dom";
-import { Play, Calendar, BookOpen, CheckCircle2, Flame, Award, Trophy, Zap, Star, Target, Clock } from 'lucide-react';
+import { Play, BookOpen, CheckCircle2, Award } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
@@ -33,12 +32,11 @@ export default function OverviewPage() {
     );
   }
 
-  const certificatesEarned = enrolledCoursesList.filter(c => c.progress === 100).length + 1;
+  const certificatesEarned = enrolledCoursesList.filter(c => c.progress === 100).length;
 
   const stats = [
     { icon: BookOpen, value: student.enrolledCourses, label: t('enrolledCourses'), glow: '' },
     { icon: CheckCircle2, value: student.overallProgress, label: t('completed'), suffix: '%', glow: '' },
-    { icon: Flame, value: student.streak, label: t('streak'), glow: 'accent-glow' },
     { icon: Award, value: certificatesEarned, label: t('certificatesEarned'), glow: 'primary-glow' },
   ];
 
@@ -87,7 +85,7 @@ export default function OverviewPage() {
       </motion.div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {stats.map((stat, i) => (
           <motion.div key={i} variants={item} className={`glass-card p-4 flex items-center gap-3 ${stat.glow}`}>
             <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
@@ -104,10 +102,9 @@ export default function OverviewPage() {
         ))}
       </div>
 
-      {/* Active Session & Progress Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Chart */}
-        <motion.div variants={item} className="lg:col-span-2 glass-card p-5">
+      {/* Progress Chart */}
+      <div className="grid grid-cols-1 gap-6">
+        <motion.div variants={item} className="glass-card p-5">
           <h3 className="font-display text-sm text-foreground mb-4">{t('weeklyActivity')}</h3>
           <div className="h-[200px] w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -127,34 +124,6 @@ export default function OverviewPage() {
           </div>
         </motion.div>
 
-        {/* Live Session */}
-        <motion.div variants={item} className="glass-card p-5 flex flex-col justify-between">
-          <div>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-bold bg-accent/10 text-accent border border-accent/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" /> LIVE NOW
-            </span>
-            <h4 className="font-display text-base text-foreground mt-3 font-bold">{liveSessions[0].title}</h4>
-            <p className="text-xs text-muted-foreground mt-1 font-ui">Instructor: {liveSessions[0].instructor}</p>
-          </div>
-          <div className="pt-4 border-t border-border/30 mt-4 flex items-center justify-between">
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-mono">
-              <Calendar className="w-3.5 h-3.5" />
-              <span>{liveSessions[0].time}</span>
-            </div>
-            <div className="flex gap-2">
-              <Link to={liveSessions[0].joinUrl}>
-                <motion.button whileHover={{ scale: 1.05 }} className="glass-button px-4 py-2 text-xs flex items-center gap-1.5">
-                  <Play className="w-3 h-3" /> {t('startNow')}
-                </motion.button>
-              </Link>
-              <Link to="/dashboard/my-courses">
-                <button className="px-4 py-2 text-xs glass-card text-foreground font-ui hover:border-primary/30 transition-colors flex items-center gap-1.5">
-                  <BookOpen className="w-3 h-3" /> {t('viewCurriculum')}
-                </button>
-              </Link>
-            </div>
-          </div>
-        </motion.div>
       </div>
 
       {/* Course Grid */}

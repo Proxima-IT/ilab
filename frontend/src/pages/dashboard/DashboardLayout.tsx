@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 import DashboardNavbar from "@/components/dashboard/DashboardNavbar";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
-import { authStore } from "@/lib/auth";
-import { studentProfileService } from "@/services/student/profile.service";
+import { useAuth } from "@/lib/auth";
+import { useStudent } from "@/hooks/useStudentData";
 
 const mobileNav = [
   { path: "/dashboard", icon: Home, label: "Home" },
@@ -25,40 +25,22 @@ const mobileNav = [
 export default function DashboardLayout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [checkingProfile, setCheckingProfile] = useState(true);
   const { pathname } = useLocation();
+  const { logout, isAuthenticated } = useAuth();
+  const { loading } = useStudent();
 
   useEffect(() => {
-    let mounted = true;
-
-    async function loadProfile() {
-      try {
-        const response = await studentProfileService.getProfile();
-
-        if (mounted && response.success) {
-          authStore.setSession(response.data.user, authStore.getToken() ?? "");
-        }
-      } catch {
-        await authStore.logout();
-        navigate("/login", { replace: true });
-      } finally {
-        if (mounted) setCheckingProfile(false);
-      }
+    if (!isAuthenticated) {
+      navigate("/login", { replace: true });
     }
-
-    void loadProfile();
-
-    return () => {
-      mounted = false;
-    };
-  }, [navigate]);
+  }, [isAuthenticated, navigate]);
 
   const handleLogout = async () => {
-    await authStore.logout();
+    await logout();
     navigate("/login", { replace: true });
   };
 
-  if (checkingProfile) {
+  if (loading) {
     return (
       <div className="min-h-screen grid place-items-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -77,7 +59,7 @@ export default function DashboardLayout() {
         onLogout={handleLogout}
       />
 
-      <aside className="hidden lg:block fixed left-0 top-[60px] bottom-0 w-60 border-r border-border/30 overflow-y-auto scrollbar-thin z-40 bg-sidebar">
+      <aside className="hidden lg:block fixed left-0 top-[60px] bottom-0 w-60 border-r border-border/30 overflow-y-auto scrollbar-thin z-40 bg-white">
         <div className="min-h-full flex flex-col">
           <div className="flex-1">
             <DashboardSidebar />
@@ -111,7 +93,7 @@ export default function DashboardLayout() {
               animate={{ x: 0 }}
               exit={{ x: -280 }}
               transition={{ type: "spring", bounce: 0.15 }}
-              className="fixed left-0 top-0 bottom-0 w-64 z-50 lg:hidden border-r border-border/30 overflow-y-auto bg-sidebar"
+              className="fixed left-0 top-0 bottom-0 w-64 z-50 lg:hidden border-r border-border/30 overflow-y-auto bg-white"
             >
               <div className="h-[60px] flex items-center justify-between px-4">
                 <button

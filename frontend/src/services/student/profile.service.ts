@@ -9,6 +9,9 @@ export type StudentProfileUser = AuthUser & {
     email?: boolean;
     sms?: boolean;
     push?: boolean;
+    lecture?: boolean;
+    streak?: boolean;
+    congrats?: boolean;
   } | null;
   enrollments?: unknown[];
   progress?: unknown[];
@@ -36,7 +39,20 @@ export type UpdateStudentProfilePayload = {
     email?: boolean;
     sms?: boolean;
     push?: boolean;
+    lecture?: boolean;
+    streak?: boolean;
+    congrats?: boolean;
   };
+};
+
+export type StudentNotificationPrefs = NonNullable<
+  StudentProfileUser["notification_prefs"]
+>;
+
+export type UpdateStudentPasswordPayload = {
+  current_password: string;
+  password: string;
+  password_confirmation: string;
 };
 
 export const studentProfileService = {
@@ -51,6 +67,45 @@ export const studentProfileService = {
     const response = await api.put<StudentProfileResponse>(
       "/student/profile",
       payload
+    );
+
+    return response.data;
+  },
+
+  async updateAvatar(file: File): Promise<StudentProfileResponse> {
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    const response = await api.post<StudentProfileResponse>(
+      "/student/profile/avatar",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    return response.data;
+  },
+
+  async updatePassword(
+    payload: UpdateStudentPasswordPayload
+  ): Promise<StudentProfileResponse> {
+    const response = await api.put<StudentProfileResponse>(
+      "/student/profile/password",
+      payload
+    );
+
+    return response.data;
+  },
+
+  async updateNotifications(
+    notification_prefs: StudentNotificationPrefs
+  ): Promise<StudentProfileResponse> {
+    const response = await api.put<StudentProfileResponse>(
+      "/student/profile/notifications",
+      { notification_prefs }
     );
 
     return response.data;

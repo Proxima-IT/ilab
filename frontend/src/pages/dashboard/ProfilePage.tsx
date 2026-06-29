@@ -1,219 +1,535 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useStudent } from '@/hooks/useStudentData';
-import { useAuth } from '@/lib/auth';
-import { supabase } from '@/integrations/supabase/client';
-import { Camera, Bell, Mail, Flame, GraduationCap, BookOpen, CheckCircle2, Award, Star, Save } from 'lucide-react';
-import { toast } from 'sonner';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Award,
+  Bell,
+  BookOpen,
+  Camera,
+  CheckCircle2,
+  Flame,
+  GraduationCap,
+  Loader2,
+  Mail,
+  Save,
+  Shield,
+  Smartphone,
+  Star,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useStudent } from "@/hooks/useStudentData";
+import { useAuth } from "@/lib/auth";
+import { imageUrl } from "@/services/course-catalog.service";
+import {
+  studentProfileService,
+  type StudentNotificationPrefs,
+  type StudentProfileUser,
+} from "@/services/student/profile.service";
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
-const settingsTabs = ['personalInfo', 'password', 'notifications', 'privacy'] as const;
+const settingsTabs = ["personalInfo", "password", "notifications"] as const;
+
+type SettingsTab = (typeof settingsTabs)[number];
 
 type FormState = {
   name: string;
   email: string;
   phone: string;
-  location: string;
+  district: string;
+  education_level: string;
+  bio: string;
 };
 
-function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+type PasswordState = {
+  current_password: string;
+  password: string;
+  password_confirmation: string;
+};
+
+const defaultNotifications: Required<StudentNotificationPrefs> = {
+  email: true,
+  sms: false,
+  push: true,
+  lecture: true,
+  streak: true,
+  congrats: true,
+};
+
+function fallbackAvatar(name: string): string {
+  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || "Student")}`;
+}
+
+function resolveAvatar(user?: StudentProfileUser | null): string {
+  if (!user?.avatar) return fallbackAvatar(user?.name || "Student");
+  return imageUrl(user.avatar);
+}
+
+function unauthorized(status?: number): boolean {
+  return status === 401 || status === 403;
+}
+
+function errorMessage(error: unknown, fallback: string): string {
+  const response = (error as { response?: { data?: { message?: string }; status?: number } }).response;
+  return response?.data?.message || fallback;
+}
+
+function Toggle({
+  on,
+  onToggle,
+  disabled,
+}: {
+  on: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+}) {
   return (
-    <button onClick={onToggle} className={`relative w-10 h-5 rounded-full transition-colors ${on ? 'bg-primary' : 'bg-secondary'}`}>
-      <motion.div className="absolute top-0.5 w-4 h-4 rounded-full bg-foreground" animate={{ left: on ? 22 : 2 }} transition={{ type: 'spring', stiffness: 500, damping: 30 }} />
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={disabled}
+      className={`relative h-6 w-11 rounded-full transition-colors ${
+        on ? "bg-primary" : "bg-secondary"
+      } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+      aria-pressed={on}
+    >
+      <motion.span
+        className="absolute top-1 h-4 w-4 rounded-full bg-foreground shadow"
+        animate={{ left: on ? 24 : 4 }}
+        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+      />
     </button>
+  );
+}
+
+function ProfileSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="h-8 w-52 animate-pulse rounded bg-muted" />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="h-80 animate-pulse rounded-2xl border border-border/30 bg-card" />
+        <div className="h-80 animate-pulse rounded-2xl border border-border/30 bg-card lg:col-span-2" />
+      </div>
+    </div>
   );
 }
 
 export default function ProfilePage() {
   const { t } = useLanguage();
-  const { user, login } = useAuth();
-  const { student, enrolledCoursesList, loading, refetch } = useStudent();
-  const [activeTab, setActiveTab] = useState<typeof settingsTabs[number]>('personalInfo');
-  
-  const [form, setForm] = useState<FormState>({ name: '', email: '', phone: '', location: 'Bangladesh' });
-  const [notifs, setNotifs] = useState({ lecture: true, email: false, streak: true, congrats: true });
-  const [saving, setSaving] = useState(false);
+  const navigate = useNavigate();
+  const { user, token, clearSession } = useAuth();
+  const {
+    student,
+    profileUser: sharedProfileUser,
+    enrolledCoursesList,
+    loading,
+    refetch,
+  } = useStudent();
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [activeTab, setActiveTab] = useState<SettingsTab>("personalInfo");
+  const [profileUser, setProfileUser] = useState<StudentProfileUser | null>(
+    (user as StudentProfileUser | null) ?? null
+  );
+  const [form, setForm] = useState<FormState>({
+    name: "",
+    email: "",
+    phone: "",
+    district: "",
+    education_level: "",
+    bio: "",
+  });
+  const [passwordForm, setPasswordForm] = useState<PasswordState>({
+    current_password: "",
+    password: "",
+    password_confirmation: "",
+  });
+  const [notifs, setNotifs] =
+    useState<Required<StudentNotificationPrefs>>(defaultNotifications);
+  const [saving, setSaving] = useState<"profile" | "password" | "notifications" | "avatar" | null>(null);
+
+  const applyProfile = (nextUser: StudentProfileUser) => {
+    setProfileUser(nextUser);
+    setForm({
+      name: nextUser.name || "",
+      email: nextUser.email || "",
+      phone: nextUser.phone || "",
+      district: nextUser.district || "",
+      education_level: nextUser.education_level || "",
+      bio: nextUser.bio || "",
+    });
+    setNotifs({
+      ...defaultNotifications,
+      ...(nextUser.notification_prefs || {}),
+    });
+
+  };
 
   useEffect(() => {
-    if (student) {
-      setForm({
-        name: student.name,
-        email: student.email,
-        phone: '', // Default or fetch if available
-        location: 'Bangladesh',
-      });
+    if (!token) {
+      clearSession();
+      navigate("/login", { replace: true });
+      return;
     }
-  }, [student]);
 
-  const handleSave = async () => {
-    if (!user) return;
-    setSaving(true);
+    if (sharedProfileUser) {
+      applyProfile(sharedProfileUser);
+    }
+  }, [sharedProfileUser, token, navigate, clearSession]);
+
+  const completedCourses = enrolledCoursesList.filter((course) => course.progress === 100).length;
+  const certificatesEarned = completedCourses;
+  const displayName = profileUser?.name || student?.name || "Student";
+  const displayEmail = profileUser?.email || student?.email || "";
+  const avatar = resolveAvatar(profileUser);
+
+  const profileStats = useMemo(
+    () => [
+      { icon: BookOpen, label: `${student?.enrolledCourses ?? 0} Courses Enrolled` },
+      { icon: CheckCircle2, label: `${completedCourses} Course Complete` },
+      { icon: Award, label: `${certificatesEarned} ${t("certificatesEarned")}` },
+      { icon: Flame, label: `${student?.streak ?? 0} ${t("streak")}` },
+      { icon: Star, label: `${t("level")} ${student?.level ?? 1}` },
+    ],
+    [certificatesEarned, completedCourses, student, t]
+  );
+
+  const handleUnauthorizedError = (error: unknown) => {
+    const status = (error as { response?: { status?: number } }).response?.status;
+    if (unauthorized(status)) {
+      clearSession();
+      navigate("/login", { replace: true });
+      return true;
+    }
+
+    return false;
+  };
+
+  const handleSaveProfile = async () => {
+    setSaving("profile");
+
     try {
-      // 1. Update in Supabase
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          full_name: form.name.trim(),
-          phone: form.phone.trim(),
-        })
-        .eq("id", user.id);
-
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-
-      // 2. Update authStore
-      login({
-        ...user,
+      const response = await studentProfileService.updateProfile({
         name: form.name.trim(),
+        email: form.email.trim() || null,
+        phone: form.phone.trim() || null,
+        district: form.district.trim() || null,
+        education_level: form.education_level.trim() || null,
+        bio: form.bio.trim() || null,
       });
 
-      // 3. Refetch student data
+      applyProfile(response.data.user);
       await refetch();
-      toast.success('Successfully save hoyeche!');
-    } catch (e) {
-      console.error(e);
-      toast.error("An error occurred");
+      toast.success("Profile updated successfully.");
+    } catch (error) {
+      if (!handleUnauthorizedError(error)) {
+        toast.error(errorMessage(error, "Profile update hoyni."));
+      }
     } finally {
-      setSaving(false);
+      setSaving(null);
     }
   };
 
-  if (loading || !student) {
-    return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-8 w-48 bg-muted rounded" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="h-64 bg-card border border-border/30 rounded-2xl animate-pulse" />
-          <div className="lg:col-span-2 h-64 bg-card border border-border/30 rounded-2xl animate-pulse" />
-        </div>
-      </div>
-    );
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    setSaving("avatar");
+
+    try {
+      const response = await studentProfileService.updateAvatar(file);
+      applyProfile(response.data.user);
+      await refetch();
+      toast.success("Avatar updated successfully.");
+    } catch (error) {
+      if (!handleUnauthorizedError(error)) {
+        toast.error(errorMessage(error, "Avatar upload hoyni."));
+      }
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleSavePassword = async () => {
+    setSaving("password");
+
+    try {
+      const response = await studentProfileService.updatePassword(passwordForm);
+      applyProfile(response.data.user);
+      setPasswordForm({
+        current_password: "",
+        password: "",
+        password_confirmation: "",
+      });
+      toast.success("Password updated successfully.");
+    } catch (error) {
+      if (!handleUnauthorizedError(error)) {
+        toast.error(errorMessage(error, "Password update hoyni."));
+      }
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const handleSaveNotifications = async () => {
+    setSaving("notifications");
+
+    try {
+      const response = await studentProfileService.updateNotifications(notifs);
+      applyProfile(response.data.user);
+      toast.success("Notification settings saved.");
+    } catch (error) {
+      if (!handleUnauthorizedError(error)) {
+        toast.error(errorMessage(error, "Notification settings save hoyni."));
+      }
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  if (loading || !profileUser) {
+    return <ProfileSkeleton />;
   }
-
-  const completedCourses = enrolledCoursesList.filter(c => c.progress === 100).length;
-  const certificatesEarned = completedCourses + 1;
-
-  const profileStats = [
-    { icon: BookOpen, label: `${student.enrolledCourses} Courses Enrolled` },
-    { icon: CheckCircle2, label: `${completedCourses} Course Complete` },
-    { icon: Award, label: `${certificatesEarned} ${t('certificatesEarned')}` },
-    { icon: Flame, label: `${student.streak} ${t('streak')}` },
-    { icon: Star, label: `${t('level')} ${student.level} — Apprentice` },
-  ];
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
-      <h1 className="font-display text-xl text-foreground">{t('profileSettings')}</h1>
+      <div>
+        <h1 className="font-display text-xl text-foreground">{t("profileSettings")}</h1>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Your account data is loaded from the iLab database.
+        </p>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <motion.div variants={item} className="glass-card p-6 text-center">
-          <div className="relative inline-block mb-4">
-            <div className="w-24 h-24 rounded-full overflow-hidden ring-4 ring-primary/30 mx-auto">
-              <img src={student.avatar} alt="" className="w-full h-full object-cover" />
+          <div className="relative mb-4 inline-block">
+            <div className="mx-auto h-24 w-24 overflow-hidden rounded-full ring-4 ring-primary/30">
+              <img src={avatar} alt={displayName} className="h-full w-full object-cover" />
             </div>
-            <button className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground">
-              <Camera className="w-3.5 h-3.5" />
+            <button
+              type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={saving === "avatar"}
+              className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg disabled:opacity-70"
+              aria-label="Update avatar"
+            >
+              {saving === "avatar" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Camera className="h-4 w-4" />
+              )}
             </button>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
           </div>
-          <h3 className="font-ui text-lg font-semibold text-foreground">{student.name}</h3>
-          <p className="text-xs text-muted-foreground font-ui">{student.email}</p>
-          <p className="text-xs text-muted-foreground font-ui">{form.location}</p>
+
+          <h3 className="font-ui text-lg font-semibold text-foreground">{displayName}</h3>
+          {displayEmail && <p className="font-ui text-xs text-muted-foreground">{displayEmail}</p>}
+          {profileUser.district && (
+            <p className="font-ui text-xs text-muted-foreground">{profileUser.district}</p>
+          )}
 
           <div className="mt-6 space-y-2 text-left">
-            {profileStats.map((s, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground font-ui py-1">
-                <s.icon className="w-4 h-4 text-primary/60" /> {s.label}
+            {profileStats.map((stat) => (
+              <div key={stat.label} className="flex items-center gap-2 py-1 font-ui text-xs text-muted-foreground">
+                <stat.icon className="h-4 w-4 text-primary/70" />
+                {stat.label}
               </div>
             ))}
           </div>
         </motion.div>
 
-        <motion.div variants={item} className="lg:col-span-2 glass-card p-5">
-          <div className="flex gap-1 border-b border-border/30 mb-5">
-            {settingsTabs.map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)} className={`relative px-3 py-2 text-xs font-ui transition-colors ${activeTab === tab ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+        <motion.div variants={item} className="glass-card p-5 lg:col-span-2">
+          <div className="mb-5 flex gap-1 overflow-x-auto border-b border-border/30">
+            {settingsTabs.map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setActiveTab(tab)}
+                className={`relative whitespace-nowrap px-3 py-2 font-ui text-xs transition-colors ${
+                  activeTab === tab
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
                 {t(tab)}
-                {activeTab === tab && <motion.div layoutId="settingsTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />}
+                {activeTab === tab && (
+                  <motion.div
+                    layoutId="settingsTab"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-primary"
+                  />
+                )}
               </button>
             ))}
           </div>
 
           <AnimatePresence mode="wait">
-            <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              {activeTab === 'personalInfo' && (
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              {activeTab === "personalInfo" && (
                 <div className="space-y-4">
-                  {[
-                    { label: t('fullName'), key: 'name' as const },
-                    { label: t('email'), key: 'email' as const, disabled: true },
-                    { label: t('phone'), key: 'phone' as const },
-                    { label: t('location'), key: 'location' as const },
-                  ].map((field) => (
-                    <div key={field.key}>
-                      <label className="text-[11px] text-muted-foreground font-ui block mb-1">{field.label}</label>
-                      <input
-                        value={form[field.key]}
-                        disabled={field.disabled}
-                        onChange={e => setForm({ ...form, [field.key]: e.target.value })}
-                        className={`glass-input w-full px-3 py-2 text-xs font-ui ${field.disabled ? 'opacity-60 cursor-not-allowed bg-secondary/20' : ''}`}
-                      />
-                    </div>
-                  ))}
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="glass-button px-6 py-2.5 text-xs flex items-center gap-1.5"
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    {[
+                      { label: t("fullName"), key: "name" as const },
+                      { label: t("email"), key: "email" as const, type: "email" },
+                      { label: t("phone"), key: "phone" as const },
+                      { label: "District", key: "district" as const },
+                      { label: "Education Level", key: "education_level" as const },
+                    ].map((field) => (
+                      <label key={field.key} className="block">
+                        <span className="mb-1 block font-ui text-[11px] text-muted-foreground">
+                          {field.label}
+                        </span>
+                        <input
+                          type={field.type || "text"}
+                          value={form[field.key]}
+                          onChange={(event) =>
+                            setForm({ ...form, [field.key]: event.target.value })
+                          }
+                          className="glass-input w-full px-3 py-2 font-ui text-xs"
+                        />
+                      </label>
+                    ))}
+                  </div>
+
+                  <label className="block">
+                    <span className="mb-1 block font-ui text-[11px] text-muted-foreground">
+                      Bio
+                    </span>
+                    <textarea
+                      value={form.bio}
+                      onChange={(event) => setForm({ ...form, bio: event.target.value })}
+                      rows={4}
+                      className="glass-input w-full resize-none px-3 py-2 font-ui text-xs"
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveProfile}
+                    disabled={saving === "profile"}
+                    className="glass-button inline-flex items-center gap-1.5 px-6 py-2.5 text-xs disabled:opacity-70"
                   >
-                    <Save className="w-3 h-3" /> {saving ? 'Saving...' : t('save')}
-                  </motion.button>
+                    {saving === "profile" ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Save className="h-3 w-3" />
+                    )}
+                    {saving === "profile" ? "Saving..." : t("save")}
+                  </button>
                 </div>
               )}
 
-              {activeTab === 'password' && (
-                <div className="space-y-4">
-                  {['Current Password', 'New Password', 'Confirm Password'].map((label) => (
-                    <div key={label}>
-                      <label className="text-[11px] text-muted-foreground font-ui block mb-1">{label}</label>
-                      <input type="password" className="glass-input w-full px-3 py-2 text-xs font-ui" />
-                    </div>
-                  ))}
-                  <motion.button whileHover={{ scale: 1.02 }} onClick={handleSave} className="glass-button px-6 py-2.5 text-xs flex items-center gap-1.5">
-                    <Save className="w-3 h-3" /> {t('save')}
-                  </motion.button>
-                </div>
-              )}
-
-              {activeTab === 'notifications' && (
+              {activeTab === "password" && (
                 <div className="space-y-4">
                   {[
-                    { key: 'lecture' as const, icon: <Bell className="w-4 h-4" />, label: t('notifNewLecture') },
-                    { key: 'email' as const, icon: <Mail className="w-4 h-4" />, label: t('notifEmail') },
-                    { key: 'streak' as const, icon: <Flame className="w-4 h-4" />, label: t('notifStreak') },
-                    { key: 'congrats' as const, icon: <GraduationCap className="w-4 h-4" />, label: t('notifCongrats') },
-                  ].map((n) => (
-                    <div key={n.key} className="flex items-center justify-between py-2">
+                    { label: "Current Password", key: "current_password" as const },
+                    { label: "New Password", key: "password" as const },
+                    { label: "Confirm Password", key: "password_confirmation" as const },
+                  ].map((field) => (
+                    <label key={field.key} className="block">
+                      <span className="mb-1 block font-ui text-[11px] text-muted-foreground">
+                        {field.label}
+                      </span>
+                      <input
+                        type="password"
+                        value={passwordForm[field.key]}
+                        onChange={(event) =>
+                          setPasswordForm({
+                            ...passwordForm,
+                            [field.key]: event.target.value,
+                          })
+                        }
+                        className="glass-input w-full px-3 py-2 font-ui text-xs"
+                      />
+                    </label>
+                  ))}
+
+                  <div className="flex items-start gap-2 rounded-lg border border-border/30 bg-secondary/20 p-3 text-xs text-muted-foreground">
+                    <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary/70" />
+                    Use at least 8 characters. Password update will only work with your current password.
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSavePassword}
+                    disabled={saving === "password"}
+                    className="glass-button inline-flex items-center gap-1.5 px-6 py-2.5 text-xs disabled:opacity-70"
+                  >
+                    {saving === "password" ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Save className="h-3 w-3" />
+                    )}
+                    {saving === "password" ? "Saving..." : t("save")}
+                  </button>
+                </div>
+              )}
+
+              {activeTab === "notifications" && (
+                <div className="space-y-4">
+                  {[
+                    { key: "lecture" as const, icon: Bell, label: t("notifNewLecture") },
+                    { key: "email" as const, icon: Mail, label: t("notifEmail") },
+                    { key: "sms" as const, icon: Smartphone, label: "SMS notifications" },
+                    { key: "push" as const, icon: Bell, label: "Push notifications" },
+                    { key: "streak" as const, icon: Flame, label: t("notifStreak") },
+                    { key: "congrats" as const, icon: GraduationCap, label: t("notifCongrats") },
+                  ].map((notification) => (
+                    <div
+                      key={notification.key}
+                      className="flex items-center justify-between gap-4 py-2"
+                    >
                       <div className="flex items-center gap-3">
-                        <span className="text-muted-foreground">{n.icon}</span>
-                        <span className="text-xs font-ui text-foreground">{n.label}</span>
+                        <notification.icon className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-ui text-xs text-foreground">
+                          {notification.label}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Toggle on={notifs[n.key]} onToggle={() => setNotifs({ ...notifs, [n.key]: !notifs[n.key] })} />
-                        <span className="text-[10px] text-muted-foreground font-ui w-8">{notifs[n.key] ? t('on') : t('off')}</span>
+                        <Toggle
+                          on={notifs[notification.key]}
+                          disabled={saving === "notifications"}
+                          onToggle={() =>
+                            setNotifs({
+                              ...notifs,
+                              [notification.key]: !notifs[notification.key],
+                            })
+                          }
+                        />
+                        <span className="w-8 font-ui text-[10px] text-muted-foreground">
+                          {notifs[notification.key] ? t("on") : t("off")}
+                        </span>
                       </div>
                     </div>
                   ))}
-                </div>
-              )}
 
-              {activeTab === 'privacy' && (
-                <div className="text-xs text-muted-foreground font-ui space-y-3">
-                  <p>Tomar data secure rakhte amader top priority.</p>
-                  <p>Amra kono third party er sathe tomar personal info share kori na.</p>
+                  <button
+                    type="button"
+                    onClick={handleSaveNotifications}
+                    disabled={saving === "notifications"}
+                    className="glass-button inline-flex items-center gap-1.5 px-6 py-2.5 text-xs disabled:opacity-70"
+                  >
+                    {saving === "notifications" ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Save className="h-3 w-3" />
+                    )}
+                    {saving === "notifications" ? "Saving..." : t("save")}
+                  </button>
                 </div>
               )}
             </motion.div>
