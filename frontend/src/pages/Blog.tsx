@@ -44,7 +44,7 @@ export default function BlogIndex() {
               transition={{ duration: 0.35, delay: Math.min(i, 8) * 0.04 }}
               className="group rounded-2xl overflow-hidden bg-card border border-border hover:shadow-card hover:-translate-y-1 transition-all"
             >
-              <Link to="/blog/$slug" params={{ slug: p.slug }} className="block aspect-[16/10] overflow-hidden">
+              <Link to={`/blog/${p.slug}`} className="block aspect-[16/10] overflow-hidden">
                 <img src={p.cover} alt={p.title} loading="lazy" className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
               </Link>
               <div className="p-6">
@@ -54,11 +54,11 @@ export default function BlogIndex() {
                   <span>·</span>
                   <span>{p.readTime}</span>
                 </div>
-                <Link to="/blog/$slug" params={{ slug: p.slug }} className="mt-3 block text-lg font-bold text-foreground group-hover:text-primary-dark transition-colors">
+                <Link to={`/blog/${p.slug}`} className="mt-3 block text-lg font-bold text-foreground group-hover:text-primary-dark transition-colors">
                   {p.title}
                 </Link>
                 <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{p.excerpt}</p>
-                <Link to="/blog/$slug" params={{ slug: p.slug }} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:gap-2 transition-all">
+                <Link to={`/blog/${p.slug}`} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:gap-2 transition-all">
                   Read article <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </div>

@@ -47,7 +47,7 @@ export function Blog() {
                   transition={{ duration: 0.45, delay: i * 0.08 }}
                   className="group flex h-full flex-col rounded-2xl overflow-hidden bg-card border border-border hover:shadow-card hover:-translate-y-1 transition-all"
                 >
-                  <Link to="/blog/$slug" params={{ slug: p.slug }} className="block aspect-[16/10] overflow-hidden">
+                  <Link to={`/blog/${p.slug}`} className="block aspect-[16/10] overflow-hidden">
                     <img src={p.cover} alt={p.title} loading="lazy" className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   </Link>
                   <div className="p-6 flex flex-col flex-1">
@@ -57,13 +57,12 @@ export function Blog() {
                       <span>·</span>
                       <span>{p.readTime}</span>
                     </div>
-                    <Link to="/blog/$slug" params={{ slug: p.slug }} className="mt-3 block text-lg font-bold text-foreground group-hover:text-primary-dark transition-colors line-clamp-2">
+                    <Link to={`/blog/${p.slug}`} className="mt-3 block text-lg font-bold text-foreground group-hover:text-primary-dark transition-colors line-clamp-2">
                       {p.title}
                     </Link>
                     <div className="mt-auto pt-5 flex justify-center">
                       <Link
-                        to="/blog/$slug"
-                        params={{ slug: p.slug }}
+                        to={`/blog/${p.slug}`}
                         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold gradient-orange text-white shadow-orange-glow hover:scale-105 transition-transform"
                       >
                         Read Now <ArrowUpRight className="h-4 w-4" />

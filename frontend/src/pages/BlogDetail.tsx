@@ -112,8 +112,7 @@ export default function BlogPostPage() {
               {related.map((p) => (
                 <Link
                   key={p.slug}
-                  to="/blog/$slug"
-                  params={{ slug: p.slug }}
+                  to={`/blog/${p.slug}`}
                   className="group rounded-2xl overflow-hidden bg-card border border-border hover:shadow-card hover:-translate-y-1 transition-all flex"
                 >
                   <img src={p.cover} alt="" className="h-32 w-40 object-cover shrink-0 group-hover:scale-105 transition-transform duration-500" />

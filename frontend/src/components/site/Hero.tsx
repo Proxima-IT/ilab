@@ -1,9 +1,22 @@
 import { motion } from "framer-motion";
-import { Play, Users, Video, GraduationCap, Download, Youtube, X } from "lucide-react";
+import { Users, Video, GraduationCap, Download, Youtube, X } from "lucide-react";
 
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import heroTechnician from "@/assets/hero-technician.jpg";
+
+export const HERO_YOUTUBE_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+
+function youtubeEmbedUrl(url: string): string {
+  const trimmed = url.trim();
+  const embedMatch = trimmed.match(/youtube\.com\/embed\/([^?&]+)/);
+  const watchMatch = trimmed.match(/[?&]v=([^?&]+)/);
+  const shortMatch = trimmed.match(/youtu\.be\/([^?&]+)/);
+  const shortsMatch = trimmed.match(/youtube\.com\/shorts\/([^?&]+)/);
+  const id = embedMatch?.[1] || watchMatch?.[1] || shortMatch?.[1] || shortsMatch?.[1] || trimmed;
+
+  return `https://www.youtube.com/embed/${id}?autoplay=1&rel=0&modestbranding=1`;
+}
 
 /* ---------------- Sub-components ---------------- */
 
@@ -160,7 +173,12 @@ export function Hero() {
         </motion.div>
       </div>
 
-      <VideoModal open={showVideo} onClose={() => setShowVideo(false)} />
+      <VideoModal
+        open={showVideo}
+        onClose={() => setShowVideo(false)}
+        youtubeUrl={HERO_YOUTUBE_URL}
+        title="iLab YouTube video"
+      />
     </section>
   );
 }
@@ -168,13 +186,16 @@ export function Hero() {
 export function VideoModal({
   open,
   onClose,
-  src,
+  youtubeUrl = HERO_YOUTUBE_URL,
+  title = "YouTube video",
 }: {
   open: boolean;
   onClose: () => void;
-  src?: string;
+  youtubeUrl?: string;
+  title?: string;
 }) {
   if (!open) return null;
+
   return (
     <div
       className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm grid place-items-center p-4 animate-fade-in"
@@ -193,14 +214,12 @@ export function VideoModal({
         >
           <X className="h-4 w-4" />
         </button>
-        <video
-          src={
-            src ??
-            "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-          }
-          autoPlay
-          controls
+        <iframe
+          src={youtubeEmbedUrl(youtubeUrl)}
+          title={title}
           className="h-full w-full object-cover"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
         />
       </motion.div>
     </div>

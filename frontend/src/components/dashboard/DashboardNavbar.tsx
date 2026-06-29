@@ -1,20 +1,19 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, Menu, Flame } from 'lucide-react';
-import { useLanguage } from '@/contexts/LanguageContext';
-import { useStudent } from '@/hooks/useStudentData';
-import { notificationsData } from '@/lib/mockData';
-import { SiteLogo } from '@/components/site/SiteLogo';
+import { motion, AnimatePresence } from "framer-motion";
+import { Bell, Menu, Flame, LogOut } from "lucide-react";
+import { useStudent } from "@/hooks/useStudentData";
+import { notificationsData } from "@/lib/mockData";
+import { SiteLogo } from "@/components/site/SiteLogo";
 
 const pageTitles: Record<string, string> = {
-  '/dashboard': 'Overview',
-  '/dashboard/my-courses': 'আমার Courses',
-  '/dashboard/progress': 'Progress',
-  '/dashboard/certificates': 'Certificates',
-  '/dashboard/leaderboard': 'Leaderboard',
-  '/dashboard/resources': 'Resources',
-  '/dashboard/profile': 'Profile',
+  "/dashboard": "Overview",
+  "/dashboard/my-courses": "My Courses",
+  "/dashboard/progress": "Progress",
+  "/dashboard/certificates": "Certificates",
+  "/dashboard/leaderboard": "Leaderboard",
+  "/dashboard/resources": "Resources",
+  "/dashboard/profile": "Profile",
 };
 
 const websiteNav = [
@@ -26,20 +25,37 @@ const websiteNav = [
   { label: "Blog", to: "/blog" },
 ];
 
-export default function DashboardNavbar({ onMenuToggle }: { onMenuToggle: () => void }) {
+type DashboardNavbarProps = {
+  onMenuToggle: () => void;
+  onLogout: () => void;
+};
+
+export default function DashboardNavbar({
+  onMenuToggle,
+  onLogout,
+}: DashboardNavbarProps) {
   const { pathname } = useLocation();
   const { student, loading } = useStudent();
   const [showNotifications, setShowNotifications] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const pageTitle = pageTitles[pathname] || (pathname.includes('/player') ? 'Class Player' : 'Dashboard');
+  const pageTitle = pageTitles[pathname] || pathname.includes("/player")
+    ? "Class Player"
+    : "Dashboard";
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setShowNotifications(false);
+    const handler = (event: MouseEvent) => {
+      if (
+        notifRef.current &&
+        !notifRef.current.contains(event.target as Node)
+      ) {
+        setShowNotifications(false);
+      }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+
+    document.addEventListener("mousedown", handler);
+
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   if (loading || !student) {
@@ -52,15 +68,27 @@ export default function DashboardNavbar({ onMenuToggle }: { onMenuToggle: () => 
   }
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-[60px] flex items-center justify-between px-4 lg:px-6 glass-card" style={{ borderRadius: 0, borderTop: 'none', borderLeft: 'none', borderRight: 'none' }}>
-      {/* Left */}
+    <header
+      className="fixed top-0 left-0 right-0 z-50 h-[60px] flex items-center justify-between px-4 lg:px-6 glass-card"
+      style={{
+        borderRadius: 0,
+        borderTop: "none",
+        borderLeft: "none",
+        borderRight: "none",
+      }}
+    >
       <div className="flex items-center gap-3 min-w-0">
-        <button onClick={onMenuToggle} className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors">
+        <button
+          onClick={onMenuToggle}
+          className="lg:hidden p-2 text-muted-foreground hover:text-foreground transition-colors"
+        >
           <Menu className="w-5 h-5" />
         </button>
+
         <Link to="/" className="flex items-center gap-2">
           <SiteLogo size="xs" showWordmark />
         </Link>
+
         <AnimatePresence mode="wait">
           <motion.span
             key={pathname}
@@ -74,26 +102,19 @@ export default function DashboardNavbar({ onMenuToggle }: { onMenuToggle: () => 
         </AnimatePresence>
       </div>
 
-      {/* Center Website Nav */}
       <nav className="hidden lg:flex items-center gap-1">
         {websiteNav.map((item) => (
           <Link
             key={item.label}
             to={item.to}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-              pathname === item.to
-                ? 'text-primary bg-primary/10'
-                : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
-            }`}
+            className="px-3 py-1.5 text-xs font-semibold rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
           >
             {item.label}
           </Link>
         ))}
       </nav>
 
-      {/* Right */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Notifications */}
         <div className="relative" ref={notifRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
@@ -108,6 +129,7 @@ export default function DashboardNavbar({ onMenuToggle }: { onMenuToggle: () => 
               3
             </motion.span>
           </button>
+
           <AnimatePresence>
             {showNotifications && (
               <motion.div
@@ -116,12 +138,27 @@ export default function DashboardNavbar({ onMenuToggle }: { onMenuToggle: () => 
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
                 className="absolute right-0 top-12 w-72 glass-card p-3 space-y-2"
               >
-                {notificationsData.map((n) => (
-                  <div key={n.id} className="flex items-start gap-2 p-2 rounded-lg hover:bg-secondary/30 transition-colors cursor-pointer">
-                    <span className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${n.type === 'success' ? 'bg-primary' : n.type === 'warning' ? 'bg-accent' : 'bg-muted-foreground'}`} />
+                {notificationsData.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className="flex items-start gap-2 p-2 rounded-lg hover:bg-secondary/30 transition-colors cursor-pointer"
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                        notification.type === "success"
+                          ? "bg-primary"
+                          : notification.type === "warning"
+                          ? "bg-accent"
+                          : "bg-muted-foreground"
+                      }`}
+                    />
                     <div>
-                      <p className="text-xs text-foreground font-ui">{n.text}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{n.time}</p>
+                      <p className="text-xs text-foreground font-ui">
+                        {notification.text}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {notification.time}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -130,15 +167,25 @@ export default function DashboardNavbar({ onMenuToggle }: { onMenuToggle: () => 
           </AnimatePresence>
         </div>
 
-        {/* Streak */}
         <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full text-accent font-display text-xs bg-accent/10 border border-accent/20">
           <span>{student.streak}</span>
           <Flame className="w-3.5 h-3.5" />
         </div>
 
-        {/* Avatar */}
+        <button
+          onClick={onLogout}
+          className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-border/40 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-secondary/40 hover:text-foreground transition-colors"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          Logout
+        </button>
+
         <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-primary/40 primary-glow">
-          <img src={student.avatar} alt="" className="w-full h-full object-cover" />
+          <img
+            src={student.avatar}
+            alt=""
+            className="w-full h-full object-cover"
+          />
         </div>
       </div>
     </header>

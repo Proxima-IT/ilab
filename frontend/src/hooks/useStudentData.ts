@@ -1,7 +1,13 @@
-import { useEffect, useState, useCallback, createContext, useContext } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  createContext,
+  useContext,
+} from "react";
 import { useAuth } from "@/lib/auth";
-import { supabase } from "@/integrations/supabase/client";
 import { fetchCourses, type Course } from "@/services/courses";
+import { studentProfileService } from "@/services/student/profile.service";
 
 export type StudentData = {
   name: string;
@@ -30,155 +36,171 @@ export type StudentContextType = {
   updateCourseProgress: (courseId: string, progress: number) => void;
 };
 
+type LaravelEnrollment = {
+  id?: number | string;
+  course_id?: number | string;
+  status?: string;
+  progress_percentage?: number | string | null;
+  course?: {
+    id?: number | string;
+    title?: string;
+    slug?: string;
+    thumbnail?: string | null;
+    created_at?: string;
+  } | null;
+};
+
 export const StudentDataContext = createContext<StudentContextType | null>(null);
+
+function buildAvatar(name: string): string {
+  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(
+    name
+  )}`;
+}
+
+function getSavedProgress(email: string, courseId: string, fallback = 0): number {
+  if (typeof window === "undefined") return fallback;
+
+  const savedProgress = window.localStorage.getItem(
+    `ilab.progress.${email}.${courseId}`
+  );
+
+  if (!savedProgress) return fallback;
+
+  const parsed = Number.parseInt(savedProgress, 10);
+
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function saveProgress(email: string, courseId: string, progress: number) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(
+    `ilab.progress.${email}.${courseId}`,
+    String(Math.max(0, Math.min(100, progress)))
+  );
+}
+
+function normalizeLaravelCourse(
+  enrollment: LaravelEnrollment,
+  fallbackCourses: Course[]
+): Course | null {
+  const courseId = enrollment.course_id ?? enrollment.course?.id;
+  const courseSlug = enrollment.course?.slug;
+
+  const matchedCourse = fallbackCourses.find(
+    (course) =>
+      String(course.id) === String(courseId) ||
+      Boolean(courseSlug && course.slug === courseSlug)
+  );
+
+  if (matchedCourse) return matchedCourse;
+
+  if (!enrollment.course?.id || !enrollment.course?.title || !enrollment.course?.slug) {
+    return null;
+  }
+
+  return {
+    id: String(enrollment.course.id),
+    slug: enrollment.course.slug,
+    title: enrollment.course.title,
+    instructor: "Instructor",
+    category: "Mobile",
+    level: "Beginner",
+    mode: "Online",
+    rating: 4.8,
+    students: 0,
+    hours: 20,
+    lessons: 30,
+    price: 0,
+    cover:
+      enrollment.course.thumbnail ||
+      "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=900&q=80",
+    createdAt: enrollment.course.created_at || new Date().toISOString(),
+  };
+}
 
 export function useStudentDataValue(): StudentContextType {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [student, setStudent] = useState<StudentData | null>(null);
-  const [enrolledCoursesList, setEnrolledCoursesList] = useState<EnrolledCourseInfo[]>([]);
+  const [enrolledCoursesList, setEnrolledCoursesList] = useState<
+    EnrolledCourseInfo[]
+  >([]);
 
   const loadStudentData = useCallback(async () => {
     if (!user) {
+      setStudent(null);
+      setEnrolledCoursesList([]);
       setLoading(false);
       return;
     }
 
+    setLoading(true);
+
     try {
-      // 1. Fetch user profile from Supabase
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+      const profileResponse = await studentProfileService.getProfile();
+      const profileUser = profileResponse.data.user;
 
-      const name = profile?.full_name || user.name || "Student";
-      const email = profile?.email || user.email || "";
-      const avatar = profile?.avatar_url || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`;
+      const name = profileUser.name || user.name || "Student";
+      const email = profileUser.email || user.email || "";
+      const avatar = profileUser.avatar || buildAvatar(name);
 
-      // 2. Fetch all courses (try Supabase first, fallback to mock service)
-      let allCourses: Course[] = [];
-      const { data: dbCourses } = await supabase
-        .from("courses")
-        .select("*")
-        .eq("is_published", true);
+      const coursesResponse = await fetchCourses({ perPage: 100 });
+      const allCourses = coursesResponse.items;
 
-      if (dbCourses && dbCourses.length > 0) {
-        allCourses = dbCourses.map((c) => ({
-          id: c.id,
-          slug: c.slug,
-          title: c.title,
-          instructor: c.instructor || "Instructor",
-          category: (c.category as any) || "Mobile",
-          level: (c.level as any) || "Beginner",
-          mode: (c.mode as any) || "Online",
-          rating: Number(c.rating || 4.8),
-          students: Number(c.total_students || 0),
-          hours: Number(c.duration?.replace(/[^0-9]/g, "") || 20),
-          lessons: 30, // Default lesson count
-          price: Number(c.price || 0),
-          originalPrice: c.discounted_price ? Number(c.discounted_price) : undefined,
-          cover: c.thumbnail_url || "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=900&q=80",
-          createdAt: c.created_at,
-        }));
-      } else {
-        // Fallback to mock service
-        const res = await fetchCourses({ perPage: 100 });
-        allCourses = res.items;
-      }
-
-      // 3. Fetch enrollments from Supabase
-      const { data: dbEnrollments } = await supabase
-        .from("enrollments")
-        .select("*")
-        .eq("student_email", email);
+      const apiEnrollments = Array.isArray(profileUser.enrollments)
+        ? (profileUser.enrollments as LaravelEnrollment[])
+        : [];
 
       const enrolledList: EnrolledCourseInfo[] = [];
-
-      // We also check localStorage for local testing enrollments
-      const localInvoices: any[] = [];
-      if (typeof window !== "undefined") {
-        for (let i = 0; i < window.localStorage.length; i++) {
-          const key = window.localStorage.key(i);
-          if (key?.startsWith("ilab.invoice.")) {
-            try {
-              const invoice = JSON.parse(window.localStorage.getItem(key) || "");
-              if (invoice && invoice.email === email) {
-                localInvoices.push(invoice);
-              }
-            } catch (e) {
-              // Ignore
-            }
-          }
-        }
-      }
-
-      // Merge DB enrollments and LocalStorage invoices
       const processedCourseIds = new Set<string>();
 
-      const addCourse = (courseId: string, slug: string, status: string, enrollmentId: string) => {
-        const course = allCourses.find((c) => c.id === courseId || c.slug === slug);
-        if (course && !processedCourseIds.has(course.id)) {
-          processedCourseIds.add(course.id);
+      for (const enrollment of apiEnrollments) {
+        const course = normalizeLaravelCourse(enrollment, allCourses);
 
-          // Retrieve progress from localStorage
-          let progress = 0;
-          if (typeof window !== "undefined") {
-            const savedProgress = window.localStorage.getItem(`ilab.progress.${email}.${course.id}`);
-            if (savedProgress) {
-              progress = parseInt(savedProgress, 10);
-            } else {
-              // Deterministic initial progress so it's not 0% everywhere on first load
-              progress = Math.abs(course.title.length * 7) % 65;
-              window.localStorage.setItem(`ilab.progress.${email}.${course.id}`, String(progress));
-            }
-          }
+        if (!course || processedCourseIds.has(course.id)) continue;
 
-          enrolledList.push({
-            course,
-            progress,
-            status,
-            enrollmentId,
-          });
-        }
-      };
+        processedCourseIds.add(course.id);
 
-      // Process DB enrollments first
-      if (dbEnrollments) {
-        dbEnrollments.forEach((env) => {
-          addCourse(env.course_id, "", env.status, env.id);
+        const apiProgress = Number(enrollment.progress_percentage ?? 0);
+        const safeApiProgress = Number.isFinite(apiProgress) ? apiProgress : 0;
+        const progress = getSavedProgress(email, course.id, safeApiProgress);
+
+        enrolledList.push({
+          course,
+          progress,
+          status: enrollment.status || "active",
+          enrollmentId: String(enrollment.id || `enrollment-${course.id}`),
         });
       }
 
-      // Process LocalStorage invoices
-      localInvoices.forEach((inv) => {
-        addCourse(inv.courseId, inv.courseSlug, "paid", inv.invoiceId);
-      });
-
-      // If absolutely no courses enrolled, add one free course as a default starter
       if (enrolledList.length === 0) {
-        const freeCourse = allCourses.find((c) => c.price === 0) || allCourses[0];
+        const freeCourse = allCourses.find((course) => course.price === 0) || allCourses[0];
+
         if (freeCourse) {
-          const defaultProgress = 25;
-          if (typeof window !== "undefined") {
-            window.localStorage.setItem(`ilab.progress.${email}.${freeCourse.id}`, String(defaultProgress));
-          }
+          const progress = getSavedProgress(email, freeCourse.id, 25);
+          saveProgress(email, freeCourse.id, progress);
+
           enrolledList.push({
             course: freeCourse,
-            progress: defaultProgress,
-            status: "paid",
+            progress,
+            status: "active",
             enrollmentId: "demo-enrollment",
           });
         }
       }
 
-      // Calculate overall stats
       const totalCourses = enrolledList.length;
-      const totalProgress = enrolledList.reduce((acc, curr) => acc + curr.progress, 0);
-      const overallProgress = totalCourses > 0 ? Math.round(totalProgress / totalCourses) : 0;
+      const totalProgress = enrolledList.reduce(
+        (sum, item) => sum + item.progress,
+        0
+      );
 
-      // Gamification: XP & Level
-      const xp = totalProgress * 15; // 15 XP per 1% progress
+      const overallProgress =
+        totalCourses > 0 ? Math.round(totalProgress / totalCourses) : 0;
+
+      const xp = totalProgress * 15;
       const level = 1 + Math.floor(xp / 1000);
       const xpMax = level * 1000;
       const xpCurrent = xp % 1000;
@@ -192,12 +214,26 @@ export function useStudentDataValue(): StudentContextType {
         xpMax,
         enrolledCourses: totalCourses,
         overallProgress,
-        streak: 5, // Default streak
+        streak: 5,
       });
 
       setEnrolledCoursesList(enrolledList);
-    } catch (err) {
-      console.error("Error loading student data:", err);
+    } catch (error) {
+      console.error("Error loading student data:", error);
+
+      setStudent({
+        name: user.name || "Student",
+        email: user.email || "",
+        avatar: user.avatar || buildAvatar(user.name || "Student"),
+        level: 1,
+        xp: 0,
+        xpMax: 1000,
+        enrolledCourses: 0,
+        overallProgress: 0,
+        streak: 0,
+      });
+
+      setEnrolledCoursesList([]);
     } finally {
       setLoading(false);
     }
@@ -207,14 +243,17 @@ export function useStudentDataValue(): StudentContextType {
     void loadStudentData();
   }, [loadStudentData]);
 
-  const updateCourseProgress = useCallback((courseId: string, progress: number) => {
-    if (!user) return;
-    const email = user.email || "";
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(`ilab.progress.${email}.${courseId}`, String(progress));
+  const updateCourseProgress = useCallback(
+    (courseId: string, progress: number) => {
+      if (!user) return;
+
+      const email = user.email || "";
+
+      saveProgress(email, courseId, progress);
       void loadStudentData();
-    }
-  }, [user, loadStudentData]);
+    },
+    [user, loadStudentData]
+  );
 
   return {
     loading,
@@ -227,8 +266,10 @@ export function useStudentDataValue(): StudentContextType {
 
 export function useStudent() {
   const context = useContext(StudentDataContext);
+
   if (!context) {
     throw new Error("useStudent must be used within a StudentDataProvider");
   }
+
   return context;
 }

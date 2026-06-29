@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import Autoplay from "embla-carousel-autoplay";
 import { CourseCard } from "@/components/site/CourseCard";
-import { fetchCourses, type Course } from "@/services/courses";
+import { fetchFeaturedCourses } from "@/services/home.service";
+import type { Course } from "@/services/course-catalog.service";
 import {
   Carousel,
   CarouselContent,
@@ -14,13 +15,24 @@ import {
 
 export function Courses() {
   const [items, setItems] = useState<Course[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const autoplay = useRef(Autoplay({ delay: 3500, stopOnInteraction: false, stopOnMouseEnter: true }));
 
   useEffect(() => {
     let alive = true;
-    fetchCourses({ sort: "popular", perPage: 8 }).then((r) => {
-      if (alive) setItems(r.items);
-    });
+    setIsLoading(true);
+
+    fetchFeaturedCourses(8)
+      .then((courses) => {
+        if (alive) setItems(courses);
+      })
+      .catch(() => {
+        if (alive) setItems([]);
+      })
+      .finally(() => {
+        if (alive) setIsLoading(false);
+      });
+
     return () => {
       alive = false;
     };
@@ -47,11 +59,15 @@ export function Courses() {
           </Link>
         </div>
 
-        {items.length === 0 ? (
+        {isLoading ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="aspect-[16/22] rounded-2xl bg-surface animate-pulse" />
             ))}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center text-muted-foreground">
+            Featured courses will appear here after you mark courses as featured.
           </div>
         ) : (
           <Carousel

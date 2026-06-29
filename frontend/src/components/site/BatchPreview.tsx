@@ -3,10 +3,12 @@ import { useState } from "react";
 import { Play } from "lucide-react";
 import { VideoModal } from "@/components/site/Hero";
 
+const BATCH_PREVIEW_YOUTUBE_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+
 export function BatchPreview() {
   const [open, setOpen] = useState(false);
   return (
-    <section className="py-12 md:py-16 bg-gradient-to-b from-background via-background to-surface/30">
+    <section id="batch-preview" className="py-12 md:py-16 bg-gradient-to-b from-background via-background to-surface/30">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
@@ -38,7 +40,12 @@ export function BatchPreview() {
           </div>
         </motion.div>
       </div>
-      <VideoModal open={open} onClose={() => setOpen(false)} />
+      <VideoModal
+        open={open}
+        onClose={() => setOpen(false)}
+        youtubeUrl={BATCH_PREVIEW_YOUTUBE_URL}
+        title="Next batch preview video"
+      />
     </section>
   );
 }

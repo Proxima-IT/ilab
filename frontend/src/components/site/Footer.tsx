@@ -88,7 +88,7 @@ export function Footer() {
                 {s.links.map((l) => (
                   <li key={l.label}>
                     {l.to ? (
-                      <Link to={l.to} hash={l.hash} className="text-sm text-white/60 hover:text-primary transition-colors">
+                      <Link to={`${l.to}${l.hash ? `#${l.hash}` : ""}`} className="text-sm text-white/60 hover:text-primary transition-colors">
                         {l.label}
                       </Link>
                     ) : (

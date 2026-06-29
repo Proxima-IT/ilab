@@ -1,12 +1,19 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+  useLocation,
+} from "react-router-dom";
 import { LanguageProvider } from "@/contexts/LanguageContext";
-import { useStudentDataValue, StudentDataContext } from "@/hooks/useStudentData";
+import {
+  useStudentDataValue,
+  StudentDataContext,
+} from "@/hooks/useStudentData";
 import { useAuth } from "@/lib/auth";
 import { useAdminAuth } from "@/lib/admin/useAdminAuth";
 
-// ==========================================
-// 1. Public Pages
-// ==========================================
 import Index from "@/pages/Index";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
@@ -19,9 +26,6 @@ import EventDetail from "@/pages/EventDetail";
 import Blog from "@/pages/Blog";
 import BlogDetail from "@/pages/BlogDetail";
 
-// ==========================================
-// 2. Admin Pages
-// ==========================================
 import AdminLayout from "@/pages/admin/AdminLayout";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminClaim from "@/pages/admin/AdminClaim";
@@ -40,9 +44,6 @@ import AdminOfferings from "@/pages/admin/AdminOfferings";
 import AdminSite from "@/pages/admin/AdminSite";
 import AdminUsers from "@/pages/admin/AdminUsers";
 
-// ==========================================
-// 3. Student Dashboard Pages
-// ==========================================
 import DashboardLayout from "@/pages/dashboard/DashboardLayout";
 import OverviewPage from "@/pages/dashboard/OverviewPage";
 import MyCoursesPage from "@/pages/dashboard/MyCoursesPage";
@@ -53,9 +54,6 @@ import LeaderboardPage from "@/pages/dashboard/LeaderboardPage";
 import ResourcesPage from "@/pages/dashboard/ResourcesPage";
 import ProfilePage from "@/pages/dashboard/ProfilePage";
 
-// ==========================================
-// Auth Guards
-// ==========================================
 function ProtectedRoute() {
   const { isAuthenticated } = useAuth();
   const location = useLocation();
@@ -87,6 +85,7 @@ function AdminRoute() {
 
 function StudentPortalWrapper() {
   const studentData = useStudentDataValue();
+
   return (
     <StudentDataContext.Provider value={studentData}>
       <LanguageProvider>
@@ -100,9 +99,6 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* ==========================================
-            PUBLIC ROUTES
-           ========================================== */}
         <Route path="/" element={<Index />} />
         <Route path="/courses" element={<Courses />} />
         <Route path="/courses/:slug" element={<CourseDetail />} />
@@ -113,18 +109,14 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
-        {/* Protected Enrollment Routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/enroll/:slug" element={<Enroll />} />
           <Route path="/enroll/success" element={<EnrollSuccess />} />
         </Route>
 
-        {/* ==========================================
-            ADMIN ROUTES
-           ========================================== */}
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/claim" element={<AdminClaim />} />
-        
+
         <Route element={<AdminRoute />}>
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
@@ -144,14 +136,14 @@ export default function App() {
           </Route>
         </Route>
 
-        {/* ==========================================
-            STUDENT DASHBOARD ROUTES
-           ========================================== */}
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<StudentPortalWrapper />}>
             <Route index element={<OverviewPage />} />
             <Route path="my-courses" element={<MyCoursesPage />} />
-            <Route path="player/:courseSlug/:lectureId" element={<ClassPlayerPage />} />
+            <Route
+              path="player/:courseSlug/:lectureId"
+              element={<ClassPlayerPage />}
+            />
             <Route path="progress" element={<ProgressPage />} />
             <Route path="certificates" element={<CertificatesPage />} />
             <Route path="leaderboard" element={<LeaderboardPage />} />
@@ -160,7 +152,6 @@ export default function App() {
           </Route>
         </Route>
 
-        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
