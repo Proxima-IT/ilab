@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use OpenApi\Attributes as OA;
 
 #[OA\Tag(name: 'Course Catalog', description: 'Public endpoints for browsing the course catalog')]
@@ -27,6 +28,8 @@ class CourseController extends Controller
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
             'level' => ['nullable', 'string', 'in:beginner,intermediate,advanced'],
             'type' => ['nullable', 'string', 'in:self_paced,batch,free'],
+            'free' => ['nullable', 'boolean'],
+            'featured' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:24'],
         ]);
 
@@ -34,7 +37,14 @@ class CourseController extends Controller
             ->with([
                 'category:id,name,slug',
                 'instructor:id,name,avatar',
+                'sections' => function ($query) {
+                    $query->select('id', 'course_id', 'title', 'order')->orderBy('order');
+                },
+                'sections.lessons' => function ($query) {
+                    $query->select('id', 'section_id', 'title', 'duration', 'order')->orderBy('order');
+                },
             ])
+            ->withCount('enrollments')
             ->where('status', 'published')
             ->when(! empty($validated['search']), function ($query) use ($validated) {
                 $query->where(function ($subQuery) use ($validated) {
@@ -50,6 +60,16 @@ class CourseController extends Controller
             })
             ->when(! empty($validated['type']), function ($query) use ($validated) {
                 $query->where('type', $validated['type']);
+            })
+            ->when($request->boolean('free'), function ($query) {
+                $query->where(function ($subQuery) {
+                    $subQuery->where('type', 'free')
+                        ->orWhere('price', '<=', 0)
+                        ->orWhere('discount_price', '<=', 0);
+                });
+            })
+            ->when($request->boolean('featured'), function ($query) {
+                $query->where('is_featured', true);
             })
             ->latest()
             ->paginate($validated['per_page'] ?? 12);
@@ -115,9 +135,32 @@ class CourseController extends Controller
             ->where('status', 'published')
             ->firstOrFail();
 
+        $instructorStats = [
+            'courses_count' => 0,
+            'students_count' => 0,
+        ];
+
+        if ($course->instructor_id) {
+            $instructorCourseIds = Course::query()
+                ->where('instructor_id', $course->instructor_id)
+                ->where('status', 'published')
+                ->pluck('id');
+
+            $instructorStats = [
+                'courses_count' => $instructorCourseIds->count(),
+                'students_count' => DB::table('enrollments')
+                    ->whereIn('course_id', $instructorCourseIds)
+                    ->distinct('user_id')
+                    ->count('user_id'),
+            ];
+        }
+
+        $data = $course->toArray();
+        $data['instructor_stats'] = $instructorStats;
+
         return response()->json([
             'success' => true,
-            'data' => $course,
+            'data' => $data,
             'message' => 'Course details retrieved.',
             'errors' => null,
         ]);

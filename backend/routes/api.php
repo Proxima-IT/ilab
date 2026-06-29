@@ -6,18 +6,22 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\StudentProfileController;
 use App\Http\Controllers\Api\V1\CourseController;
+use App\Http\Controllers\Api\V1\CategoryController;
+use App\Http\Controllers\Api\V1\ReviewController;
+use App\Http\Controllers\Api\V1\EventController;
 use App\Http\Controllers\Api\V1\LessonController;
 use App\Http\Controllers\Api\V1\ProgressController;
 use App\Http\Controllers\Api\V1\UddoktaPayCheckoutController;
 use App\Http\Controllers\Api\V1\Admin\AdminProfileController;
 use App\Http\Controllers\Api\V1\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Admin\StaffController;
-use App\Http\Controllers\Api\V1\Admin\CategoryController;
+use App\Http\Controllers\Api\V1\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Api\V1\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Api\V1\Admin\SectionController;
 use App\Http\Controllers\Api\V1\Admin\LessonController as AdminLessonController;
 use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\EnrollmentController as AdminEnrollmentController;
+use App\Http\Controllers\Api\V1\Admin\EventController as AdminEventController;
 
 Route::prefix('v1')->group(function () {
 
@@ -39,6 +43,7 @@ Route::prefix('v1')->group(function () {
         ->group(function () {
             Route::post('/register', [AuthController::class, 'register']);
             Route::post('/login', [AuthController::class, 'login']);
+            Route::post('/google', [AuthController::class, 'googleLogin']);
 
             Route::post('/forgot-password', [PasswordResetController::class, 'forgotPassword']);
             Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']);
@@ -49,6 +54,23 @@ Route::prefix('v1')->group(function () {
     | Public Course Catalog Routes
     |--------------------------------------------------------------------------
     */
+    Route::get('/categories', [CategoryController::class, 'index'])
+        ->middleware('throttle:60,1');
+
+    Route::get('/reviews', [ReviewController::class, 'index'])
+        ->middleware('throttle:60,1');
+
+    Route::prefix('events')
+        ->middleware('throttle:60,1')
+        ->group(function () {
+            Route::get('/', [EventController::class, 'index']);
+            Route::get('/{slug}', [EventController::class, 'show'])
+                ->where('slug', '[A-Za-z0-9\-]+');
+            Route::post('/{slug}/registrations', [EventController::class, 'register'])
+                ->middleware('throttle:10,1')
+                ->where('slug', '[A-Za-z0-9\-]+');
+        });
+
     Route::prefix('courses')
         ->middleware('throttle:60,1')
         ->group(function () {
@@ -161,10 +183,13 @@ Route::prefix('v1')->group(function () {
                 | Admin Content Management
                 |--------------------------------------------------------------------------
                 */
-                Route::apiResource('categories', CategoryController::class);
+                Route::apiResource('categories', AdminCategoryController::class);
                 Route::apiResource('courses', AdminCourseController::class);
                 Route::apiResource('sections', SectionController::class);
                 Route::apiResource('lessons', AdminLessonController::class);
+                Route::apiResource('events', AdminEventController::class);
+                Route::get('/events/{id}/registrations', [AdminEventController::class, 'registrations'])
+                    ->whereNumber('id');
 
                 /*
                 |--------------------------------------------------------------------------
@@ -176,3 +201,5 @@ Route::prefix('v1')->group(function () {
             });
     });
 });
+
+

@@ -7,6 +7,7 @@ use App\Models\Category;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
@@ -56,6 +57,8 @@ class CategoryController extends Controller
             'type' => $validated['type'] ?? 'course',
         ]);
 
+        Cache::forget('public_categories_course');
+
         return response()->json([
             'success' => true,
             'data' => $category,
@@ -89,6 +92,8 @@ class CategoryController extends Controller
             'type' => $validated['type'] ?? $category->type,
         ]);
 
+        Cache::forget('public_categories_course');
+
         return response()->json([
             'success' => true,
             'data' => $category->fresh(),
@@ -115,6 +120,9 @@ class CategoryController extends Controller
         }
 
         $category->delete();
+
+
+        Cache::forget('public_categories_course');
 
         return response()->json([
             'success' => true,
@@ -163,3 +171,5 @@ class CategoryController extends Controller
         ], 403);
     }
 }
+
+

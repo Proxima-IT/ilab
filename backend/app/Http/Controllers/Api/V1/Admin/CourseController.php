@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rule;
 
 class CourseController extends Controller
@@ -94,6 +95,7 @@ class CourseController extends Controller
             'sale_starts_at' => ['nullable', 'date'],
             'sale_ends_at' => ['nullable', 'date', 'after_or_equal:sale_starts_at'],
             'status' => ['required', 'string', 'in:draft,published,archived'],
+            'is_featured' => ['nullable', 'boolean'],
             'type' => ['required', 'string', 'in:self_paced,batch,free'],
             'level' => ['required', 'string', 'in:beginner,intermediate,advanced'],
             'language' => ['nullable', 'string', 'max:100'],
@@ -101,6 +103,8 @@ class CourseController extends Controller
             'tags.*' => ['string', 'max:50'],
             'prerequisites' => ['nullable', 'array'],
             'prerequisites.*' => ['string', 'max:255'],
+            'learning_outcomes' => ['nullable', 'array'],
+            'learning_outcomes.*' => ['string', 'max:255'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'instructor_id' => [
@@ -136,14 +140,18 @@ class CourseController extends Controller
             'sale_starts_at' => $validated['sale_starts_at'] ?? null,
             'sale_ends_at' => $validated['sale_ends_at'] ?? null,
             'status' => $validated['status'],
+            'is_featured' => (bool) ($validated['is_featured'] ?? false),
             'type' => $validated['type'],
             'level' => $validated['level'],
             'language' => $validated['language'] ?? 'Bengali',
             'tags' => $validated['tags'] ?? null,
             'prerequisites' => $validated['prerequisites'] ?? null,
+            'learning_outcomes' => $validated['learning_outcomes'] ?? null,
             'meta_title' => $validated['meta_title'] ?? null,
             'meta_description' => $validated['meta_description'] ?? null,
         ]);
+
+        Cache::forget('public_categories_course');
 
         return response()->json([
             'success' => true,
@@ -176,6 +184,7 @@ class CourseController extends Controller
             'sale_starts_at' => ['nullable', 'date'],
             'sale_ends_at' => ['nullable', 'date', 'after_or_equal:sale_starts_at'],
             'status' => ['required', 'string', 'in:draft,published,archived'],
+            'is_featured' => ['nullable', 'boolean'],
             'type' => ['required', 'string', 'in:self_paced,batch,free'],
             'level' => ['required', 'string', 'in:beginner,intermediate,advanced'],
             'language' => ['nullable', 'string', 'max:100'],
@@ -183,6 +192,8 @@ class CourseController extends Controller
             'tags.*' => ['string', 'max:50'],
             'prerequisites' => ['nullable', 'array'],
             'prerequisites.*' => ['string', 'max:255'],
+            'learning_outcomes' => ['nullable', 'array'],
+            'learning_outcomes.*' => ['string', 'max:255'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'instructor_id' => [
@@ -224,14 +235,18 @@ class CourseController extends Controller
             'sale_starts_at' => $validated['sale_starts_at'] ?? null,
             'sale_ends_at' => $validated['sale_ends_at'] ?? null,
             'status' => $validated['status'],
+            'is_featured' => (bool) ($validated['is_featured'] ?? false),
             'type' => $validated['type'],
             'level' => $validated['level'],
             'language' => $validated['language'] ?? 'Bengali',
             'tags' => $validated['tags'] ?? null,
             'prerequisites' => $validated['prerequisites'] ?? null,
+            'learning_outcomes' => $validated['learning_outcomes'] ?? null,
             'meta_title' => $validated['meta_title'] ?? null,
             'meta_description' => $validated['meta_description'] ?? null,
         ]);
+
+        Cache::forget('public_categories_course');
 
         return response()->json([
             'success' => true,
@@ -259,6 +274,9 @@ class CourseController extends Controller
         }
 
         $course->delete();
+
+
+        Cache::forget('public_categories_course');
 
         return response()->json([
             'success' => true,
@@ -339,3 +357,5 @@ class CourseController extends Controller
         ], 403);
     }
 }
+
+

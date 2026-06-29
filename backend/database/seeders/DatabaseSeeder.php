@@ -4,7 +4,9 @@ namespace Database\Seeders;
 
 use App\Models\Category;
 use App\Models\Course;
+use App\Models\Event;
 use App\Models\Lesson;
+use App\Models\Review;
 use App\Models\Section;
 use App\Models\User;
 use Illuminate\Database\Seeder;
@@ -121,11 +123,19 @@ class DatabaseSeeder extends Seeder
                 'sale_starts_at' => now()->subDay(),
                 'sale_ends_at' => now()->addDays(7),
                 'status' => 'published',
+                'is_featured' => true,
                 'type' => 'self_paced',
                 'level' => 'intermediate',
                 'language' => 'Bengali',
                 'tags' => ['Laravel', 'React', 'API', 'Web'],
                 'prerequisites' => ['Basic PHP', 'Basic JavaScript'],
+                'learning_outcomes' => [
+                    'Design Laravel APIs for a decoupled React application',
+                    'Build protected authentication flows with Sanctum tokens',
+                    'Structure course, section, lesson, enrollment, and progress data',
+                    'Connect React pages to real Laravel API responses',
+                    'Prepare an EdTech project for production-level improvements',
+                ],
                 'meta_title' => 'Complete Laravel & React Bootcamp',
                 'meta_description' => 'Learn Laravel API and React frontend by building a production-style EdTech platform.',
             ]
@@ -208,7 +218,109 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        $this->command->info('Database seeded successfully with users, categories, course sections, and lessons.');
+        /*
+        |--------------------------------------------------------------------------
+        | Reviews
+        |--------------------------------------------------------------------------
+        */
+        $reviews = [
+            [
+                'student_name' => 'Sadia Rahman',
+                'student_role' => 'Frontend Engineer',
+                'avatar' => null,
+                'rating' => 5,
+                'review_text' => 'iLab helped me build a real portfolio and understand how production projects are structured.',
+                'media_type' => 'text',
+                'media_url' => null,
+                'thumbnail' => null,
+                'sort_order' => 1,
+            ],
+            [
+                'student_name' => 'Tanvir Hasan',
+                'student_role' => 'Mobile Repair Technician',
+                'avatar' => null,
+                'rating' => 5,
+                'review_text' => 'The lessons were practical and the instructor explained each repair step clearly.',
+                'media_type' => 'text',
+                'media_url' => null,
+                'thumbnail' => null,
+                'sort_order' => 2,
+            ],
+            [
+                'student_name' => 'Maliha Chowdhury',
+                'student_role' => 'Freelancer',
+                'avatar' => null,
+                'rating' => 5,
+                'review_text' => 'I started taking client work after finishing the course projects.',
+                'media_type' => 'text',
+                'media_url' => null,
+                'thumbnail' => null,
+                'sort_order' => 3,
+            ],
+        ];
+
+        foreach ($reviews as $review) {
+            Review::updateOrCreate(
+                ['student_name' => $review['student_name']],
+                array_merge(['is_published' => true], $review)
+            );
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Events
+        |--------------------------------------------------------------------------
+        */
+        $events = [
+            [
+                'title' => 'Free Mobile Repairing Workshop',
+                'slug' => 'free-mobile-repairing-workshop',
+                'event_type' => 'Workshop',
+                'starts_at' => now()->addDays(10)->setTime(15, 0),
+                'ends_at' => now()->addDays(10)->setTime(17, 0),
+                'location' => 'Online (Zoom)',
+                'seats' => 200,
+                'cover_url' => 'https://images.unsplash.com/photo-1581092918056-0e67c8d3e217?w=1200&q=80',
+                'description' => 'Learn smartphone diagnostics, screen replacement, battery health testing, and practical repair workflow from expert trainers.',
+                'meta_title' => 'Free Mobile Repairing Workshop | iLab BD',
+                'meta_description' => 'Register for a free iLab mobile repairing workshop and learn practical smartphone repair skills from expert trainers.',
+                'is_published' => true,
+            ],
+            [
+                'title' => 'Career Talk: From Repair Shop to Tech Entrepreneur',
+                'slug' => 'career-talk-repair-shop-to-tech-entrepreneur',
+                'event_type' => 'Webinar',
+                'starts_at' => now()->addDays(17)->setTime(19, 0),
+                'ends_at' => now()->addDays(17)->setTime(20, 30),
+                'location' => 'Online (Facebook Live)',
+                'seats' => 500,
+                'cover_url' => 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&q=80',
+                'description' => 'Hear from successful iLab graduates who turned mobile repairing skills into full-time businesses.',
+                'meta_title' => 'Mobile Repairing Career Talk | iLab BD',
+                'meta_description' => 'Join iLab graduates and mentors for a live career talk about building a business from mobile repairing skills.',
+                'is_published' => true,
+            ],
+            [
+                'title' => 'Finished Demo Event',
+                'slug' => 'finished-demo-event',
+                'event_type' => 'Workshop',
+                'starts_at' => now()->subDays(5)->setTime(15, 0),
+                'ends_at' => now()->subDays(5)->setTime(17, 0),
+                'location' => 'Dhaka, Bangladesh',
+                'seats' => 100,
+                'cover_url' => 'https://images.unsplash.com/photo-1544531586-fde5298cdd40?w=1200&q=80',
+                'description' => 'This demo event is already finished, so the frontend should show the finished state and disable registration.',
+                'meta_title' => 'Finished Demo Event | iLab BD',
+                'meta_description' => 'This event is finished and registration is closed.',
+                'is_published' => true,
+            ],
+        ];
+
+        foreach ($events as $event) {
+            Event::updateOrCreate(['slug' => $event['slug']], $event);
+        }
+
+        $this->command->info('Database seeded successfully with users, categories, course sections, lessons, reviews, and events.');
         $this->command->warn('Demo password for all seeded users: Password123!');
     }
 }
