@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Category;
+use App\Models\BlogPost;
 use App\Models\Course;
 use App\Models\Event;
 use App\Models\Lesson;
@@ -103,6 +104,68 @@ class DatabaseSeeder extends Seeder
                 'type' => 'course',
             ]
         );
+
+        $catBlogCareer = Category::updateOrCreate(
+            ['slug' => 'career-guides'],
+            [
+                'name' => 'Career Guides',
+                'type' => 'blog',
+            ]
+        );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Blog Posts
+        |--------------------------------------------------------------------------
+        */
+        $blogPosts = [
+            [
+                'title' => 'How Mobile Repairing Skills Can Build a Real Career',
+                'slug' => 'mobile-repairing-skills-real-career',
+                'excerpt' => 'A practical guide to turning mobile repairing skills into income, job opportunities, and a service business.',
+                'content' => implode("\n\n", [
+                    'Mobile repairing is a practical skill that can create income quickly when it is learned with the right process.',
+                    'Start with diagnostics, charging issues, display replacement, battery health, and safe tool handling. These are the problems customers bring most often.',
+                    'Build trust by documenting every repair, explaining the issue clearly, and giving realistic delivery times.',
+                    'After learning the basics, add software troubleshooting, data backup, and professional customer support to increase your value.',
+                ]),
+                'cover_url' => 'https://images.unsplash.com/photo-1581092918056-0e67c8d3e217?w=1200&q=80',
+                'author_name' => 'iLab Team',
+                'author_avatar' => null,
+                'meta_title' => 'Mobile Repairing Career Guide | iLab BD',
+                'meta_description' => 'Learn how mobile repairing skills can help you build a job-ready career or start a repair business in Bangladesh.',
+                'is_published' => true,
+                'published_at' => now()->subDays(4),
+            ],
+            [
+                'title' => 'What to Learn Before Joining a Mobile Repairing Course',
+                'slug' => 'before-joining-mobile-repairing-course',
+                'excerpt' => 'The simple preparation steps that help beginners get more value from a hands-on mobile repairing course.',
+                'content' => implode("\n\n", [
+                    'You do not need advanced technical knowledge before joining a mobile repairing course, but a little preparation helps a lot.',
+                    'Learn the basic names of phone parts, understand how to handle tools safely, and practice careful observation.',
+                    'Bring a notebook and write down symptoms, possible causes, and repair steps during every class.',
+                    'The goal is not memorization. The goal is learning a repeatable diagnostic process.',
+                ]),
+                'cover_url' => 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&q=80',
+                'author_name' => 'Tahsin Ahmad',
+                'author_avatar' => null,
+                'meta_title' => 'Before Joining a Mobile Repairing Course | iLab BD',
+                'meta_description' => 'Beginner preparation tips before joining a mobile repairing course at iLab BD.',
+                'is_published' => true,
+                'published_at' => now()->subDays(9),
+            ],
+        ];
+
+        foreach ($blogPosts as $post) {
+            BlogPost::updateOrCreate(
+                ['slug' => $post['slug']],
+                array_merge($post, [
+                    'category_id' => $catBlogCareer->id,
+                    'author_id' => $instructor->id,
+                ])
+            );
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -320,7 +383,7 @@ class DatabaseSeeder extends Seeder
             Event::updateOrCreate(['slug' => $event['slug']], $event);
         }
 
-        $this->command->info('Database seeded successfully with users, categories, course sections, lessons, reviews, and events.');
+        $this->command->info('Database seeded successfully with users, categories, blog posts, course sections, lessons, reviews, and events.');
         $this->command->warn('Demo password for all seeded users: Password123!');
     }
 }

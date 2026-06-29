@@ -47,11 +47,16 @@ class ProgressController extends Controller
                 'lesson_id' => $lesson->id,
             ],
             [
+                'course_id' => $courseId,
                 'watch_seconds' => 0,
                 'is_completed' => false,
                 'last_watched_at' => now(),
             ]
         );
+
+        if ((int) $progress->course_id !== (int) $courseId) {
+            $progress->forceFill(['course_id' => $courseId])->save();
+        }
 
         if (! $lesson->is_free && $lesson->type === 'video') {
             $requiredSeconds = (int) ceil(((int) $lesson->duration) * 0.8);
@@ -63,6 +68,7 @@ class ProgressController extends Controller
 
         $progress->update([
             'is_completed' => true,
+            'completed_at' => now(),
             'last_watched_at' => now(),
         ]);
 
@@ -133,11 +139,16 @@ class ProgressController extends Controller
                 'lesson_id' => $lesson->id,
             ],
             [
+                'course_id' => $courseId,
                 'watch_seconds' => 0,
                 'is_completed' => false,
                 'last_watched_at' => now(),
             ]
         );
+
+        if ((int) $progress->course_id !== (int) $courseId) {
+            $progress->forceFill(['course_id' => $courseId])->save();
+        }
 
         $progress->update([
             'watch_seconds' => max((int) $progress->watch_seconds, $safeWatchSeconds),
@@ -199,7 +210,6 @@ class ProgressController extends Controller
             ->where('id', $enrollmentId)
             ->update([
                 'progress_percentage' => $progressPercentage,
-                'status' => $progressPercentage >= 100 ? 'completed' : 'active',
                 'updated_at' => now(),
             ]);
 

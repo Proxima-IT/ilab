@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\CourseController;
 use App\Http\Controllers\Api\V1\CategoryController;
 use App\Http\Controllers\Api\V1\ReviewController;
 use App\Http\Controllers\Api\V1\EventController;
+use App\Http\Controllers\Api\V1\BlogPostController;
 use App\Http\Controllers\Api\V1\LessonController;
 use App\Http\Controllers\Api\V1\ProgressController;
 use App\Http\Controllers\Api\V1\UddoktaPayCheckoutController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\Api\V1\Admin\LessonController as AdminLessonController;
 use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\EnrollmentController as AdminEnrollmentController;
 use App\Http\Controllers\Api\V1\Admin\EventController as AdminEventController;
+use App\Http\Controllers\Api\V1\Admin\BlogPostController as AdminBlogPostController;
 
 Route::prefix('v1')->group(function () {
 
@@ -68,6 +70,14 @@ Route::prefix('v1')->group(function () {
                 ->where('slug', '[A-Za-z0-9\-]+');
             Route::post('/{slug}/registrations', [EventController::class, 'register'])
                 ->middleware('throttle:10,1')
+                ->where('slug', '[A-Za-z0-9\-]+');
+        });
+
+    Route::prefix('blog-posts')
+        ->middleware('throttle:60,1')
+        ->group(function () {
+            Route::get('/', [BlogPostController::class, 'index']);
+            Route::get('/{slug}', [BlogPostController::class, 'show'])
                 ->where('slug', '[A-Za-z0-9\-]+');
         });
 
@@ -125,6 +135,9 @@ Route::prefix('v1')->group(function () {
         Route::prefix('student')->group(function () {
             Route::get('/profile', [StudentProfileController::class, 'show']);
             Route::put('/profile', [StudentProfileController::class, 'update']);
+            Route::post('/profile/avatar', [StudentProfileController::class, 'updateAvatar']);
+            Route::put('/profile/password', [StudentProfileController::class, 'updatePassword']);
+            Route::put('/profile/notifications', [StudentProfileController::class, 'updateNotifications']);
 
             Route::get('/progress/{course_id}', [ProgressController::class, 'courseProgress'])
                 ->whereNumber('course_id');
@@ -136,8 +149,14 @@ Route::prefix('v1')->group(function () {
         |--------------------------------------------------------------------------
         */
         Route::prefix('learn')->group(function () {
+            Route::get('/resources', [LessonController::class, 'resources']);
+
             Route::get('/courses/{slug}/syllabus', [LessonController::class, 'getSyllabus'])
                 ->where('slug', '[A-Za-z0-9\-]+');
+
+            Route::get('/courses/{slug}/player/{lesson}', [LessonController::class, 'player'])
+                ->where('slug', '[A-Za-z0-9\-]+')
+                ->whereNumber('lesson');
 
             Route::post('/lessons/{id}/complete', [ProgressController::class, 'markComplete'])
                 ->whereNumber('id');
@@ -145,6 +164,19 @@ Route::prefix('v1')->group(function () {
             Route::put('/lessons/{id}/time', [ProgressController::class, 'syncWatchTime'])
                 ->whereNumber('id')
                 ->middleware('throttle:60,1');
+
+            Route::post('/lessons/{lesson}/notes', [LessonController::class, 'storeNote'])
+                ->whereNumber('lesson');
+            Route::delete('/lessons/{lesson}/notes/{note}', [LessonController::class, 'deleteNote'])
+                ->whereNumber('lesson')
+                ->whereNumber('note');
+            Route::post('/lessons/{lesson}/questions', [LessonController::class, 'storeQuestion'])
+                ->whereNumber('lesson')
+                ->middleware('throttle:20,1');
+            Route::post('/lessons/{lesson}/questions/{question}/answers', [LessonController::class, 'storeAnswer'])
+                ->whereNumber('lesson')
+                ->whereNumber('question')
+                ->middleware('throttle:20,1');
         });
 
         /*
@@ -190,6 +222,7 @@ Route::prefix('v1')->group(function () {
                 Route::apiResource('events', AdminEventController::class);
                 Route::get('/events/{id}/registrations', [AdminEventController::class, 'registrations'])
                     ->whereNumber('id');
+                Route::apiResource('blog-posts', AdminBlogPostController::class);
 
                 /*
                 |--------------------------------------------------------------------------

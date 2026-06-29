@@ -45,6 +45,21 @@ class Lesson extends Model
         return $this->hasMany(LessonProgress::class);
     }
 
+    public function notes(): HasMany
+    {
+        return $this->hasMany(LessonNote::class);
+    }
+
+    public function questions(): HasMany
+    {
+        return $this->hasMany(LessonQuestion::class);
+    }
+
+    public function resources(): HasMany
+    {
+        return $this->hasMany(LessonResource::class)->orderBy('order');
+    }
+
     public function isFreePreview(): bool
     {
         return (bool) $this->is_free;

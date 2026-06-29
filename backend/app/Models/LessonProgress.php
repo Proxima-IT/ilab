@@ -11,8 +11,10 @@ class LessonProgress extends Model
 
     protected $fillable = [
         'user_id',
+        'course_id',
         'lesson_id',
         'is_completed',
+        'completed_at',
         'watch_seconds',
         'last_watched_at',
     ];
@@ -20,6 +22,7 @@ class LessonProgress extends Model
     protected $casts = [
         'is_completed' => 'boolean',
         'watch_seconds' => 'integer',
+        'completed_at' => 'datetime',
         'last_watched_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
