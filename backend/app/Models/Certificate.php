@@ -9,9 +9,18 @@ class Certificate extends Model
 {
     use HasUuids;
 
-    protected $fillable = ['user_id', 'course_id', 'verification_code', 'issued_at'];
+    protected $fillable = [
+        'user_id',
+        'course_id',
+        'verification_code',
+        'authorized_signatory_name',
+        'authorized_signatory_title',
+        'eligible_progress',
+        'issued_at',
+    ];
 
     protected $casts = [
+        'eligible_progress' => 'integer',
         'issued_at' => 'datetime',
     ];
 

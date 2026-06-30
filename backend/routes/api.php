@@ -12,6 +12,8 @@ use App\Http\Controllers\Api\V1\EventController;
 use App\Http\Controllers\Api\V1\BlogPostController;
 use App\Http\Controllers\Api\V1\LessonController;
 use App\Http\Controllers\Api\V1\ProgressController;
+use App\Http\Controllers\Api\V1\CertificateController;
+use App\Http\Controllers\Api\V1\StudentNotificationController;
 use App\Http\Controllers\Api\V1\UddoktaPayCheckoutController;
 use App\Http\Controllers\Api\V1\Admin\AdminProfileController;
 use App\Http\Controllers\Api\V1\Admin\DashboardController;
@@ -138,6 +140,12 @@ Route::prefix('v1')->group(function () {
             Route::post('/profile/avatar', [StudentProfileController::class, 'updateAvatar']);
             Route::put('/profile/password', [StudentProfileController::class, 'updatePassword']);
             Route::put('/profile/notifications', [StudentProfileController::class, 'updateNotifications']);
+            Route::get('/certificates', [CertificateController::class, 'index']);
+            Route::get('/notifications', [StudentNotificationController::class, 'index']);
+            Route::put('/notifications/{id}/read', [StudentNotificationController::class, 'markRead'])
+                ->whereNumber('id');
+            Route::get('/notification-settings', [StudentNotificationController::class, 'settings']);
+            Route::put('/notification-settings', [StudentNotificationController::class, 'updateSettings']);
 
             Route::get('/progress/{course_id}', [ProgressController::class, 'courseProgress'])
                 ->whereNumber('course_id');

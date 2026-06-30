@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\StudentNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -97,6 +98,14 @@ class StudentProfileController extends Controller
 
         $user->fill($validated)->save();
 
+        StudentNotification::createForStudent(
+            $user->id,
+            'profile_update',
+            'Profile updated',
+            'Your profile information was updated successfully.',
+            '/dashboard/profile'
+        );
+
         return $this->profileResponse($user->fresh(), 'Profile updated successfully.');
     }
 
@@ -119,6 +128,14 @@ class StudentProfileController extends Controller
         $user->forceFill([
             'avatar' => 'storage/' . $path,
         ])->save();
+
+        StudentNotification::createForStudent(
+            $user->id,
+            'profile_update',
+            'Avatar updated',
+            'Your profile avatar was updated successfully.',
+            '/dashboard/profile'
+        );
 
         if ($oldAvatar && str_starts_with($oldAvatar, 'storage/avatars/')) {
             Storage::disk('public')->delete(str_replace('storage/', '', $oldAvatar));
@@ -156,6 +173,14 @@ class StudentProfileController extends Controller
         $user->forceFill([
             'password' => $validated['password'],
         ])->save();
+
+        StudentNotification::createForStudent(
+            $user->id,
+            'profile_update',
+            'Password updated',
+            'Your account password was changed successfully.',
+            '/dashboard/profile'
+        );
 
         return $this->profileResponse($user->fresh(), 'Password updated successfully.');
     }

@@ -272,6 +272,145 @@
                 ]
             }
         },
+        "/api/v1/blog-posts": {
+            "get": {
+                "tags": [
+                    "Blog"
+                ],
+                "summary": "List published blog posts",
+                "operationId": "0c658a50b7b4e77330ddc8714078fda2",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 12,
+                            "maximum": 24,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Blog posts retrieved successfully"
+                    }
+                }
+            }
+        },
+        "/api/v1/blog-posts/{slug}": {
+            "get": {
+                "tags": [
+                    "Blog"
+                ],
+                "summary": "Get blog post details",
+                "operationId": "4db969980e67501f49b4deeb2b06a0d9",
+                "parameters": [
+                    {
+                        "name": "slug",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "mobile-repairing-career-guide"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Blog post retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Blog post not found"
+                    }
+                }
+            }
+        },
+        "/api/v1/student/certificates": {
+            "get": {
+                "tags": [
+                    "Student Certificates"
+                ],
+                "summary": "List student certificates",
+                "description": "Returns real certificates for the authenticated student. Eligible certificates are created automatically when course progress reaches 90%.",
+                "operationId": "38c86c942a6bae97fda3051c3e0ee1f5",
+                "responses": {
+                    "200": {
+                        "description": "Certificates retrieved successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "certificates": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "properties": {
+                                                            "id": {
+                                                                "type": "string",
+                                                                "example": "9b3f7c2d-1234-4bcd-a456-123456789abc"
+                                                            },
+                                                            "verification_code": {
+                                                                "type": "string",
+                                                                "example": "ILAB-2026-AB12CD34"
+                                                            },
+                                                            "authorized_signatory_name": {
+                                                                "type": "string",
+                                                                "example": "Authorized Signature"
+                                                            },
+                                                            "authorized_signatory_title": {
+                                                                "type": "string",
+                                                                "example": "iLab BD"
+                                                            },
+                                                            "eligible_progress": {
+                                                                "type": "integer",
+                                                                "example": 90
+                                                            },
+                                                            "issued_at": {
+                                                                "type": "string",
+                                                                "format": "date-time"
+                                                            }
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                },
+                                                "eligible_progress": {
+                                                    "type": "integer",
+                                                    "example": 90
+                                                }
+                                            },
+                                            "type": "object"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Certificates retrieved successfully."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Unauthorized certificate access"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/v1/courses": {
             "get": {
                 "tags": [
@@ -312,6 +451,143 @@
                     },
                     "404": {
                         "description": "Course not found"
+                    }
+                }
+            }
+        },
+        "/api/v1/events": {
+            "get": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "List published events",
+                "description": "Returns published events with registration counts and finished status.",
+                "operationId": "1845dc9126717378ecce57f9863a2775",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 12,
+                            "maximum": 24,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Events retrieved successfully"
+                    }
+                }
+            }
+        },
+        "/api/v1/events/{slug}": {
+            "get": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Get event details",
+                "description": "Returns a single published event by slug.",
+                "operationId": "d4ff97a4c7fe55512b7b95819418c0d9",
+                "parameters": [
+                    {
+                        "name": "slug",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "free-mobile-repairing-workshop"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Event retrieved successfully"
+                    },
+                    "404": {
+                        "description": "Event not found"
+                    }
+                }
+            }
+        },
+        "/api/v1/events/{slug}/registrations": {
+            "post": {
+                "tags": [
+                    "Events"
+                ],
+                "summary": "Register for an event",
+                "description": "Creates an event registration. Finished events cannot receive registrations.",
+                "operationId": "0f012586c8b31bc08b52499532168ed4",
+                "parameters": [
+                    {
+                        "name": "slug",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "free-mobile-repairing-workshop"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "full_name",
+                                    "email",
+                                    "phone",
+                                    "why_want_to_learn"
+                                ],
+                                "properties": {
+                                    "full_name": {
+                                        "type": "string",
+                                        "example": "Md Hasan"
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "hasan@example.com"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "01700000000"
+                                    },
+                                    "education": {
+                                        "type": "string",
+                                        "example": "Diploma in Engineering",
+                                        "nullable": true
+                                    },
+                                    "profession": {
+                                        "type": "string",
+                                        "example": "Student",
+                                        "nullable": true
+                                    },
+                                    "why_want_to_learn": {
+                                        "type": "string",
+                                        "example": "I want to build a mobile repairing business."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Registration completed successfully"
+                    },
+                    "400": {
+                        "description": "Event registration is closed"
+                    },
+                    "409": {
+                        "description": "Already registered with this email"
+                    },
+                    "422": {
+                        "description": "Validation error"
                     }
                 }
             }
@@ -576,8 +852,20 @@
             "description": "Endpoints for registration, login, Google login, logout, and device tracking"
         },
         {
+            "name": "Blog",
+            "description": "Public blog post listing and details"
+        },
+        {
+            "name": "Student Certificates",
+            "description": "Student certificate issuing and listing endpoints"
+        },
+        {
             "name": "Course Catalog",
             "description": "Public endpoints for browsing the course catalog"
+        },
+        {
+            "name": "Events",
+            "description": "Public event listing, event details, and event registration endpoints"
         },
         {
             "name": "Learning Experience"

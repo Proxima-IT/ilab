@@ -123,4 +123,7 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    'certificate_signatory_name' => env('CERTIFICATE_SIGNATORY_NAME', 'Authorized Signature'),
+    'certificate_signatory_title' => env('CERTIFICATE_SIGNATORY_TITLE', 'iLab BD'),
+
 ];

@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\Certificate;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
+use App\Models\StudentNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use OpenApi\Attributes as OA;
 
 #[OA\Tag(name: 'Learning Experience')]
@@ -73,6 +76,18 @@ class ProgressController extends Controller
         ]);
 
         $progressPercentage = $this->updateEnrollmentProgress($enrollment->id, $user->id, $courseId);
+        $certificate = $this->issueCertificateIfEligible($user->id, $courseId, $progressPercentage);
+
+        if ($progressPercentage >= 100) {
+            StudentNotification::createForStudent(
+                $user->id,
+                'course_completion',
+                'Course completed',
+                'Congratulations! You completed this course.',
+                '/dashboard/certificates',
+                ['course_id' => $courseId]
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -81,6 +96,7 @@ class ProgressController extends Controller
                 'lesson_id' => $lesson->id,
                 'progress_percentage' => $progressPercentage,
                 'is_course_completed' => $progressPercentage >= 100,
+                'certificate' => $certificate,
             ],
             'message' => 'Lesson marked as complete.',
             'errors' => null,
@@ -214,6 +230,49 @@ class ProgressController extends Controller
             ]);
 
         return $progressPercentage;
+    }
+
+    private function issueCertificateIfEligible(int $userId, int $courseId, int $progressPercentage): ?Certificate
+    {
+        if ($progressPercentage < 90) {
+            return null;
+        }
+
+        $certificate = Certificate::firstOrCreate(
+            [
+                'user_id' => $userId,
+                'course_id' => $courseId,
+            ],
+            [
+                'verification_code' => $this->verificationCode(),
+                'authorized_signatory_name' => config('app.certificate_signatory_name', 'Authorized Signature'),
+                'authorized_signatory_title' => config('app.certificate_signatory_title', 'iLab BD'),
+                'eligible_progress' => 90,
+                'issued_at' => now(),
+            ]
+        );
+
+        if ($certificate->wasRecentlyCreated) {
+            StudentNotification::createForStudent(
+                $userId,
+                'certificate_ready',
+                'Certificate ready',
+                'Your certificate is ready to download.',
+                '/dashboard/certificates',
+                ['course_id' => $courseId, 'certificate_id' => $certificate->id]
+            );
+        }
+
+        return $certificate;
+    }
+
+    private function verificationCode(): string
+    {
+        do {
+            $code = 'ILAB-' . now()->format('Y') . '-' . strtoupper(Str::random(8));
+        } while (Certificate::where('verification_code', $code)->exists());
+
+        return $code;
     }
 
     private function calculateCourseProgress(int $userId, int $courseId): int
