@@ -120,17 +120,7 @@ export default function DashboardLayout() {
 
       <main className="lg:ml-60 pt-[60px] pb-20 lg:pb-6 min-h-screen relative z-10">
         <div className="p-4 lg:p-6">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={pathname}
-              initial={{ opacity: 0, x: 30 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -30 }}
-              transition={{ duration: 0.25 }}
-            >
-              <Outlet />
-            </motion.div>
-          </AnimatePresence>
+          <Outlet />
         </div>
       </main>
 

@@ -8,7 +8,7 @@ import {
   Camera,
   CheckCircle2,
   Flame,
-  GraduationCap,
+  Gift,
   Loader2,
   Mail,
   Save,
@@ -23,9 +23,12 @@ import { useAuth } from "@/lib/auth";
 import { imageUrl } from "@/services/course-catalog.service";
 import {
   studentProfileService,
-  type StudentNotificationPrefs,
   type StudentProfileUser,
 } from "@/services/student/profile.service";
+import {
+  notificationService,
+  type StudentNotificationSettings,
+} from "@/services/student/notification.service";
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.08 } } };
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
@@ -49,13 +52,16 @@ type PasswordState = {
   password_confirmation: string;
 };
 
-const defaultNotifications: Required<StudentNotificationPrefs> = {
+const defaultNotifications: StudentNotificationSettings = {
+  new_lecture: true,
+  special_offer: true,
+  event: true,
+  profile_update: true,
+  course_completion: true,
+  certificate_ready: true,
   email: true,
   sms: false,
   push: true,
-  lecture: true,
-  streak: true,
-  congrats: true,
 };
 
 function fallbackAvatar(name: string): string {
@@ -147,7 +153,7 @@ export default function ProfilePage() {
     password_confirmation: "",
   });
   const [notifs, setNotifs] =
-    useState<Required<StudentNotificationPrefs>>(defaultNotifications);
+    useState<StudentNotificationSettings>(defaultNotifications);
   const [saving, setSaving] = useState<"profile" | "password" | "notifications" | "avatar" | null>(null);
 
   const applyProfile = (nextUser: StudentProfileUser) => {
@@ -160,11 +166,6 @@ export default function ProfilePage() {
       education_level: nextUser.education_level || "",
       bio: nextUser.bio || "",
     });
-    setNotifs({
-      ...defaultNotifications,
-      ...(nextUser.notification_prefs || {}),
-    });
-
   };
 
   useEffect(() => {
@@ -178,6 +179,25 @@ export default function ProfilePage() {
       applyProfile(sharedProfileUser);
     }
   }, [sharedProfileUser, token, navigate, clearSession]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadNotificationSettings() {
+      try {
+        const settings = await notificationService.getSettings();
+        if (mounted) setNotifs({ ...defaultNotifications, ...settings });
+      } catch {
+        if (mounted) setNotifs(defaultNotifications);
+      }
+    }
+
+    void loadNotificationSettings();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const completedCourses = enrolledCoursesList.filter((course) => course.progress === 100).length;
   const certificatesEarned = completedCourses;
@@ -279,8 +299,7 @@ export default function ProfilePage() {
     setSaving("notifications");
 
     try {
-      const response = await studentProfileService.updateNotifications(notifs);
-      applyProfile(response.data.user);
+      await notificationService.updateSettings(notifs);
       toast.success("Notification settings saved.");
     } catch (error) {
       if (!handleUnauthorizedError(error)) {
@@ -482,12 +501,15 @@ export default function ProfilePage() {
               {activeTab === "notifications" && (
                 <div className="space-y-4">
                   {[
-                    { key: "lecture" as const, icon: Bell, label: t("notifNewLecture") },
-                    { key: "email" as const, icon: Mail, label: t("notifEmail") },
+                    { key: "new_lecture" as const, icon: Bell, label: "New lecture added" },
+                    { key: "special_offer" as const, icon: Gift, label: "Special offers" },
+                    { key: "event" as const, icon: Bell, label: "Events" },
+                    { key: "profile_update" as const, icon: Mail, label: "Profile updates" },
+                    { key: "course_completion" as const, icon: CheckCircle2, label: "Course completion" },
+                    { key: "certificate_ready" as const, icon: Award, label: "Certificate ready" },
+                    { key: "email" as const, icon: Mail, label: "Email notifications" },
                     { key: "sms" as const, icon: Smartphone, label: "SMS notifications" },
                     { key: "push" as const, icon: Bell, label: "Push notifications" },
-                    { key: "streak" as const, icon: Flame, label: t("notifStreak") },
-                    { key: "congrats" as const, icon: GraduationCap, label: t("notifCongrats") },
                   ].map((notification) => (
                     <div
                       key={notification.key}

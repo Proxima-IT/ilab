@@ -121,9 +121,49 @@ export function avatarUrl(path?: string | null): string | undefined {
   return imageUrl(path);
 }
 
+let resourcesCache: ResourceCourse[] | null = null;
+let resourcesRequest: Promise<ResourceCourse[]> | null = null;
+let resourcesCacheKey: string | null = null;
+
+function currentCacheKey(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem("ilab.access_token");
+}
+
 export const learningService = {
-  async getResources() {
+  async getResources(force = false) {
+    const cacheKey = currentCacheKey();
+
+    if (!force && resourcesCache && resourcesCacheKey === cacheKey) {
+      return resourcesCache;
+    }
+
+    if (!force && resourcesRequest && resourcesCacheKey === cacheKey) {
+      return resourcesRequest;
+    }
+
+    resourcesCacheKey = cacheKey;
+    resourcesRequest = get<ApiResponse<ResourceCourse[]>>("/learn/resources").then(
+      (response) => {
+        resourcesCache = response.data;
+        resourcesRequest = null;
+        return response.data;
+      }
+    );
+
+    return resourcesRequest;
+  },
+
+  clearResourcesCache() {
+    resourcesCache = null;
+    resourcesRequest = null;
+    resourcesCacheKey = null;
+  },
+
+  async getResourcesFresh() {
     const response = await get<ApiResponse<ResourceCourse[]>>("/learn/resources");
+    resourcesCache = response.data;
+    resourcesCacheKey = currentCacheKey();
     return response.data;
   },
 

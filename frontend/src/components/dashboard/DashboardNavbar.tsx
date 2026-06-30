@@ -1,10 +1,24 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Menu, LogOut } from "lucide-react";
+import {
+  Award,
+  Bell,
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  Gift,
+  LogOut,
+  Menu,
+  UserCog,
+} from "lucide-react";
 import { useStudent } from "@/hooks/useStudentData";
-import { notificationsData } from "@/lib/mockData";
 import { SiteLogo } from "@/components/site/SiteLogo";
+import {
+  notificationService,
+  type StudentNotification,
+  type StudentNotificationType,
+} from "@/services/student/notification.service";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Overview",
@@ -35,23 +49,41 @@ export default function DashboardNavbar({
   onLogout,
 }: DashboardNavbarProps) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { student, loading } = useStudent();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState<StudentNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef<HTMLDivElement>(null);
-  const latestNotifications = notificationsData.slice(0, 10).map((notification, index) => ({
-    ...notification,
-    read:
-      "read" in notification
-        ? Boolean((notification as { read?: boolean }).read)
-        : index > 1,
-  }));
-  const unreadCount = latestNotifications.filter(
-    (notification) => !notification.read
-  ).length;
 
   const pageTitle = pageTitles[pathname] || pathname.includes("/player")
     ? "Class Player"
     : "Dashboard";
+
+  const notificationIcons: Record<StudentNotificationType, typeof Bell> = {
+    new_lecture: BookOpen,
+    special_offer: Gift,
+    event: CalendarDays,
+    profile_update: UserCog,
+    course_completion: CheckCircle2,
+    certificate_ready: Award,
+  };
+
+  function formatNotificationTime(date: string): string {
+    const diffSeconds = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 1000));
+
+    if (diffSeconds < 60) return "Just now";
+    if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
+    if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h ago`;
+    return `${Math.floor(diffSeconds / 86400)}d ago`;
+  }
+
+  function sortNotifications(items: StudentNotification[]) {
+    return [...items].sort((a, b) => {
+      const dateDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      return dateDiff || b.id - a.id;
+    });
+  }
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
@@ -67,6 +99,60 @@ export default function DashboardNavbar({
 
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadNotifications() {
+      try {
+        const data = await notificationService.getLatest();
+
+        if (mounted) {
+          setNotifications(sortNotifications(data.notifications));
+          setUnreadCount(data.unread_count);
+        }
+      } catch {
+        if (mounted) {
+          setNotifications([]);
+          setUnreadCount(0);
+        }
+      }
+    }
+
+    void loadNotifications();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleNotificationClick = async (notification: StudentNotification) => {
+    if (!notification.read_at) {
+      const updated = await notificationService.markRead(notification.id);
+      setNotifications((current) =>
+        sortNotifications(
+          current.map((item) => (item.id === notification.id ? updated : item))
+        )
+      );
+      setUnreadCount((current) => Math.max(0, current - 1));
+    }
+
+    if (notification.action_url) {
+      setShowNotifications(false);
+      navigate(notification.action_url);
+    }
+  };
+
+  const toggleNotifications = async () => {
+    const nextOpen = !showNotifications;
+    setShowNotifications(nextOpen);
+
+    if (nextOpen) {
+      const data = await notificationService.getLatest(true);
+      setNotifications(sortNotifications(data.notifications));
+      setUnreadCount(data.unread_count);
+    }
+  };
 
   if (loading || !student) {
     return (
@@ -127,7 +213,7 @@ export default function DashboardNavbar({
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="relative" ref={notifRef}>
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
+            onClick={() => void toggleNotifications()}
             className="relative p-2 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-secondary/30"
           >
             <Bell className="w-4 h-4" />
@@ -146,55 +232,73 @@ export default function DashboardNavbar({
                 initial={{ opacity: 0, y: -10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                className="absolute right-0 top-12 w-72 glass-card p-2 space-y-1.5"
+                className="absolute right-0 top-12 w-[340px] glass-card overflow-hidden p-0"
               >
-                {latestNotifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`flex items-start gap-2 rounded-lg p-2 transition-colors cursor-pointer ${
-                      notification.read
-                        ? "bg-transparent hover:bg-secondary/20"
-                        : "bg-primary/10 hover:bg-primary/15"
-                    }`}
-                  >
-                    <span
-                      className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
-                        notification.read
-                          ? "bg-muted-foreground/35"
-                          : notification.type === "success"
-                          ? "bg-primary"
-                          : notification.type === "warning"
-                          ? "bg-accent"
-                          : "bg-muted-foreground"
-                      }`}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-0.5 flex items-center justify-between gap-2">
-                        <span
-                          className={`font-ui text-[9px] font-semibold uppercase tracking-normal ${
-                            notification.read
-                              ? "text-muted-foreground"
-                              : "text-primary"
-                          }`}
-                        >
-                          {notification.read ? "Read" : "Unread"}
-                        </span>
-                        <span className="shrink-0 text-[9px] text-muted-foreground">
-                          {notification.time}
-                        </span>
-                      </div>
-                      <p
-                        className={`font-ui text-[11px] leading-snug ${
-                          notification.read
-                            ? "text-muted-foreground"
-                            : "text-foreground"
+                <div className="flex items-center justify-between border-b border-border/30 px-3 py-2">
+                  <p className="font-ui text-xs font-semibold text-foreground">Notifications</p>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 font-mono text-[10px] text-primary">
+                    {unreadCount} unread
+                  </span>
+                </div>
+
+                <div className="max-h-[420px] space-y-1 overflow-y-auto p-2">
+                  {notifications.length === 0 && (
+                    <div className="p-5 text-center text-xs text-muted-foreground">
+                      No notifications yet.
+                    </div>
+                  )}
+
+                  {notifications.map((notification) => {
+                    const Icon = notificationIcons[notification.type] || Bell;
+                    const read = Boolean(notification.read_at);
+
+                    return (
+                      <button
+                        key={notification.id}
+                        onClick={() => void handleNotificationClick(notification)}
+                        className={`w-full rounded-xl border p-3 text-left transition ${
+                          read
+                            ? "border-border/30 bg-card/60 hover:bg-secondary/20"
+                            : "border-primary/25 bg-primary/10 shadow-sm hover:bg-primary/15"
                         }`}
                       >
-                        {notification.text}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                        <div className="flex gap-3">
+                          <div
+                            className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${
+                              read ? "bg-secondary text-muted-foreground" : "bg-primary text-primary-foreground"
+                            }`}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <p
+                                className={`font-ui text-[12px] font-semibold leading-snug ${
+                                  read ? "text-muted-foreground" : "text-foreground"
+                                }`}
+                              >
+                                {notification.title}
+                              </p>
+                              {!read && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />}
+                            </div>
+                            <p className="mt-1 line-clamp-2 font-ui text-[11px] leading-snug text-muted-foreground">
+                              {notification.message}
+                            </p>
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                              <span className="rounded-full bg-secondary px-2 py-0.5 text-[9px] capitalize text-muted-foreground">
+                                {notification.type.replace("_", " ")}
+                              </span>
+                              <span className="shrink-0 text-[9px] text-muted-foreground">
+                                {formatNotificationTime(notification.created_at)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
