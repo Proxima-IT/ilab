@@ -2,11 +2,17 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { Play } from "lucide-react";
 import { VideoModal } from "@/components/site/Hero";
+import type { WebsiteSettings } from "@/services/home.service";
+import { imageUrl } from "@/services/course-catalog.service";
 
 const BATCH_PREVIEW_YOUTUBE_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
-export function BatchPreview() {
+export function BatchPreview({ settings }: { settings?: WebsiteSettings["next_batch"] }) {
   const [open, setOpen] = useState(false);
+  const previewImage = settings?.image
+    ? imageUrl(settings.image)
+    : "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1600&q=80";
+
   return (
     <section id="batch-preview" className="py-12 md:py-16 bg-gradient-to-b from-background via-background to-surface/30">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -18,7 +24,7 @@ export function BatchPreview() {
           className="relative rounded-3xl overflow-hidden shadow-card border border-border aspect-video bg-foreground"
         >
           <img
-            src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1600&q=80"
+            src={previewImage}
             alt="Next batch preview"
             className="absolute inset-0 h-full w-full object-cover"
           />
@@ -32,10 +38,10 @@ export function BatchPreview() {
           </button>
           <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 text-white">
             <p className="text-xs md:text-sm font-semibold uppercase tracking-wider text-primary">
-              Watch Preview
+              {settings?.eyebrow || "Watch Preview"}
             </p>
             <h3 className="mt-1 text-xl md:text-3xl font-bold">
-              A glimpse of our next batch
+              {settings?.title || "A glimpse of our next batch"}
             </h3>
           </div>
         </motion.div>
@@ -43,7 +49,7 @@ export function BatchPreview() {
       <VideoModal
         open={open}
         onClose={() => setOpen(false)}
-        youtubeUrl={BATCH_PREVIEW_YOUTUBE_URL}
+        youtubeUrl={settings?.youtube_url || BATCH_PREVIEW_YOUTUBE_URL}
         title="Next batch preview video"
       />
     </section>

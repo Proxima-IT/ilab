@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Play, Quote, Star, X } from "lucide-react";
-import { fetchPublicReviews, type HomeReview } from "@/services/home.service";
+import {
+  fetchPublicReviews,
+  type HomeReview,
+  type WebsiteSettings,
+} from "@/services/home.service";
 
 function VideoModal({ src, onClose }: { src: string; onClose: () => void }) {
   return (
@@ -49,7 +53,7 @@ function ReviewHeader({ review }: { review: HomeReview }) {
   );
 }
 
-export function Reviews() {
+export function Reviews({ settings }: { settings?: WebsiteSettings["reviews"] }) {
   const [video, setVideo] = useState<string | null>(null);
   const [reviews, setReviews] = useState<HomeReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -79,17 +83,17 @@ export function Reviews() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto">
           <p className="text-sm font-semibold text-primary uppercase tracking-wider">
-            Student Reviews
+            {settings?.eyebrow || "Student Reviews"}
           </p>
           <h2 className="mt-3 text-3xl md:text-5xl font-bold text-foreground">
-            Loved by{" "}
+            {settings?.title || "Loved by"}{" "}
             <span className="relative inline-block text-primary">
-              our learners
+              {settings?.highlight || "our learners"}
               <span className="absolute left-0 -bottom-1 h-1 w-full rounded-full bg-primary/70" />
             </span>
           </h2>
           <p className="mt-6 text-muted-foreground text-base md:text-lg">
-            Real stories from students building practical skills with iLab.
+            {settings?.description || "Real stories from students building practical skills with iLab."}
           </p>
         </div>
 

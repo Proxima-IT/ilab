@@ -1,7 +1,13 @@
 import { motion } from "framer-motion";
 import { Play } from "lucide-react";
+import type { WebsiteSettings } from "@/services/home.service";
+import { imageUrl } from "@/services/course-catalog.service";
 
-export function DownloadApp() {
+export function DownloadApp({ settings }: { settings?: WebsiteSettings["download_app"] }) {
+  const appImage = settings?.image
+    ? imageUrl(settings.image)
+    : "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=400&q=80";
+
   return (
     <section id="download" className="py-4 sm:py-6 md:py-8 bg-gradient-to-b from-background via-background to-surface/30">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -16,23 +22,23 @@ export function DownloadApp() {
             {/* Left: copy */}
             <div className="flex flex-col justify-center text-center sm:text-left">
               <h2 className="text-xl font-extrabold leading-tight tracking-tight text-background sm:text-2xl md:text-3xl">
-                Download iLab App
+                {settings?.title || "Download iLab App"}
               </h2>
               <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-background/60 sm:max-w-sm sm:text-sm">
-                Excel your learning curve and embrace new experiences on the go.
+                {settings?.description || "Excel your learning curve and embrace new experiences on the go."}
               </p>
 
               <a
-                href="#"
+                href={settings?.button_url || "#"}
                 className="mx-auto mt-4 inline-flex w-fit items-center gap-2 rounded-full bg-background px-4 py-2 transition-opacity hover:opacity-90 sm:mx-0"
               >
                 <Play className="h-4 w-4 fill-foreground text-foreground" />
                 <div className="flex flex-col leading-none">
                   <span className="text-[9px] font-medium uppercase tracking-wider text-foreground/70">
-                    GET IT ON
+                    {settings?.button_label_top || "GET IT ON"}
                   </span>
                   <span className="text-xs font-bold text-foreground">
-                    Google Play
+                    {settings?.button_label || "Google Play"}
                   </span>
                 </div>
               </a>
@@ -53,7 +59,7 @@ export function DownloadApp() {
                   ))}
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-background">25K+</p>
+                  <p className="text-sm font-bold text-background">{settings?.downloads_count || "25K+"}</p>
                   <p className="text-[10px] text-background/60">Downloads</p>
                 </div>
               </div>
@@ -65,7 +71,7 @@ export function DownloadApp() {
                 <div className="relative overflow-hidden rounded-[1.5rem] border-[3px] border-background/20 bg-background/5">
                   <div className="absolute top-0 left-1/2 z-10 mt-1.5 h-[14px] w-16 -translate-x-1/2 rounded-full bg-foreground" />
                   <img
-                    src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=400&q=80"
+                    src={appImage}
                     alt="iLab mobile app preview"
                     className="aspect-[9/16] w-full object-cover"
                   />

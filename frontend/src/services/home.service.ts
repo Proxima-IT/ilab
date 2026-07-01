@@ -18,6 +18,47 @@ export type HomeReview = {
   video?: string;
 };
 
+export type WebsiteSettings = {
+  hero: {
+    title_line_1: string;
+    title_line_2: string;
+    description: string;
+    primary_button_label: string;
+    primary_button_url: string;
+    secondary_button_label: string;
+    youtube_url: string;
+    image: string | null;
+    counts: { label: string; value: string }[];
+  };
+  next_batch: {
+    eyebrow: string;
+    title: string;
+    image: string | null;
+    youtube_url: string;
+  };
+  offers: {
+    title: string;
+    highlight: string;
+    description: string;
+    items: { icon: string; title: string; description: string }[];
+  };
+  download_app: {
+    title: string;
+    description: string;
+    button_label_top: string;
+    button_label: string;
+    button_url: string;
+    downloads_count: string;
+    image: string | null;
+  };
+  reviews: {
+    eyebrow: string;
+    title: string;
+    highlight: string;
+    description: string;
+  };
+};
+
 type LaravelReview = {
   id: number | string;
   student_name: string;
@@ -36,6 +77,16 @@ type ReviewsResponse = {
   message: string;
   errors: unknown;
 };
+
+type WebsiteSettingsResponse = {
+  success: boolean;
+  data: WebsiteSettings;
+  message: string;
+  errors: unknown;
+};
+
+let websiteSettingsCache: WebsiteSettings | null = null;
+let websiteSettingsRequest: Promise<WebsiteSettings> | null = null;
 
 function avatarUrl(path: string | null | undefined, name: string): string {
   if (path) return imageUrl(path);
@@ -91,4 +142,27 @@ export async function fetchPublicReviews(limit = 6): Promise<HomeReview[]> {
       video: mediaType === "video" && review.media_url ? imageUrl(review.media_url) : undefined,
     };
   });
+}
+
+export async function fetchWebsiteSettings(force = false): Promise<WebsiteSettings> {
+  if (!force && websiteSettingsCache) {
+    return websiteSettingsCache;
+  }
+
+  if (!force && websiteSettingsRequest) {
+    return websiteSettingsRequest;
+  }
+
+  websiteSettingsRequest = get<WebsiteSettingsResponse>("/website-settings")
+    .then((response) => {
+      websiteSettingsCache = response.data;
+      websiteSettingsRequest = null;
+      return response.data;
+    })
+    .catch((error) => {
+      websiteSettingsRequest = null;
+      throw error;
+    });
+
+  return websiteSettingsRequest;
 }

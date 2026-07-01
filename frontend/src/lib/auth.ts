@@ -6,6 +6,7 @@ export type UserRole =
   | "admin"
   | "manager"
   | "instructor"
+  | "content_manager"
   | "student";
 
 export type AuthUser = {
@@ -15,6 +16,7 @@ export type AuthUser = {
   phone: string | null;
   role: UserRole;
   avatar?: string | null;
+  bio?: string | null;
   status?: boolean;
   email_verified_at?: string | null;
   phone_verified_at?: string | null;
@@ -225,7 +227,12 @@ export function useAuth() {
     isStudent: role === "student",
     isInstructor: role === "instructor",
     isManager: role === "manager",
-    isAdmin: role === "admin" || role === "super_admin",
+    isAdmin:
+      role === "admin" ||
+      role === "super_admin" ||
+      role === "manager" ||
+      role === "instructor" ||
+      role === "content_manager",
     isSuperAdmin: role === "super_admin",
 
     login: authStore.login,

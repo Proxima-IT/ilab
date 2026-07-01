@@ -1,4 +1,4 @@
-import { api } from "@/lib/api";
+import { api, upload } from "@/lib/api";
 import type { AuthUser } from "@/lib/auth";
 
 export type ApiResponse<T> = {
@@ -23,6 +23,20 @@ export type LoginData = {
 };
 
 export type LoginResponse = ApiResponse<LoginData>;
+
+export type AdminProfileResponse = ApiResponse<{
+  profile: AuthUser;
+  stats?: {
+    total_courses: number;
+    total_students: number;
+  };
+  courses?: unknown[];
+}>;
+
+export type UpdateAdminProfilePayload = {
+  name?: string;
+  bio?: string | null;
+};
 
 export type RegisterPayload = {
   name: string;
@@ -91,11 +105,30 @@ export const authService = {
     return response.data;
   },
 
-  async getAdminProfile(): Promise<ApiResponse<{ profile: AuthUser }>> {
-    const response = await api.get<ApiResponse<{ profile: AuthUser }>>(
-      "/admin/profile"
+  async getAdminProfile(): Promise<AdminProfileResponse> {
+    const response = await api.get<AdminProfileResponse>("/admin/profile");
+
+    return response.data;
+  },
+
+  async updateAdminProfile(
+    payload: UpdateAdminProfilePayload
+  ): Promise<ApiResponse<{ profile: AuthUser }>> {
+    const response = await api.put<ApiResponse<{ profile: AuthUser }>>(
+      "/admin/profile",
+      payload
     );
 
     return response.data;
+  },
+
+  async updateAdminAvatar(file: File): Promise<ApiResponse<{ profile: AuthUser }>> {
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    return upload<ApiResponse<{ profile: AuthUser }>>(
+      "/admin/profile/avatar",
+      formData
+    );
   },
 };

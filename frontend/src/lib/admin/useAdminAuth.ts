@@ -1,60 +1,81 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useMemo, useState } from "react";
+import { authService } from "@/services/auth.service";
+import { useAuth, type AuthUser, type UserRole } from "@/lib/auth";
 
-export type AdminRole = "super_admin" | "content_manager";
+export type AdminRole = Exclude<UserRole, "student">;
 
 export type AdminAuth = {
   loading: boolean;
-  userId: string | null;
+  userId: number | null;
   email: string | null;
-  roles: AdminRole[];
+  name: string | null;
+  role: AdminRole | null;
+  profile: AuthUser | null;
   isAdmin: boolean;
   isSuperAdmin: boolean;
 };
 
+const STAFF_ROLES: AdminRole[] = [
+  "super_admin",
+  "admin",
+  "manager",
+  "instructor",
+  "content_manager",
+];
+
+export function isStaffRole(role?: UserRole | null): role is AdminRole {
+  return Boolean(role && STAFF_ROLES.includes(role as AdminRole));
+}
+
 export function useAdminAuth(): AdminAuth {
-  const [state, setState] = useState<AdminAuth>({
-    loading: true,
-    userId: null,
-    email: null,
-    roles: [],
-    isAdmin: false,
-    isSuperAdmin: false,
-  });
+  const { user, token, clearSession } = useAuth();
+  const [loading, setLoading] = useState(Boolean(token));
+  const [profile, setProfile] = useState<AuthUser | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData.user;
-      if (!user) {
-        if (!cancelled) setState({ loading: false, userId: null, email: null, roles: [], isAdmin: false, isSuperAdmin: false });
-        return;
-      }
-      const { data: rolesData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id);
-      const roles = ((rolesData ?? []) as { role: AdminRole }[]).map((r) => r.role);
-      if (cancelled) return;
-      setState({
-        loading: false,
-        userId: user.id,
-        email: user.email ?? null,
-        roles,
-        isAdmin: roles.includes("super_admin") || roles.includes("content_manager"),
-        isSuperAdmin: roles.includes("super_admin"),
+
+    if (!token || !user || !isStaffRole(user.role)) {
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    authService
+      .getAdminProfile()
+      .then((response) => {
+        if (cancelled) return;
+        setProfile(response.data.profile);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setProfile(null);
+        clearSession();
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
-    };
-    void load();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      void load();
-    });
+
     return () => {
       cancelled = true;
-      sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [clearSession, token, user]);
 
-  return state;
+  return useMemo(() => {
+    const activeUser = profile ?? (isStaffRole(user?.role) ? user : null);
+    const role = isStaffRole(activeUser?.role) ? activeUser.role : null;
+
+    return {
+      loading,
+      userId: activeUser?.id ?? null,
+      email: activeUser?.email ?? null,
+      name: activeUser?.name ?? null,
+      role,
+      profile: activeUser,
+      isAdmin: Boolean(role),
+      isSuperAdmin: role === "super_admin",
+    };
+  }, [loading, profile, user]);
 }

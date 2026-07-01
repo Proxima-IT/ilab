@@ -1,11 +1,12 @@
 import { motion } from "framer-motion";
 import { Briefcase, Users, Headphones } from "lucide-react";
+import type { WebsiteSettings } from "@/services/home.service";
 
 const offers = [
   {
     icon: Briefcase,
     title: "Job Interview Training",
-    desc: "For those who are serious about their career. Special job interview training for learners who finish data structures, algorithms, and software development tracks with strong projects.",
+    desc: "Special job interview training for learners who finish practical tracks with strong projects.",
     tint: "bg-[hsl(20_90%_96%)]",
     iconBg: "bg-[hsl(20_90%_92%)]",
     iconColor: "text-primary",
@@ -13,7 +14,7 @@ const offers = [
   {
     icon: Users,
     title: "1:1 Mentorship",
-    desc: "A team of expert mentors will be by your side. When needed, they'll sit with you on Google Meet, plan your roadmap, solve problems, and guide you to your goal.",
+    desc: "Expert mentors help plan your roadmap, solve problems, and guide you to your goal.",
     tint: "bg-[hsl(160_40%_94%)]",
     iconBg: "bg-[hsl(160_40%_88%)]",
     iconColor: "text-[hsl(160_60%_35%)]",
@@ -21,14 +22,31 @@ const offers = [
   {
     icon: Headphones,
     title: "Support Session",
-    desc: "Three times a day, ask questions directly in live classes on our system. Share your screen, show your problems and get solutions. Learn together with everyone — as many times as you need.",
+    desc: "Ask questions, share your screen, and get direct support when you need it.",
     tint: "bg-[hsl(220_70%_96%)]",
     iconBg: "bg-[hsl(220_70%_92%)]",
     iconColor: "text-[hsl(220_80%_55%)]",
   },
 ];
 
-export function WhatWeOffer() {
+const iconMap = {
+  briefcase: Briefcase,
+  users: Users,
+  headphones: Headphones,
+};
+
+export function WhatWeOffer({ settings }: { settings?: WebsiteSettings["offers"] }) {
+  const items = settings?.items?.length
+    ? settings.items.map((item, index) => ({
+        icon: iconMap[item.icon as keyof typeof iconMap] || offers[index]?.icon || Briefcase,
+        title: item.title,
+        desc: item.description,
+        tint: offers[index]?.tint || "bg-[hsl(20_90%_96%)]",
+        iconBg: offers[index]?.iconBg || "bg-[hsl(20_90%_92%)]",
+        iconColor: offers[index]?.iconColor || "text-primary",
+      }))
+    : offers;
+
   return (
     <section id="what-we-offer" className="py-20 md:py-28 bg-gradient-to-b from-background via-background to-surface/30">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -40,20 +58,20 @@ export function WhatWeOffer() {
           className="text-center max-w-3xl mx-auto"
         >
           <h2 className="text-3xl md:text-5xl font-bold text-foreground">
-            What we{" "}
+            {settings?.title || "What we"}{" "}
             <span className="relative inline-block text-primary">
-              offers!
+              {settings?.highlight || "offers!"}
               <span className="absolute left-0 -bottom-1 h-1 w-full rounded-full bg-primary/70" />
             </span>
           </h2>
           <p className="mt-6 text-muted-foreground text-base md:text-lg leading-relaxed">
-            Unlimited help, guidelines, even Google Meet screen-sharing to solve
-            your problems — join this course to get it all.
+            {settings?.description ||
+              "Unlimited help, guidelines, even Google Meet screen-sharing to solve your problems - join this course to get it all."}
           </p>
         </motion.div>
 
         <div className="mt-14 grid gap-6 md:grid-cols-3">
-          {offers.map((o, i) => (
+          {items.map((o, i) => (
             <motion.div
               key={o.title}
               initial={{ opacity: 0, y: 24 }}

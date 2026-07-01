@@ -28,7 +28,6 @@ import BlogDetail from "@/pages/BlogDetail";
 
 import AdminLayout from "@/pages/admin/AdminLayout";
 import AdminLogin from "@/pages/admin/AdminLogin";
-import AdminClaim from "@/pages/admin/AdminClaim";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminCourses from "@/pages/admin/AdminCourses";
 import AdminCategories from "@/pages/admin/AdminCategories";
@@ -43,6 +42,8 @@ import AdminFaqs from "@/pages/admin/AdminFaqs";
 import AdminOfferings from "@/pages/admin/AdminOfferings";
 import AdminSite from "@/pages/admin/AdminSite";
 import AdminUsers from "@/pages/admin/AdminUsers";
+import AdminProfile from "@/pages/admin/AdminProfile";
+import AdminStudents from "@/pages/admin/AdminStudents";
 
 import DashboardLayout from "@/pages/dashboard/DashboardLayout";
 import OverviewPage from "@/pages/dashboard/OverviewPage";
@@ -63,6 +64,22 @@ function ProtectedRoute() {
   }
 
   return <Outlet />;
+}
+
+function isAdminHost(): boolean {
+  if (typeof window === "undefined") return false;
+
+  const hostname = window.location.hostname.toLowerCase();
+
+  return hostname === "admin.ilabbd.com" || hostname.startsWith("admin.");
+}
+
+function HomeRoute() {
+  return isAdminHost() ? <Navigate to="/admin" replace /> : <Index />;
+}
+
+function LoginRoute() {
+  return isAdminHost() ? <Navigate to="/admin/login" replace /> : <Login />;
 }
 
 function AdminRoute() {
@@ -99,14 +116,14 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Index />} />
+        <Route path="/" element={<HomeRoute />} />
         <Route path="/courses" element={<Courses />} />
         <Route path="/courses/:slug" element={<CourseDetail />} />
         <Route path="/events" element={<Events />} />
         <Route path="/events/:eventId" element={<EventDetail />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<BlogDetail />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<LoginRoute />} />
         <Route path="/signup" element={<Signup />} />
 
         <Route element={<ProtectedRoute />}>
@@ -115,7 +132,7 @@ export default function App() {
         </Route>
 
         <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin/claim" element={<AdminClaim />} />
+        <Route path="/admin/claim" element={<Navigate to="/admin/login" replace />} />
 
         <Route element={<AdminRoute />}>
           <Route path="/admin" element={<AdminLayout />}>
@@ -133,6 +150,8 @@ export default function App() {
             <Route path="offerings" element={<AdminOfferings />} />
             <Route path="site" element={<AdminSite />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="profile" element={<AdminProfile />} />
+            <Route path="students" element={<AdminStudents />} />
           </Route>
         </Route>
 

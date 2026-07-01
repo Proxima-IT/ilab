@@ -4,6 +4,8 @@ import { Users, Video, GraduationCap, Download, Youtube, X } from "lucide-react"
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import heroTechnician from "@/assets/hero-technician.jpg";
+import type { WebsiteSettings } from "@/services/home.service";
+import { imageUrl } from "@/services/course-catalog.service";
 
 export const HERO_YOUTUBE_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
@@ -20,7 +22,13 @@ function youtubeEmbedUrl(url: string): string {
 
 /* ---------------- Sub-components ---------------- */
 
-function HeroCTA({ onWatch }: { onWatch: () => void }) {
+function HeroCTA({
+  onWatch,
+  settings,
+}: {
+  onWatch: () => void;
+  settings?: WebsiteSettings["hero"];
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -29,11 +37,11 @@ function HeroCTA({ onWatch }: { onWatch: () => void }) {
       className="mt-10 flex flex-col sm:flex-row gap-4"
     >
       <a
-        href="#download"
+        href={settings?.primary_button_url || "#download"}
         className="inline-flex items-center justify-center gap-2 px-10 py-4 rounded-md bg-primary text-primary-foreground font-semibold text-base shadow-md hover:brightness-110 active:scale-[0.98] transition"
       >
         <Download className="h-5 w-5" />
-        Download Our App
+        {settings?.primary_button_label || "Download Our App"}
       </a>
       <button
         onClick={onWatch}
@@ -42,20 +50,22 @@ function HeroCTA({ onWatch }: { onWatch: () => void }) {
         <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/10 text-primary-dark group-hover:bg-primary-foreground/20">
           <Youtube className="h-4 w-4" />
         </span>
-        Watch on YouTube
+        {settings?.secondary_button_label || "Watch on YouTube"}
       </button>
     </motion.div>
   );
 }
 
-const STATS = [
+const FALLBACK_STATS = [
   { icon: Users, value: "5,000+", label: "Total Students" },
   { icon: Video, value: "1,200+", label: "Total Videos" },
   { icon: GraduationCap, value: "50+", label: "Total Courses" },
 ];
 
 
-function TrustStats() {
+function TrustStats({ settings }: { settings?: WebsiteSettings["hero"] }) {
+  const stats = (settings?.counts?.length ? settings.counts : FALLBACK_STATS).slice(0, 3);
+
   return (
     <motion.ul
       initial={{ opacity: 0 }}
@@ -63,7 +73,10 @@ function TrustStats() {
       transition={{ duration: 0.6, delay: 0.45 }}
       className="mt-14 flex flex-wrap gap-x-12 gap-y-6"
     >
-      {STATS.map((s, i) => (
+      {stats.map((s, i) => {
+        const Icon = FALLBACK_STATS[i]?.icon || Users;
+
+        return (
         <motion.li
           key={s.label}
           initial={{ opacity: 0, y: 12 }}
@@ -71,18 +84,20 @@ function TrustStats() {
           transition={{ duration: 0.4, delay: 0.5 + i * 0.1 }}
           className="flex items-center gap-3"
         >
-          <s.icon className="h-10 w-10 text-primary-dark" strokeWidth={1.5} />
+          <Icon className="h-10 w-10 text-primary-dark" strokeWidth={1.5} />
           <span className="text-base leading-tight">
             <span className="block text-2xl font-extrabold text-foreground">{s.value}</span>
             <span className="text-foreground font-bold text-lg">{s.label}</span>
           </span>
         </motion.li>
-      ))}
+      )})}
     </motion.ul>
   );
 }
 
-function HeroImage() {
+function HeroImage({ image }: { image?: string | null }) {
+  const src = image ? imageUrl(image) : heroTechnician;
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 30 }}
@@ -102,7 +117,7 @@ function HeroImage() {
         style={{ clipPath: "url(#heroCurve)", WebkitClipPath: "url(#heroCurve)" }}
       >
         <img
-          src={heroTechnician}
+          src={src}
           alt="Professional mobile repairing technician at work"
           className="h-full w-full object-cover object-center"
           loading="eager"
@@ -116,8 +131,9 @@ function HeroImage() {
 
 /* ---------------- Main Hero ---------------- */
 
-export function Hero() {
+export function Hero({ settings }: { settings?: WebsiteSettings["hero"] }) {
   const [showVideo, setShowVideo] = useState(false);
+  const heroImageSrc = settings?.image ? imageUrl(settings.image) : heroTechnician;
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-b from-background via-background to-surface/30 pt-20 md:pt-24">
@@ -131,9 +147,9 @@ export function Hero() {
               transition={{ duration: 0.6, delay: 0.05 }}
               className="text-4xl sm:text-5xl lg:text-[3.5rem] xl:text-[4rem] font-extrabold tracking-tight text-foreground leading-[1.05]"
             >
-              Learn Mobile Repairing.
+              {settings?.title_line_1 || "Learn Mobile Repairing."}
               <br />
-              Build a Real Career.
+              {settings?.title_line_2 || "Build a Real Career."}
             </motion.h1>
 
             <motion.p
@@ -142,17 +158,17 @@ export function Hero() {
               transition={{ duration: 0.6, delay: 0.18 }}
               className="mt-6 text-lg text-muted-foreground max-w-md"
             >
-              Job-ready skills, expert instructors, and certified training to help
-              you get hired or start your own business.
+              {settings?.description ||
+                "Job-ready skills, expert instructors, and certified training to help you get hired or start your own business."}
             </motion.p>
 
-            <HeroCTA onWatch={() => setShowVideo(true)} />
-            <TrustStats />
+            <HeroCTA settings={settings} onWatch={() => setShowVideo(true)} />
+            <TrustStats settings={settings} />
           </div>
         </div>
 
         {/* Right image */}
-        <HeroImage />
+        <HeroImage image={settings?.image} />
 
         {/* Mobile image fallback */}
         <motion.div
@@ -164,7 +180,7 @@ export function Hero() {
         >
           <div className="relative rounded-2xl overflow-hidden aspect-[16/10] shadow-card">
             <img
-              src={heroTechnician}
+              src={heroImageSrc}
               alt="Professional mobile repairing technician at work"
               className="h-full w-full object-cover"
               loading="lazy"
@@ -176,7 +192,7 @@ export function Hero() {
       <VideoModal
         open={showVideo}
         onClose={() => setShowVideo(false)}
-        youtubeUrl={HERO_YOUTUBE_URL}
+        youtubeUrl={settings?.youtube_url || HERO_YOUTUBE_URL}
         title="iLab YouTube video"
       />
     </section>

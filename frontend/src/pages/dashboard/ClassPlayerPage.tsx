@@ -142,10 +142,18 @@ export default function ClassPlayerPage() {
   }, [loadPlayer]);
 
   useEffect(() => {
-    if (!player || player.lesson.type !== "video" || player.lesson.is_completed || !isTracking) return;
+    if (!player || player.lesson.type !== "video" || !isTracking) return;
 
     const interval = window.setInterval(() => {
-      setWatchSeconds((current) => Math.min(duration || current + 1, current + 1));
+      setWatchSeconds((current) => {
+        const next = duration > 0 ? Math.min(duration, current + 1) : current + 1;
+
+        if (duration > 0 && next >= duration) {
+          setIsTracking(false);
+        }
+
+        return next;
+      });
     }, 1000);
 
     return () => window.clearInterval(interval);
@@ -246,11 +254,13 @@ export default function ClassPlayerPage() {
     if (!player || player.lesson.type !== "video") return;
 
     const interval = window.setInterval(() => {
-      void learningService.syncWatchTime(currentLessonId, watchSeconds);
+      if (watchSecondsRef.current > 0) {
+        void learningService.syncWatchTime(currentLessonId, watchSecondsRef.current);
+      }
     }, 15000);
 
     return () => window.clearInterval(interval);
-  }, [currentLessonId, player, watchSeconds]);
+  }, [currentLessonId, player]);
 
   const allLessons = useMemo(
     () => player?.course.sections.flatMap((section) => section.lessons) || [],
@@ -361,12 +371,20 @@ export default function ClassPlayerPage() {
   };
 
   const togglePlayback = () => {
-    if (!youtubePlayerRef.current) return;
+    if (!youtubePlayerRef.current) {
+      toast.info("Video player is loading. Please try again.");
+      return;
+    }
 
     if (isPlaying) {
       youtubePlayerRef.current.pauseVideo();
+      setIsPlaying(false);
+      setIsTracking(false);
+      void learningService.syncWatchTime(currentLessonId, watchSecondsRef.current);
     } else {
       youtubePlayerRef.current.playVideo();
+      setIsPlaying(true);
+      setIsTracking(true);
     }
   };
 

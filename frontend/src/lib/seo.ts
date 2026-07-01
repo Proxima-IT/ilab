@@ -83,3 +83,63 @@ export function buildSeoHead(options: SeoOptions, extraLinks: HeadLink[] = []) {
 export function buildPrivateSeo(options: Pick<SeoOptions, "title" | "description" | "path">) {
   return buildSeoHead({ ...options, noIndex: true });
 }
+
+function upsertMeta(selector: string, attributes: Record<string, string>) {
+  if (typeof document === "undefined") return;
+
+  let element = document.head.querySelector<HTMLMetaElement>(selector);
+
+  if (!element) {
+    element = document.createElement("meta");
+    document.head.appendChild(element);
+  }
+
+  Object.entries(attributes).forEach(([key, value]) => {
+    element?.setAttribute(key, value);
+  });
+}
+
+function upsertLink(selector: string, attributes: Record<string, string>) {
+  if (typeof document === "undefined") return;
+
+  let element = document.head.querySelector<HTMLLinkElement>(selector);
+
+  if (!element) {
+    element = document.createElement("link");
+    document.head.appendChild(element);
+  }
+
+  Object.entries(attributes).forEach(([key, value]) => {
+    element?.setAttribute(key, value);
+  });
+}
+
+export function applySeoHead(head: ReturnType<typeof buildSeoHead>) {
+  if (typeof document === "undefined") return;
+
+  head.meta.forEach((meta) => {
+    if ("title" in meta) {
+      document.title = meta.title;
+      return;
+    }
+
+    if ("name" in meta) {
+      upsertMeta(`meta[name="${meta.name}"]`, meta);
+      return;
+    }
+
+    if ("property" in meta) {
+      upsertMeta(`meta[property="${meta.property}"]`, meta);
+    }
+  });
+
+  head.links.forEach((link) => {
+    if (link.rel === "canonical") {
+      upsertLink('link[rel="canonical"]', link);
+    }
+  });
+}
+
+export function applyPrivateSeo(options: Pick<SeoOptions, "title" | "description" | "path">) {
+  applySeoHead(buildPrivateSeo(options));
+}
