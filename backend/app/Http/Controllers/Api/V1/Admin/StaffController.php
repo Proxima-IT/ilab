@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class StaffController extends Controller
 {
@@ -28,8 +29,11 @@ class StaffController extends Controller
                 'email',
                 'phone',
                 'role',
+                'avatar',
+                'bio',
                 'status',
                 'created_at',
+                'updated_at',
             ])
             ->latest()
             ->paginate(20);
@@ -73,12 +77,17 @@ class StaffController extends Controller
                 'required',
                 'in:admin,manager,instructor,content_manager',
             ],
+
+            'bio' => ['nullable', 'string', 'max:2000'],
+
+            'status' => ['nullable', 'boolean'],
         ]);
 
         $staff = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'] ?? null,
             'phone' => $validated['phone'] ?? null,
+            'bio' => $validated['bio'] ?? null,
 
             'password' => Hash::make(
                 $validated['password']
@@ -86,7 +95,7 @@ class StaffController extends Controller
 
             'role' => $validated['role'],
 
-            'status' => true,
+            'status' => $validated['status'] ?? true,
 
             'email_verified_at' =>
                 !empty($validated['email'])
@@ -113,6 +122,84 @@ class StaffController extends Controller
         ], 201);
     }
 
+    public function update(
+        Request $request,
+        int $id
+    ): JsonResponse {
+        $this->authorizeSuperAdmin($request);
+
+        $staff = User::findOrFail($id);
+
+        if (! $this->isEditableStaff($staff)) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Invalid target account.',
+                'errors' => null,
+            ], 400);
+        }
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+
+            'email' => [
+                'nullable',
+                'email',
+                'max:255',
+                Rule::unique('users', 'email')->ignore($staff->id),
+            ],
+
+            'phone' => [
+                'nullable',
+                'string',
+                'max:20',
+                Rule::unique('users', 'phone')->ignore($staff->id),
+            ],
+
+            'role' => [
+                'required',
+                'in:admin,manager,instructor,content_manager',
+            ],
+
+            'bio' => ['nullable', 'string', 'max:2000'],
+
+            'status' => ['required', 'boolean'],
+
+            'password' => ['nullable', 'string', 'min:8'],
+        ]);
+
+        $staff->fill([
+            'name' => $validated['name'],
+            'email' => $validated['email'] ?? null,
+            'phone' => $validated['phone'] ?? null,
+            'role' => $validated['role'],
+            'bio' => $validated['bio'] ?? null,
+            'status' => $validated['status'],
+            'email_verified_at' => !empty($validated['email'])
+                ? ($staff->email === ($validated['email'] ?? null) ? $staff->email_verified_at : now())
+                : null,
+            'phone_verified_at' => !empty($validated['phone'])
+                ? ($staff->phone === ($validated['phone'] ?? null) ? $staff->phone_verified_at : now())
+                : null,
+        ]);
+
+        if (! empty($validated['password'])) {
+            $staff->password = Hash::make($validated['password']);
+            $staff->tokens()->delete();
+        }
+
+        $staff->save();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'staff' => $this->staffResource($staff->fresh()),
+            ],
+            'message' => 'Staff account updated successfully.',
+            'errors' => null,
+        ]);
+    }
+
     public function destroy(
         Request $request,
         int $id
@@ -134,18 +221,7 @@ class StaffController extends Controller
             ], 403);
         }
 
-        if (
-            !in_array(
-                $staff->role,
-                [
-                    'admin',
-                    'manager',
-                    'instructor',
-                    'content_manager',
-                ],
-                true
-            )
-        ) {
+        if (! $this->isEditableStaff($staff)) {
             return response()->json([
                 'success' => false,
                 'data' => null,
@@ -162,6 +238,36 @@ class StaffController extends Controller
             'message' => 'Staff account removed successfully.',
             'errors' => null,
         ]);
+    }
+
+    private function isEditableStaff(User $staff): bool
+    {
+        return in_array(
+            $staff->role,
+            [
+                'admin',
+                'manager',
+                'instructor',
+                'content_manager',
+            ],
+            true
+        );
+    }
+
+    private function staffResource(User $staff): array
+    {
+        return [
+            'id' => $staff->id,
+            'name' => $staff->name,
+            'email' => $staff->email,
+            'phone' => $staff->phone,
+            'role' => $staff->role,
+            'avatar' => $staff->avatar,
+            'bio' => $staff->bio,
+            'status' => (bool) $staff->status,
+            'created_at' => $staff->created_at,
+            'updated_at' => $staff->updated_at,
+        ];
     }
 
     private function authorizeSuperAdmin(

@@ -14,10 +14,12 @@ use App\Http\Controllers\Api\V1\LessonController;
 use App\Http\Controllers\Api\V1\ProgressController;
 use App\Http\Controllers\Api\V1\CertificateController;
 use App\Http\Controllers\Api\V1\StudentNotificationController;
+use App\Http\Controllers\Api\V1\WebsiteSettingController;
 use App\Http\Controllers\Api\V1\UddoktaPayCheckoutController;
 use App\Http\Controllers\Api\V1\Admin\AdminProfileController;
 use App\Http\Controllers\Api\V1\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Admin\StaffController;
+use App\Http\Controllers\Api\V1\Admin\StudentController as AdminStudentController;
 use App\Http\Controllers\Api\V1\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Api\V1\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Api\V1\Admin\SectionController;
@@ -26,6 +28,8 @@ use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\EnrollmentController as AdminEnrollmentController;
 use App\Http\Controllers\Api\V1\Admin\EventController as AdminEventController;
 use App\Http\Controllers\Api\V1\Admin\BlogPostController as AdminBlogPostController;
+use App\Http\Controllers\Api\V1\Admin\WebsiteSettingController as AdminWebsiteSettingController;
+use App\Http\Controllers\Api\V1\Admin\ReviewController as AdminReviewController;
 
 Route::prefix('v1')->group(function () {
 
@@ -62,6 +66,9 @@ Route::prefix('v1')->group(function () {
         ->middleware('throttle:60,1');
 
     Route::get('/reviews', [ReviewController::class, 'index'])
+        ->middleware('throttle:60,1');
+
+    Route::get('/website-settings', [WebsiteSettingController::class, 'index'])
         ->middleware('throttle:60,1');
 
     Route::prefix('events')
@@ -201,8 +208,16 @@ Route::prefix('v1')->group(function () {
             ->group(function () {
                 Route::get('/profile', [AdminProfileController::class, 'show']);
                 Route::put('/profile', [AdminProfileController::class, 'update']);
+                Route::post('/profile/avatar', [AdminProfileController::class, 'updateAvatar']);
 
                 Route::get('/dashboard', [DashboardController::class, 'index']);
+                Route::prefix('website-settings')
+                    ->middleware('can:manage-website-settings')
+                    ->group(function () {
+                        Route::get('/', [AdminWebsiteSettingController::class, 'index']);
+                        Route::put('/', [AdminWebsiteSettingController::class, 'update']);
+                        Route::post('/images', [AdminWebsiteSettingController::class, 'uploadImage']);
+                    });
 
                 /*
                 |--------------------------------------------------------------------------
@@ -214,9 +229,22 @@ Route::prefix('v1')->group(function () {
                     ->group(function () {
                         Route::get('/', [StaffController::class, 'index']);
                         Route::post('/', [StaffController::class, 'store']);
+                        Route::put('/{id}', [StaffController::class, 'update'])
+                            ->whereNumber('id');
                         Route::delete('/{id}', [StaffController::class, 'destroy'])
                             ->whereNumber('id');
                     });
+
+                Route::get('/students', [AdminStudentController::class, 'index'])
+                    ->middleware('can:view-students');
+                Route::post('/students', [AdminStudentController::class, 'store'])
+                    ->middleware('can:manage-students');
+                Route::put('/students/{id}', [AdminStudentController::class, 'update'])
+                    ->middleware('can:manage-students')
+                    ->whereNumber('id');
+                Route::delete('/students/{id}', [AdminStudentController::class, 'destroy'])
+                    ->middleware('can:manage-students')
+                    ->whereNumber('id');
 
                 /*
                 |--------------------------------------------------------------------------
@@ -231,6 +259,10 @@ Route::prefix('v1')->group(function () {
                 Route::get('/events/{id}/registrations', [AdminEventController::class, 'registrations'])
                     ->whereNumber('id');
                 Route::apiResource('blog-posts', AdminBlogPostController::class);
+                Route::middleware('can:manage-reviews')->group(function () {
+                    Route::post('/reviews/avatar', [AdminReviewController::class, 'uploadAvatar']);
+                    Route::apiResource('reviews', AdminReviewController::class);
+                });
 
                 /*
                 |--------------------------------------------------------------------------

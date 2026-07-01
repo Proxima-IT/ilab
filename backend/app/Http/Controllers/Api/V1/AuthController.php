@@ -421,7 +421,9 @@ class AuthController extends Controller
 
     private function requiresPhoneVerificationBeforePasswordLogin(User $user): bool
     {
-        return $user->provider !== 'google' && is_null($user->phone_verified_at);
+        return $user->role === 'student'
+            && $user->provider !== 'google'
+            && is_null($user->phone_verified_at);
     }
 
     private function validatePortalAccess(User $user, string $portal): ?JsonResponse
@@ -435,16 +437,16 @@ class AuthController extends Controller
             ], 403);
         }
 
-        if ($portal === 'admin' && $user->role === 'student') {
+        if ($portal === 'admin' && ! $this->isStaffRole($user->role)) {
             return response()->json([
                 'success' => false,
                 'data' => null,
-                'message' => 'Unauthorized. Admin access required for this portal.',
+                'message' => 'Unauthorized. Staff access required for this portal.',
                 'errors' => null,
             ], 403);
         }
 
-        if ($portal === 'student' && in_array($user->role, ['super_admin', 'admin', 'content_manager'], true)) {
+        if ($portal === 'student' && $user->role !== 'student') {
             return response()->json([
                 'success' => false,
                 'data' => null,
@@ -454,6 +456,17 @@ class AuthController extends Controller
         }
 
         return null;
+    }
+
+    private function isStaffRole(string $role): bool
+    {
+        return in_array($role, [
+            'super_admin',
+            'admin',
+            'manager',
+            'instructor',
+            'content_manager',
+        ], true);
     }
 
     private function issueLoginToken(User $user, array $validated, string $message): JsonResponse

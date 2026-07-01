@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class AdminProfileController extends Controller
 {
@@ -64,7 +65,6 @@ class AdminProfileController extends Controller
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'bio' => ['nullable', 'string', 'max:2000'],
-            'avatar' => ['nullable', 'url', 'max:500'],
         ]);
 
         $user->update($validated);
@@ -79,11 +79,46 @@ class AdminProfileController extends Controller
         ]);
     }
 
+    public function updateAvatar(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $this->canAccessAdminPanel($user->role)) {
+            return $this->forbiddenResponse();
+        }
+
+        $validated = $request->validate([
+            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ]);
+
+        $oldAvatar = $user->avatar;
+        $path = $validated['avatar']->store('avatars', 'public');
+
+        $user->forceFill([
+            'avatar' => 'storage/' . $path,
+        ])->save();
+
+        if ($oldAvatar && str_starts_with($oldAvatar, 'storage/avatars/')) {
+            Storage::disk('public')->delete(str_replace('storage/', '', $oldAvatar));
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'profile' => $this->safeAdminProfile($user->fresh()),
+            ],
+            'message' => 'Admin avatar updated.',
+            'errors' => null,
+        ]);
+    }
+
     private function canAccessAdminPanel(string $role): bool
     {
         return in_array($role, [
             'super_admin',
             'admin',
+            'manager',
+            'instructor',
             'content_manager',
         ], true);
     }

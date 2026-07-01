@@ -110,7 +110,7 @@ class User extends Authenticatable
     {
         return in_array(
             $this->role,
-            ['super_admin', 'admin', 'content_manager'],
+            ['super_admin', 'admin', 'manager', 'instructor', 'content_manager'],
             true
         );
     }
