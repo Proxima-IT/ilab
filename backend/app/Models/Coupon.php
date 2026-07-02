@@ -10,6 +10,7 @@ class Coupon extends Model
         'code',
         'type',
         'value',
+        'course_id',
         'max_uses',
         'used_count',
         'expires_at',
@@ -18,6 +19,7 @@ class Coupon extends Model
 
     protected $casts = [
         'value' => 'decimal:2',
+        'course_id' => 'integer',
         'max_uses' => 'integer',
         'used_count' => 'integer',
         'expires_at' => 'datetime',
@@ -30,6 +32,11 @@ class Coupon extends Model
     {
         return $this->expires_at !== null
             && $this->expires_at->isPast();
+    }
+
+    public function course()
+    {
+        return $this->belongsTo(Course::class);
     }
 
     public function isUsageLimitReached(): bool

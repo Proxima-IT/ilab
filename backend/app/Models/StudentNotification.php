@@ -14,6 +14,8 @@ class StudentNotification extends Model
         'profile_update',
         'course_completion',
         'certificate_ready',
+        'admin_message',
+        'qna_answer',
     ];
 
     protected $fillable = [

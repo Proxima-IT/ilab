@@ -29,7 +29,7 @@ class StudentNotificationController extends Controller
             ->where('user_id', $request->user()->id)
             ->orderByDesc('created_at')
             ->orderByDesc('id')
-            ->limit(10)
+            ->limit(15)
             ->get();
 
         $unreadCount = StudentNotification::query()
@@ -89,6 +89,8 @@ class StudentNotificationController extends Controller
             'profile_update' => ['sometimes', 'boolean'],
             'course_completion' => ['sometimes', 'boolean'],
             'certificate_ready' => ['sometimes', 'boolean'],
+            'admin_message' => ['sometimes', 'boolean'],
+            'qna_answer' => ['sometimes', 'boolean'],
             'email' => ['sometimes', 'boolean'],
             'sms' => ['sometimes', 'boolean'],
             'push' => ['sometimes', 'boolean'],

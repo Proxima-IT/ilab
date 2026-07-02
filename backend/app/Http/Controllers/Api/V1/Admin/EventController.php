@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -90,7 +91,10 @@ class EventController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        Event::findOrFail($id)->delete();
+        $event = Event::findOrFail($id);
+
+        $this->deleteCover($event->cover_url);
+        $event->delete();
 
         return response()->json([
             'success' => true,
@@ -98,6 +102,24 @@ class EventController extends Controller
             'message' => 'Event deleted successfully.',
             'errors' => null,
         ]);
+    }
+
+    public function uploadCover(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'cover' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ]);
+
+        $path = $validated['cover']->store('events', 'public');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'cover_url' => 'storage/' . $path,
+            ],
+            'message' => 'Event thumbnail uploaded successfully.',
+            'errors' => null,
+        ], 201);
     }
 
     public function registrations(int $id): JsonResponse
@@ -153,5 +175,12 @@ class EventController extends Controller
         }
 
         return $slug;
+    }
+
+    private function deleteCover(?string $coverUrl): void
+    {
+        if ($coverUrl && str_starts_with($coverUrl, 'storage/events/')) {
+            Storage::disk('public')->delete(str_replace('storage/', '', $coverUrl));
+        }
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Course;
 use App\Models\Coupon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ class CouponController extends Controller
         ]);
 
         $coupons = Coupon::query()
+            ->with('course:id,title,slug')
             ->when(! empty($validated['search']), function ($query) use ($validated) {
                 $query->where('code', 'like', '%' . strtoupper($validated['search']) . '%');
             })
@@ -55,6 +57,27 @@ class CouponController extends Controller
             'success' => true,
             'data' => $coupons,
             'message' => 'Coupons retrieved successfully.',
+            'errors' => null,
+        ]);
+    }
+
+    public function options(Request $request): JsonResponse
+    {
+        if (! $this->canView($request->user())) {
+            return $this->forbiddenResponse('Access denied. You do not have permission to view coupon options.');
+        }
+
+        $courses = Course::query()
+            ->select('id', 'title', 'slug', 'status')
+            ->orderBy('title')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'courses' => $courses,
+            ],
+            'message' => 'Coupon options retrieved successfully.',
             'errors' => null,
         ]);
     }

@@ -9,6 +9,7 @@ use App\Models\LessonAnswer;
 use App\Models\LessonNote;
 use App\Models\LessonProgress;
 use App\Models\LessonQuestion;
+use App\Models\StudentNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -356,6 +357,22 @@ class LessonController extends Controller
 
         if ($answer->is_instructor_answer) {
             $question->update(['status' => 'answered']);
+
+            $course = Course::find($lesson->section->course_id);
+
+            StudentNotification::createForStudent(
+                (int) $question->user_id,
+                'qna_answer',
+                'Your question was answered',
+                'A staff member answered your question in ' . $lesson->title . '.',
+                $course ? '/dashboard/player/' . $course->slug . '/' . $lesson->id : '/dashboard',
+                [
+                    'question_id' => $question->id,
+                    'answer_id' => $answer->id,
+                    'lesson_id' => $lesson->id,
+                    'course_id' => $course?->id,
+                ]
+            );
         }
 
         return $this->successResponse($answer, 'Answer submitted successfully.');

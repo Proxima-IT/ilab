@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BlogPost;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -91,7 +92,10 @@ class BlogPostController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        BlogPost::findOrFail($id)->delete();
+        $post = BlogPost::findOrFail($id);
+
+        $this->deleteCover($post->cover_url);
+        $post->delete();
 
         return response()->json([
             'success' => true,
@@ -99,6 +103,24 @@ class BlogPostController extends Controller
             'message' => 'Blog post deleted successfully.',
             'errors' => null,
         ]);
+    }
+
+    public function uploadCover(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'cover' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ]);
+
+        $path = $validated['cover']->store('blog', 'public');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'cover_url' => 'storage/' . $path,
+            ],
+            'message' => 'Blog thumbnail uploaded successfully.',
+            'errors' => null,
+        ], 201);
     }
 
     private function validatedPayload(Request $request, ?int $postId = null): array
@@ -143,5 +165,12 @@ class BlogPostController extends Controller
         }
 
         return $slug;
+    }
+
+    private function deleteCover(?string $coverUrl): void
+    {
+        if ($coverUrl && str_starts_with($coverUrl, 'storage/blog/')) {
+            Storage::disk('public')->delete(str_replace('storage/', '', $coverUrl));
+        }
     }
 }

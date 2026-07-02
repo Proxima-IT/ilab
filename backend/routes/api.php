@@ -14,18 +14,27 @@ use App\Http\Controllers\Api\V1\LessonController;
 use App\Http\Controllers\Api\V1\ProgressController;
 use App\Http\Controllers\Api\V1\CertificateController;
 use App\Http\Controllers\Api\V1\StudentNotificationController;
+use App\Http\Controllers\Api\V1\StudentQnaController;
+use App\Http\Controllers\Api\V1\NewsletterSubscriberController;
 use App\Http\Controllers\Api\V1\WebsiteSettingController;
 use App\Http\Controllers\Api\V1\UddoktaPayCheckoutController;
 use App\Http\Controllers\Api\V1\Admin\AdminProfileController;
 use App\Http\Controllers\Api\V1\Admin\DashboardController;
 use App\Http\Controllers\Api\V1\Admin\StaffController;
 use App\Http\Controllers\Api\V1\Admin\StudentController as AdminStudentController;
+use App\Http\Controllers\Api\V1\Admin\InstructorController as AdminInstructorController;
 use App\Http\Controllers\Api\V1\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Api\V1\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Api\V1\Admin\SectionController;
 use App\Http\Controllers\Api\V1\Admin\LessonController as AdminLessonController;
 use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\EnrollmentController as AdminEnrollmentController;
+use App\Http\Controllers\Api\V1\Admin\CertificateController as AdminCertificateController;
+use App\Http\Controllers\Api\V1\Admin\StudentProgressController as AdminStudentProgressController;
+use App\Http\Controllers\Api\V1\Admin\QnaController as AdminQnaController;
+use App\Http\Controllers\Api\V1\Admin\ActivityController as AdminActivityController;
+use App\Http\Controllers\Api\V1\Admin\NotificationController as AdminNotificationController;
+use App\Http\Controllers\Api\V1\Admin\NewsletterSubscriberController as AdminNewsletterSubscriberController;
 use App\Http\Controllers\Api\V1\Admin\EventController as AdminEventController;
 use App\Http\Controllers\Api\V1\Admin\BlogPostController as AdminBlogPostController;
 use App\Http\Controllers\Api\V1\Admin\WebsiteSettingController as AdminWebsiteSettingController;
@@ -70,6 +79,9 @@ Route::prefix('v1')->group(function () {
 
     Route::get('/website-settings', [WebsiteSettingController::class, 'index'])
         ->middleware('throttle:60,1');
+
+    Route::post('/newsletter/subscribe', [NewsletterSubscriberController::class, 'store'])
+        ->middleware('throttle:5,1');
 
     Route::prefix('events')
         ->middleware('throttle:60,1')
@@ -149,6 +161,7 @@ Route::prefix('v1')->group(function () {
             Route::put('/profile/notifications', [StudentProfileController::class, 'updateNotifications']);
             Route::get('/certificates', [CertificateController::class, 'index']);
             Route::get('/notifications', [StudentNotificationController::class, 'index']);
+            Route::get('/qna', [StudentQnaController::class, 'index']);
             Route::put('/notifications/{id}/read', [StudentNotificationController::class, 'markRead'])
                 ->whereNumber('id');
             Route::get('/notification-settings', [StudentNotificationController::class, 'settings']);
@@ -204,13 +217,24 @@ Route::prefix('v1')->group(function () {
         |--------------------------------------------------------------------------
         */
         Route::prefix('admin')
-            ->middleware('can:access-admin-panel')
+            ->middleware(['can:access-admin-panel', 'admin.activity'])
             ->group(function () {
                 Route::get('/profile', [AdminProfileController::class, 'show']);
                 Route::put('/profile', [AdminProfileController::class, 'update']);
                 Route::post('/profile/avatar', [AdminProfileController::class, 'updateAvatar']);
 
                 Route::get('/dashboard', [DashboardController::class, 'index']);
+                Route::get('/activity', [AdminActivityController::class, 'index'])
+                    ->middleware('can:view-activity');
+                Route::prefix('notifications')
+                    ->middleware('can:send-student-notifications')
+                    ->group(function () {
+                        Route::get('/students', [AdminNotificationController::class, 'searchStudents']);
+                        Route::get('/courses', [AdminNotificationController::class, 'courses']);
+                        Route::get('/courses/{course}/students', [AdminNotificationController::class, 'courseStudents'])
+                            ->whereNumber('course');
+                        Route::post('/send', [AdminNotificationController::class, 'send']);
+                    });
                 Route::prefix('website-settings')
                     ->middleware('can:manage-website-settings')
                     ->group(function () {
@@ -246,6 +270,19 @@ Route::prefix('v1')->group(function () {
                     ->middleware('can:manage-students')
                     ->whereNumber('id');
 
+                Route::get('/instructors', [AdminInstructorController::class, 'index'])
+                    ->middleware('can:view-instructors');
+                Route::post('/instructors', [AdminInstructorController::class, 'store'])
+                    ->middleware('can:manage-instructors');
+                Route::post('/instructors/avatar', [AdminInstructorController::class, 'uploadAvatar'])
+                    ->middleware('can:manage-instructors');
+                Route::put('/instructors/{id}', [AdminInstructorController::class, 'update'])
+                    ->middleware('can:manage-instructors')
+                    ->whereNumber('id');
+                Route::delete('/instructors/{id}', [AdminInstructorController::class, 'destroy'])
+                    ->middleware('can:manage-instructors')
+                    ->whereNumber('id');
+
                 /*
                 |--------------------------------------------------------------------------
                 | Admin Content Management
@@ -255,10 +292,24 @@ Route::prefix('v1')->group(function () {
                 Route::apiResource('courses', AdminCourseController::class);
                 Route::apiResource('sections', SectionController::class);
                 Route::apiResource('lessons', AdminLessonController::class);
-                Route::apiResource('events', AdminEventController::class);
-                Route::get('/events/{id}/registrations', [AdminEventController::class, 'registrations'])
-                    ->whereNumber('id');
-                Route::apiResource('blog-posts', AdminBlogPostController::class);
+                Route::middleware('can:manage-publishing')->group(function () {
+                    Route::post('/events/cover', [AdminEventController::class, 'uploadCover']);
+                    Route::apiResource('events', AdminEventController::class);
+                    Route::get('/events/{id}/registrations', [AdminEventController::class, 'registrations'])
+                        ->whereNumber('id');
+
+                    Route::post('/blog-posts/cover', [AdminBlogPostController::class, 'uploadCover']);
+                    Route::apiResource('blog-posts', AdminBlogPostController::class);
+                });
+                Route::prefix('newsletter')
+                    ->middleware('can:manage-newsletter')
+                    ->group(function () {
+                        Route::get('/subscribers', [AdminNewsletterSubscriberController::class, 'index']);
+                        Route::put('/subscribers/{id}', [AdminNewsletterSubscriberController::class, 'update'])
+                            ->whereNumber('id');
+                        Route::delete('/subscribers/{id}', [AdminNewsletterSubscriberController::class, 'destroy'])
+                            ->whereNumber('id');
+                    });
                 Route::middleware('can:manage-reviews')->group(function () {
                     Route::post('/reviews/avatar', [AdminReviewController::class, 'uploadAvatar']);
                     Route::apiResource('reviews', AdminReviewController::class);
@@ -269,8 +320,32 @@ Route::prefix('v1')->group(function () {
                 | Admin Financial Management
                 |--------------------------------------------------------------------------
                 */
-                Route::apiResource('coupons', CouponController::class);
+                Route::get('/coupons/options', [CouponController::class, 'options']);
+                Route::apiResource('coupons', CouponController::class)->except(['show']);
                 Route::apiResource('enrollments', AdminEnrollmentController::class);
+                Route::prefix('qna')
+                    ->middleware('can:manage-qna')
+                    ->group(function () {
+                        Route::get('/', [AdminQnaController::class, 'index']);
+                        Route::post('/{question}/answers', [AdminQnaController::class, 'answer'])
+                            ->whereNumber('question');
+                        Route::put('/{question}/close', [AdminQnaController::class, 'close'])
+                            ->whereNumber('question');
+                    });
+                Route::get('/student-progress/courses', [AdminStudentProgressController::class, 'courses'])
+                    ->middleware('can:view-student-progress');
+                Route::get('/student-progress', [AdminStudentProgressController::class, 'index'])
+                    ->middleware('can:view-student-progress');
+                Route::get('/certificates/options', [AdminCertificateController::class, 'options'])
+                    ->middleware('can:manage-certificates');
+                Route::get('/certificates', [AdminCertificateController::class, 'index'])
+                    ->middleware('can:view-certificates');
+                Route::post('/certificates', [AdminCertificateController::class, 'store'])
+                    ->middleware('can:manage-certificates');
+                Route::put('/certificates/{id}', [AdminCertificateController::class, 'update'])
+                    ->middleware('can:manage-certificates');
+                Route::delete('/certificates/{id}', [AdminCertificateController::class, 'destroy'])
+                    ->middleware('can:manage-certificates');
             });
     });
 });
