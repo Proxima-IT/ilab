@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\V1\Admin\CategoryController as AdminCategoryControl
 use App\Http\Controllers\Api\V1\Admin\CourseController as AdminCourseController;
 use App\Http\Controllers\Api\V1\Admin\SectionController;
 use App\Http\Controllers\Api\V1\Admin\LessonController as AdminLessonController;
+use App\Http\Controllers\Api\V1\Admin\LessonResourceController as AdminLessonResourceController;
 use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\EnrollmentController as AdminEnrollmentController;
 use App\Http\Controllers\Api\V1\Admin\CertificateController as AdminCertificateController;
@@ -39,6 +40,7 @@ use App\Http\Controllers\Api\V1\Admin\EventController as AdminEventController;
 use App\Http\Controllers\Api\V1\Admin\BlogPostController as AdminBlogPostController;
 use App\Http\Controllers\Api\V1\Admin\WebsiteSettingController as AdminWebsiteSettingController;
 use App\Http\Controllers\Api\V1\Admin\ReviewController as AdminReviewController;
+use App\Http\Controllers\Api\V1\Admin\SystemSettingController as AdminSystemSettingController;
 
 Route::prefix('v1')->group(function () {
 
@@ -229,6 +231,10 @@ Route::prefix('v1')->group(function () {
                 Route::prefix('notifications')
                     ->middleware('can:send-student-notifications')
                     ->group(function () {
+                        Route::get('/', [AdminNotificationController::class, 'index']);
+                        Route::get('/summary', [AdminNotificationController::class, 'summary']);
+                        Route::put('/{id}/read', [AdminNotificationController::class, 'markRead'])
+                            ->whereNumber('id');
                         Route::get('/students', [AdminNotificationController::class, 'searchStudents']);
                         Route::get('/courses', [AdminNotificationController::class, 'courses']);
                         Route::get('/courses/{course}/students', [AdminNotificationController::class, 'courseStudents'])
@@ -241,6 +247,12 @@ Route::prefix('v1')->group(function () {
                         Route::get('/', [AdminWebsiteSettingController::class, 'index']);
                         Route::put('/', [AdminWebsiteSettingController::class, 'update']);
                         Route::post('/images', [AdminWebsiteSettingController::class, 'uploadImage']);
+                    });
+                Route::prefix('system-settings')
+                    ->middleware('can:manage-system-settings')
+                    ->group(function () {
+                        Route::get('/', [AdminSystemSettingController::class, 'index']);
+                        Route::put('/', [AdminSystemSettingController::class, 'update']);
                     });
 
                 /*
@@ -261,6 +273,9 @@ Route::prefix('v1')->group(function () {
 
                 Route::get('/students', [AdminStudentController::class, 'index'])
                     ->middleware('can:view-students');
+                Route::get('/students/{id}', [AdminStudentController::class, 'show'])
+                    ->middleware('can:view-students')
+                    ->whereNumber('id');
                 Route::post('/students', [AdminStudentController::class, 'store'])
                     ->middleware('can:manage-students');
                 Route::put('/students/{id}', [AdminStudentController::class, 'update'])
@@ -288,10 +303,14 @@ Route::prefix('v1')->group(function () {
                 | Admin Content Management
                 |--------------------------------------------------------------------------
                 */
-                Route::apiResource('categories', AdminCategoryController::class);
+                Route::post('/categories/image', [AdminCategoryController::class, 'uploadImage']);
+                Route::apiResource('categories', AdminCategoryController::class)->except(['show']);
+                Route::get('/courses/options', [AdminCourseController::class, 'options']);
+                Route::post('/courses/thumbnail', [AdminCourseController::class, 'uploadThumbnail']);
                 Route::apiResource('courses', AdminCourseController::class);
                 Route::apiResource('sections', SectionController::class);
                 Route::apiResource('lessons', AdminLessonController::class);
+                Route::apiResource('lesson-resources', AdminLessonResourceController::class)->only(['store', 'update', 'destroy']);
                 Route::middleware('can:manage-publishing')->group(function () {
                     Route::post('/events/cover', [AdminEventController::class, 'uploadCover']);
                     Route::apiResource('events', AdminEventController::class);
@@ -322,7 +341,8 @@ Route::prefix('v1')->group(function () {
                 */
                 Route::get('/coupons/options', [CouponController::class, 'options']);
                 Route::apiResource('coupons', CouponController::class)->except(['show']);
-                Route::apiResource('enrollments', AdminEnrollmentController::class);
+                Route::get('/enrollments/options', [AdminEnrollmentController::class, 'options']);
+                Route::apiResource('enrollments', AdminEnrollmentController::class)->except(['show']);
                 Route::prefix('qna')
                     ->middleware('can:manage-qna')
                     ->group(function () {

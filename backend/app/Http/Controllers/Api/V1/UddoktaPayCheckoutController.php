@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\Course;
+use App\Models\SystemSetting;
+use App\Support\AdminNotificationDispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -59,6 +61,7 @@ class UddoktaPayCheckoutController extends Controller
 
         $user = $request->user();
         $course = Course::where('id', $request->course_id)->where('status', 'published')->firstOrFail();
+        $paymentSettings = SystemSetting::section('payments');
 
         // 1. Prevent double enrollment
         $alreadyEnrolled = DB::table('enrollments')
@@ -102,12 +105,26 @@ class UddoktaPayCheckoutController extends Controller
 
         // 3. Handle 100% Free Courses instantly (No UddoktaPay needed)
         if ($payableAmount == 0) {
+            if (! ($paymentSettings['free_enrollment_enabled'] ?? true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Free enrollment is temporarily disabled.',
+                ], 503);
+            }
+
             $this->createEnrollment($user->id, $course->id, 0, $couponId);
             return response()->json([
                 'success' => true,
                 'data' => ['is_free' => true, 'redirect_url' => '/dashboard'],
                 'message' => 'Enrolled successfully for free!'
             ]);
+        }
+
+        if (! ($paymentSettings['uddoktapay_enabled'] ?? true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Online payment is temporarily disabled. Please contact support.',
+            ], 503);
         }
 
         // 4. Send Request to UddoktaPay API
@@ -196,6 +213,8 @@ class UddoktaPayCheckoutController extends Controller
                 DB::table('coupons')->where('id', $couponId)->increment('used_count');
             }
             DB::commit();
+
+            AdminNotificationDispatcher::newEnrollment($userId, $courseId, $price);
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error("Failed to insert enrollment: " . $e->getMessage());

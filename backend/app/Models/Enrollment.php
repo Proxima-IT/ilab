@@ -11,11 +11,15 @@ class Enrollment extends Model
         'user_id',
         'course_id',
         'status',
+        'enrolled_price',
+        'progress_percentage',
         'enrolled_at',
         'expires_at',
     ];
 
     protected $casts = [
+        'enrolled_price' => 'decimal:2',
+        'progress_percentage' => 'integer',
         'enrolled_at' => 'datetime',
         'expires_at' => 'datetime',
         'created_at' => 'datetime',

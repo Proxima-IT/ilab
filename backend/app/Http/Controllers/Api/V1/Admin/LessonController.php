@@ -171,12 +171,12 @@ class LessonController extends Controller
 
     private function canView($user): bool
     {
-        return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor'], true);
+        return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor', 'content_manager'], true);
     }
 
     private function canCreateOrUpdate($user): bool
     {
-        return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor'], true);
+        return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor', 'content_manager'], true);
     }
 
     private function canDelete($user): bool
@@ -186,7 +186,7 @@ class LessonController extends Controller
 
     private function canManageLesson($user, int $sectionId): bool
     {
-        if (in_array($user->role, ['super_admin', 'admin', 'manager'], true)) {
+        if (in_array($user->role, ['super_admin', 'admin', 'manager', 'content_manager'], true)) {
             return true;
         }
 

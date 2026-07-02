@@ -135,6 +135,7 @@ class ActivityController extends Controller
             'site' => 'website settings',
             'students' => 'student',
             'student-progress' => 'student progress',
+            'system-settings' => 'system settings',
             'users' => 'staff account',
             'website-settings' => 'website settings',
         ][$key] ?? str_replace('-', ' ', $key);

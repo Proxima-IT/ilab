@@ -109,6 +109,88 @@ class StudentController extends Controller
         ], 201);
     }
 
+    public function show(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $courseIds = null;
+
+        if ($user->role === 'instructor') {
+            $courseIds = Course::query()
+                ->where('instructor_id', $user->id)
+                ->pluck('id')
+                ->all();
+        }
+
+        $student = User::query()
+            ->where('role', 'student')
+            ->with([
+                'enrollments' => function ($query) use ($courseIds) {
+                    if ($courseIds !== null) {
+                        $query->whereIn('course_id', $courseIds);
+                    }
+
+                    $query->latest();
+                },
+                'enrollments.course:id,title,slug,thumbnail,price,discount_price,status,instructor_id',
+                'enrollments.course.instructor:id,name,email,avatar',
+                'progress.lesson:id,section_id,title',
+                'progress.lesson.section:id,course_id,title',
+            ])
+            ->withCount([
+                'enrollments as enrolled_courses_count' => function ($query) use ($courseIds) {
+                    if ($courseIds !== null) {
+                        $query->whereIn('course_id', $courseIds);
+                    }
+                },
+                'certificates',
+            ])
+            ->findOrFail($id);
+
+        if ($courseIds !== null && $student->enrollments->isEmpty()) {
+            return $this->forbiddenResponse('Access denied. This student is not enrolled in your courses.');
+        }
+
+        $completedByCourse = $student->progress
+            ->filter(fn ($progress) => (bool) $progress->is_completed)
+            ->groupBy(fn ($progress) => optional(optional($progress->lesson)->section)->course_id)
+            ->map(fn ($items) => $items->count());
+
+        $courses = $student->enrollments
+            ->filter(fn ($enrollment) => $enrollment->course)
+            ->unique('course_id')
+            ->map(function ($enrollment) use ($completedByCourse) {
+                $course = $enrollment->course;
+
+                return [
+                    'id' => $course->id,
+                    'title' => $course->title,
+                    'slug' => $course->slug,
+                    'thumbnail' => $course->thumbnail,
+                    'status' => $enrollment->status,
+                    'enrolled_at' => $enrollment->enrolled_at ?? $enrollment->created_at,
+                    'expires_at' => $enrollment->expires_at,
+                    'completed_lessons' => (int) ($completedByCourse[$course->id] ?? 0),
+                    'instructor' => $course->instructor,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'student' => [
+                    ...$this->studentResource($student),
+                    'role' => $student->role,
+                    'provider' => $student->provider,
+                    'certificates_count' => $student->certificates_count ?? 0,
+                    'courses' => $courses,
+                ],
+            ],
+            'message' => 'Student profile retrieved successfully.',
+            'errors' => null,
+        ]);
+    }
+
     public function update(Request $request, int $id): JsonResponse
     {
         $this->authorizeManageStudents($request);

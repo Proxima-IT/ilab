@@ -41,9 +41,13 @@ class BlogPostController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $this->validatedPayload($request);
+        $author = $request->user();
 
         $post = BlogPost::create([
             ...$validated,
+            'author_id' => $author->id,
+            'author_name' => $author->name,
+            'author_avatar' => $author->avatar,
             'slug' => $validated['slug'] ?? $this->uniqueSlug($validated['title']),
             'published_at' => $validated['published_at'] ?? now(),
         ]);
@@ -75,6 +79,9 @@ class BlogPostController extends Controller
 
         $post->update([
             ...$validated,
+            'author_id' => $post->author_id ?: $request->user()->id,
+            'author_name' => $post->author_name ?: $request->user()->name,
+            'author_avatar' => $post->author_avatar ?: $request->user()->avatar,
             'slug' => $validated['slug'] ?? (
                 $validated['title'] !== $post->title
                     ? $this->uniqueSlug($validated['title'], $post->id)
@@ -135,12 +142,9 @@ class BlogPostController extends Controller
                 Rule::unique('blog_posts', 'slug')->ignore($postId),
             ],
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
-            'author_id' => ['nullable', 'integer', 'exists:users,id'],
             'excerpt' => ['nullable', 'string', 'max:1000'],
             'content' => ['required', 'string'],
             'cover_url' => ['nullable', 'string', 'max:500'],
-            'author_name' => ['nullable', 'string', 'max:255'],
-            'author_avatar' => ['nullable', 'string', 'max:500'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'is_published' => ['nullable', 'boolean'],

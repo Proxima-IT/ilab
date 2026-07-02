@@ -3,12 +3,60 @@
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\AdminNotificationDispatcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class EnrollmentController extends Controller
 {
+    public function options(Request $request): JsonResponse
+    {
+        if (! $this->canView($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot view enrollment options.');
+        }
+
+        $courses = DB::table('courses')
+            ->leftJoin('users as instructors', 'courses.instructor_id', '=', 'instructors.id')
+            ->select(
+                'courses.id',
+                'courses.title',
+                'courses.slug',
+                'courses.thumbnail',
+                'courses.price',
+                'courses.discount_price',
+                'courses.status',
+                'courses.type',
+                'instructors.name as instructor_name'
+            )
+            ->when($request->user()->role === 'instructor', function ($query) use ($request) {
+                $query->where('courses.instructor_id', $request->user()->id);
+            })
+            ->orderBy('courses.title')
+            ->get();
+
+        $students = $this->canManuallyEnroll($request->user())
+            ? DB::table('users')
+                ->select('id', 'name', 'email', 'phone', 'avatar', 'status')
+                ->where('role', 'student')
+                ->whereNull('deleted_at')
+                ->orderBy('name')
+                ->limit(500)
+                ->get()
+            : collect();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'students' => $students,
+                'courses' => $courses,
+            ],
+            'message' => 'Enrollment options retrieved successfully.',
+            'errors' => null,
+        ]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         if (! $this->canView($request->user())) {
@@ -36,11 +84,16 @@ class EnrollmentController extends Controller
                 'enrollments.enrolled_at',
                 'enrollments.expires_at',
                 'enrollments.created_at',
+                'enrollments.updated_at',
                 'users.name as student_name',
                 'users.email as student_email',
                 'users.phone as student_phone',
+                'users.avatar as student_avatar',
                 'courses.title as course_title',
                 'courses.slug as course_slug',
+                'courses.thumbnail as course_thumbnail',
+                'courses.price as course_price',
+                'courses.discount_price as course_discount_price',
                 'courses.instructor_id'
             );
 
@@ -90,8 +143,24 @@ class EnrollmentController extends Controller
             'course_id' => ['required', 'integer', 'exists:courses,id'],
             'enrolled_price' => ['required', 'numeric', 'min:0'],
             'status' => ['required', 'string', 'in:active,completed,suspended'],
+            'enrolled_at' => ['nullable', 'date'],
             'expires_at' => ['nullable', 'date', 'after:today'],
         ]);
+
+        $student = DB::table('users')
+            ->where('id', $validated['user_id'])
+            ->where('role', 'student')
+            ->whereNull('deleted_at')
+            ->first();
+
+        if (! $student) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Only student accounts can be enrolled in courses.',
+                'errors' => null,
+            ], 422);
+        }
 
         $exists = DB::table('enrollments')
             ->where('user_id', $validated['user_id'])
@@ -113,13 +182,19 @@ class EnrollmentController extends Controller
             'enrolled_price' => $validated['enrolled_price'],
             'status' => $validated['status'],
             'progress_percentage' => 0,
-            'enrolled_at' => now(),
+            'enrolled_at' => $validated['enrolled_at'] ?? now(),
             'expires_at' => $validated['expires_at'] ?? null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
         $enrollment = DB::table('enrollments')->where('id', $enrollmentId)->first();
+
+        AdminNotificationDispatcher::newEnrollment(
+            (int) $validated['user_id'],
+            (int) $validated['course_id'],
+            $validated['enrolled_price']
+        );
 
         return response()->json([
             'success' => true,
@@ -147,8 +222,10 @@ class EnrollmentController extends Controller
         }
 
         $validated = $request->validate([
-            'status' => ['required', 'string', 'in:active,completed,suspended,expired'],
+            'status' => ['required', 'string', Rule::in(['active', 'completed', 'suspended', 'expired'])],
             'progress_percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
+            'enrolled_price' => ['nullable', 'numeric', 'min:0'],
+            'enrolled_at' => ['nullable', 'date'],
             'expires_at' => ['nullable', 'date'],
         ]);
 
@@ -157,7 +234,13 @@ class EnrollmentController extends Controller
             ->update([
                 'status' => $validated['status'],
                 'progress_percentage' => $validated['progress_percentage'] ?? $enrollment->progress_percentage,
-                'expires_at' => $validated['expires_at'] ?? $enrollment->expires_at,
+                'enrolled_price' => $validated['enrolled_price'] ?? $enrollment->enrolled_price,
+                'enrolled_at' => array_key_exists('enrolled_at', $validated)
+                    ? $validated['enrolled_at']
+                    : $enrollment->enrolled_at,
+                'expires_at' => array_key_exists('expires_at', $validated)
+                    ? $validated['expires_at']
+                    : $enrollment->expires_at,
                 'updated_at' => now(),
             ]);
 

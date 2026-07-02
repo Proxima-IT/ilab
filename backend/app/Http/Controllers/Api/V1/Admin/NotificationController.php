@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminNotification;
 use App\Models\Course;
+use App\Models\LessonQuestion;
 use App\Models\StudentNotification;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -13,6 +15,65 @@ use Illuminate\Validation\Rule;
 
 class NotificationController extends Controller
 {
+    public function index(Request $request): JsonResponse
+    {
+        $notifications = AdminNotification::query()
+            ->where('user_id', $request->user()->id)
+            ->latest()
+            ->limit(15)
+            ->get();
+
+        $unreadCount = AdminNotification::query()
+            ->where('user_id', $request->user()->id)
+            ->whereNull('read_at')
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'notifications' => $notifications,
+                'unread_count' => $unreadCount,
+                'qna_open_count' => $this->openQnaCount($request),
+            ],
+            'message' => 'Admin notifications retrieved successfully.',
+            'errors' => null,
+        ]);
+    }
+
+    public function markRead(Request $request, int $id): JsonResponse
+    {
+        $notification = AdminNotification::query()
+            ->where('user_id', $request->user()->id)
+            ->findOrFail($id);
+
+        if ($notification->read_at === null) {
+            $notification->update(['read_at' => now()]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $notification->fresh(),
+            'message' => 'Notification marked as read.',
+            'errors' => null,
+        ]);
+    }
+
+    public function summary(Request $request): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'unread_count' => AdminNotification::query()
+                    ->where('user_id', $request->user()->id)
+                    ->whereNull('read_at')
+                    ->count(),
+                'qna_open_count' => $this->openQnaCount($request),
+            ],
+            'message' => 'Admin notification summary retrieved successfully.',
+            'errors' => null,
+        ]);
+    }
+
     public function searchStudents(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -134,5 +195,17 @@ class NotificationController extends Controller
             'message' => 'Notification sent successfully.',
             'errors' => null,
         ]);
+    }
+
+    private function openQnaCount(Request $request): int
+    {
+        return LessonQuestion::query()
+            ->where('status', 'open')
+            ->when($request->user()->role === 'instructor', function ($query) use ($request) {
+                $query->whereHas('lesson.section.course', function ($courseQuery) use ($request) {
+                    $courseQuery->where('instructor_id', $request->user()->id);
+                });
+            })
+            ->count();
     }
 }

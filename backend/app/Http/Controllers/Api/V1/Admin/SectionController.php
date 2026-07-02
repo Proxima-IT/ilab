@@ -148,12 +148,12 @@ class SectionController extends Controller
 
     private function canView($user): bool
     {
-        return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor'], true);
+        return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor', 'content_manager'], true);
     }
 
     private function canCreateOrUpdate($user): bool
     {
-        return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor'], true);
+        return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor', 'content_manager'], true);
     }
 
     private function canDelete($user): bool
@@ -163,7 +163,7 @@ class SectionController extends Controller
 
     private function canManageCourse($user, int $courseId): bool
     {
-        if (in_array($user->role, ['super_admin', 'admin', 'manager'], true)) {
+        if (in_array($user->role, ['super_admin', 'admin', 'manager', 'content_manager'], true)) {
             return true;
         }
 

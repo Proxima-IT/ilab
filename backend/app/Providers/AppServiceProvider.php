@@ -39,6 +39,10 @@ class AppServiceProvider extends ServiceProvider
             return in_array($user->role, ['super_admin', 'admin'], true);
         });
 
+        Gate::define('manage-system-settings', function (User $user) {
+            return in_array($user->role, ['super_admin', 'admin'], true);
+        });
+
         Gate::define('manage-reviews', function (User $user) {
             return in_array($user->role, ['super_admin', 'admin', 'manager'], true);
         });

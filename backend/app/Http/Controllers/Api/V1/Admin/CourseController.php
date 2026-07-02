@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class CourseController extends Controller
@@ -76,6 +77,99 @@ class CourseController extends Controller
             'message' => 'Courses retrieved successfully.',
             'errors' => null,
         ]);
+    }
+
+    public function options(Request $request): JsonResponse
+    {
+        if (! $this->canView($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot view course options.');
+        }
+
+        $categories = \App\Models\Category::query()
+            ->select('id', 'name', 'slug')
+            ->orderBy('name')
+            ->get();
+
+        $instructors = User::query()
+            ->select('id', 'name', 'email', 'role')
+            ->whereIn('role', ['admin', 'instructor'])
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'categories' => $categories,
+                'instructors' => $instructors,
+            ],
+            'message' => 'Course options retrieved successfully.',
+            'errors' => null,
+        ]);
+    }
+
+    public function show(Request $request, int $id): JsonResponse
+    {
+        if (! $this->canView($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot view this course.');
+        }
+
+        $course = Course::query()
+            ->with([
+                'category:id,name,slug',
+                'instructor:id,name,email,role',
+                'sections' => fn ($query) => $query->orderBy('order'),
+                'sections.lessons' => fn ($query) => $query->orderBy('order'),
+                'sections.lessons.resources' => fn ($query) => $query->orderBy('order'),
+            ])
+            ->withCount('enrollments')
+            ->findOrFail($id);
+
+        if (! $this->canAccessCourse($request->user(), $course)) {
+            return $this->forbiddenResponse('Access denied. You can only view your own courses.');
+        }
+
+        $course->sections->each(function ($section) {
+            $section->lessons->each(function ($lesson) {
+                $lesson->makeVisible(['video_url', 'live_link']);
+            });
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $course,
+            'message' => 'Course retrieved successfully.',
+            'errors' => null,
+        ]);
+    }
+
+    public function uploadThumbnail(Request $request): JsonResponse
+    {
+        if (! $this->canCreateOrUpdate($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot upload course thumbnails.');
+        }
+
+        $validated = $request->validate([
+            'thumbnail' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'old_thumbnail' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $path = $validated['thumbnail']->store('courses', 'public');
+
+        if (
+            ! empty($validated['old_thumbnail'])
+            && str_starts_with($validated['old_thumbnail'], 'storage/courses/')
+        ) {
+            Storage::disk('public')->delete(str_replace('storage/', '', $validated['old_thumbnail']));
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'thumbnail' => 'storage/' . $path,
+            ],
+            'message' => 'Course thumbnail uploaded successfully.',
+            'errors' => null,
+        ], 201);
     }
 
     public function store(Request $request): JsonResponse

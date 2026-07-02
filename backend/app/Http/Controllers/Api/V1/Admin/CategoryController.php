@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class CategoryController extends Controller
@@ -16,12 +17,12 @@ class CategoryController extends Controller
     {
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:100', 'regex:/^[^\r\n]+$/'],
-            'type' => ['nullable', 'string', 'in:course,ebook,bundle'],
+            'type' => ['nullable', 'string', 'in:course,blog'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         $categories = Category::query()
-            ->withCount('courses')
+            ->withCount(['courses', 'blogPosts'])
             ->when(! empty($validated['search']), function ($query) use ($validated) {
                 $query->where('name', 'like', '%' . $validated['search'] . '%')
                     ->orWhere('slug', 'like', '%' . $validated['search'] . '%');
@@ -29,6 +30,7 @@ class CategoryController extends Controller
             ->when(! empty($validated['type']), function ($query) use ($validated) {
                 $query->where('type', $validated['type']);
             })
+            ->orderBy('sort_order')
             ->orderBy('name')
             ->paginate($validated['per_page'] ?? 20);
 
@@ -48,13 +50,23 @@ class CategoryController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'regex:/^[^\r\n]+$/', 'unique:categories,name'],
-            'type' => ['nullable', 'string', 'in:course,ebook,bundle'],
+            'type' => ['nullable', 'string', 'in:course,blog'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'icon' => ['nullable', 'string', 'max:80'],
+            'image' => ['nullable', 'string', 'max:500'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
         $category = Category::create([
             'name' => $validated['name'],
             'slug' => $this->uniqueSlug($validated['name']),
             'type' => $validated['type'] ?? 'course',
+            'description' => $validated['description'] ?? null,
+            'icon' => $validated['icon'] ?? null,
+            'image' => $validated['image'] ?? null,
+            'sort_order' => $validated['sort_order'] ?? 0,
+            'is_active' => $validated['is_active'] ?? true,
         ]);
 
         Cache::forget('public_categories_course');
@@ -83,13 +95,23 @@ class CategoryController extends Controller
                 'regex:/^[^\r\n]+$/',
                 Rule::unique('categories', 'name')->ignore($category->id),
             ],
-            'type' => ['nullable', 'string', 'in:course,ebook,bundle'],
+            'type' => ['nullable', 'string', 'in:course,blog'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'icon' => ['nullable', 'string', 'max:80'],
+            'image' => ['nullable', 'string', 'max:500'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
         $category->update([
             'name' => $validated['name'],
             'slug' => $this->uniqueSlug($validated['name'], $category->id),
             'type' => $validated['type'] ?? $category->type,
+            'description' => $validated['description'] ?? null,
+            'icon' => $validated['icon'] ?? null,
+            'image' => $validated['image'] ?? null,
+            'sort_order' => $validated['sort_order'] ?? $category->sort_order,
+            'is_active' => array_key_exists('is_active', $validated) ? $validated['is_active'] : $category->is_active,
         ]);
 
         Cache::forget('public_categories_course');
@@ -102,19 +124,46 @@ class CategoryController extends Controller
         ]);
     }
 
+    public function uploadImage(Request $request): JsonResponse
+    {
+        if (! $this->canCreateOrUpdate($request->user())) {
+            return $this->forbiddenResponse('Access denied. You cannot upload category images.');
+        }
+
+        $validated = $request->validate([
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'old_image' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $path = $validated['image']->store('categories', 'public');
+
+        if (! empty($validated['old_image']) && str_starts_with($validated['old_image'], 'storage/categories/')) {
+            Storage::disk('public')->delete(str_replace('storage/', '', $validated['old_image']));
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'image' => 'storage/' . $path,
+            ],
+            'message' => 'Category image uploaded successfully.',
+            'errors' => null,
+        ], 201);
+    }
+
     public function destroy(Request $request, int $id): JsonResponse
     {
         if (! $this->canDelete($request->user())) {
             return $this->forbiddenResponse('Access denied. You cannot delete categories.');
         }
 
-        $category = Category::withCount('courses')->findOrFail($id);
+        $category = Category::withCount(['courses', 'blogPosts'])->findOrFail($id);
 
-        if ($category->courses_count > 0) {
+        if ($category->courses_count > 0 || $category->blog_posts_count > 0) {
             return response()->json([
                 'success' => false,
                 'data' => null,
-                'message' => 'Cannot delete a category that contains courses.',
+                'message' => 'Cannot delete a category that contains courses or blog posts.',
                 'errors' => null,
             ], 400);
         }

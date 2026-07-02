@@ -135,13 +135,29 @@ class CertificateController extends Controller
 
     public function options(Request $request): JsonResponse
     {
-        $students = User::query()
-            ->where('role', 'student')
-            ->where('status', true)
-            ->select('id', 'name', 'email', 'phone')
-            ->orderBy('name')
-            ->limit(500)
-            ->get();
+        $validated = $request->validate([
+            'student_search' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $students = collect();
+
+        if (! empty($validated['student_search']) && strlen($validated['student_search']) >= 2) {
+            $search = '%' . $validated['student_search'] . '%';
+
+            $students = User::query()
+                ->where('role', 'student')
+                ->where('status', true)
+                ->where(function ($query) use ($search) {
+                    $query
+                        ->where('name', 'like', $search)
+                        ->orWhere('email', 'like', $search)
+                        ->orWhere('phone', 'like', $search);
+                })
+                ->select('id', 'name', 'email', 'phone')
+                ->orderBy('name')
+                ->limit(20)
+                ->get();
+        }
 
         $courses = Course::query()
             ->when($request->user()->role === 'instructor', function ($query) use ($request) {
