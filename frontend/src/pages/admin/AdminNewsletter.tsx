@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AdminDeleteModal } from "@/components/admin/AdminDeleteModal";
+import { AdminPagination } from "@/components/admin/AdminPagination";
 import { useAdminAuth } from "@/lib/admin/useAdminAuth";
 import {
   adminNewsletterService,
@@ -39,6 +40,9 @@ export default function AdminNewsletter() {
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const canManage = Boolean(auth.role && allowedRoles.includes(auth.role));
 
@@ -51,12 +55,15 @@ export default function AdminNewsletter() {
     };
   }, [subscribers]);
 
-  const loadSubscribers = async () => {
+  const loadSubscribers = async (nextPage = page) => {
     setLoading(true);
 
     try {
-      const data = await adminNewsletterService.list(search, status);
+      const data = await adminNewsletterService.list(search, status, nextPage);
       setSubscribers(data.data);
+      setPage(data.current_page);
+      setLastPage(data.last_page);
+      setTotal(data.total);
     } catch (error) {
       toast.error(firstError(error, "Newsletter subscribers load hoyni."));
     } finally {
@@ -66,7 +73,7 @@ export default function AdminNewsletter() {
 
   useEffect(() => {
     if (canManage) {
-      void loadSubscribers();
+      void loadSubscribers(1);
     } else {
       setLoading(false);
     }
@@ -74,6 +81,7 @@ export default function AdminNewsletter() {
 
   const handleSearch = (event: FormEvent) => {
     event.preventDefault();
+    setPage(1);
     setSearch(query.trim());
   };
 
@@ -154,9 +162,9 @@ export default function AdminNewsletter() {
       </div>
 
       <div className="mb-6 grid gap-3 md:grid-cols-3">
-        <StatCard label="Total" value={stats.total} />
-        <StatCard label="Active" value={stats.active} />
-        <StatCard label="Inactive" value={stats.inactive} />
+        <StatCard label="Total matches" value={total} />
+        <StatCard label="Active on page" value={stats.active} />
+        <StatCard label="Inactive on page" value={stats.inactive} />
       </div>
 
       <div className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
@@ -258,6 +266,14 @@ export default function AdminNewsletter() {
             </tbody>
           </table>
         </div>
+        <AdminPagination
+          page={page}
+          lastPage={lastPage}
+          total={total}
+          label="subscribers"
+          loading={loading}
+          onPageChange={(nextPage) => void loadSubscribers(nextPage)}
+        />
       </div>
 
       <AdminDeleteModal

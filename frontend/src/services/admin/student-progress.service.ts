@@ -55,13 +55,14 @@ export const adminStudentProgressService = {
     return response.data;
   },
 
-  async list(search = "", status = "", courseId = ""): Promise<PaginatedProgress> {
+  async list(search = "", status = "", courseId = "", page = 1): Promise<PaginatedProgress> {
     const response = await get<ProgressResponse>("/admin/student-progress", {
       params: {
+        page,
         search: search || undefined,
         status: status || undefined,
         course_id: courseId || undefined,
-        per_page: 50,
+        per_page: 20,
       },
     });
 

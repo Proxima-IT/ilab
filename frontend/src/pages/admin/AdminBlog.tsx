@@ -10,6 +10,7 @@ import { imageUrl } from "@/services/course-catalog.service";
 
 type AdminBlogPost = {
   id: number;
+  category_id?: number | null;
   title: string;
   slug: string;
   excerpt: string | null;
@@ -40,14 +41,26 @@ type UploadResponse = {
   };
 };
 
+type BlogCategory = {
+  id: number;
+  name: string;
+  slug: string;
+};
+
+type CategoryResponse = {
+  success: boolean;
+  data: {
+    data: BlogCategory[];
+  };
+};
+
 type BlogForm = {
+  category_id: string;
   title: string;
   slug: string;
   excerpt: string;
   content: string;
   cover_url: string;
-  author_name: string;
-  author_avatar: string;
   meta_title: string;
   meta_description: string;
   published_at: string;
@@ -55,13 +68,12 @@ type BlogForm = {
 };
 
 const emptyForm: BlogForm = {
+  category_id: "",
   title: "",
   slug: "",
   excerpt: "",
   content: "",
   cover_url: "",
-  author_name: "",
-  author_avatar: "",
   meta_title: "",
   meta_description: "",
   published_at: "",
@@ -80,13 +92,12 @@ function toDatetimeLocal(value: string | null): string {
 
 function postToForm(post: AdminBlogPost): BlogForm {
   return {
+    category_id: post.category_id ? String(post.category_id) : "",
     title: post.title,
     slug: post.slug,
     excerpt: post.excerpt || "",
     content: post.content || "",
     cover_url: post.cover_url || "",
-    author_name: post.author_name || "",
-    author_avatar: post.author_avatar || "",
     meta_title: post.meta_title || "",
     meta_description: post.meta_description || "",
     published_at: toDatetimeLocal(post.published_at),
@@ -96,13 +107,12 @@ function postToForm(post: AdminBlogPost): BlogForm {
 
 function toPayload(form: BlogForm) {
   return {
+    category_id: form.category_id ? Number(form.category_id) : null,
     title: form.title,
     slug: form.slug || undefined,
     excerpt: form.excerpt || null,
     content: form.content,
     cover_url: form.cover_url || null,
-    author_name: form.author_name || null,
-    author_avatar: form.author_avatar || null,
     meta_title: form.meta_title || null,
     meta_description: form.meta_description || null,
     published_at: form.published_at || null,
@@ -112,6 +122,7 @@ function toPayload(form: BlogForm) {
 
 export default function AdminBlog() {
   const [posts, setPosts] = useState<AdminBlogPost[]>([]);
+  const [categories, setCategories] = useState<BlogCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -140,6 +151,25 @@ export default function AdminBlog() {
       setLoading(false);
     }
   };
+
+  const loadCategories = async () => {
+    try {
+      const response = await api.get<CategoryResponse>("/admin/categories", {
+        params: {
+          type: "blog",
+          per_page: 100,
+        },
+      });
+
+      setCategories(response.data.data.data);
+    } catch {
+      setCategories([]);
+    }
+  };
+
+  useEffect(() => {
+    void loadCategories();
+  }, []);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -320,7 +350,18 @@ export default function AdminBlog() {
             <div className="grid gap-4 md:grid-cols-2">
               <Input placeholder="Title" value={form.title} onChange={(event) => updateField("title", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
               <Input placeholder="Slug (optional)" value={form.slug} onChange={(event) => updateField("slug", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
-              <Input placeholder="Author name" value={form.author_name} onChange={(event) => updateField("author_name", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
+              <select
+                value={form.category_id}
+                onChange={(event) => updateField("category_id", event.target.value)}
+                className="h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-white outline-none focus:border-primary"
+              >
+                <option value="">Select blog category</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
               <Input type="datetime-local" value={form.published_at} onChange={(event) => updateField("published_at", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
               <div className="md:col-span-2">
                 <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900">
@@ -342,7 +383,6 @@ export default function AdminBlog() {
                   />
                 </label>
               </div>
-              <Input placeholder="Author avatar URL or storage path" value={form.author_avatar} onChange={(event) => updateField("author_avatar", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
               <Textarea placeholder="Excerpt" value={form.excerpt} onChange={(event) => updateField("excerpt", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
               <Textarea placeholder="Content. Use blank lines between paragraphs." value={form.content} onChange={(event) => updateField("content", event.target.value)} className="min-h-44 border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
               <Input placeholder="SEO title" value={form.meta_title} onChange={(event) => updateField("meta_title", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />

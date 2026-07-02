@@ -52,6 +52,7 @@ import AdminQna from "@/pages/admin/AdminQna";
 import AdminActivity from "@/pages/admin/AdminActivity";
 import AdminNotifications from "@/pages/admin/AdminNotifications";
 import AdminNewsletter from "@/pages/admin/AdminNewsletter";
+import AdminSystemSettings from "@/pages/admin/AdminSystemSettings";
 
 import DashboardLayout from "@/pages/dashboard/DashboardLayout";
 import OverviewPage from "@/pages/dashboard/OverviewPage";
@@ -167,6 +168,7 @@ export default function App() {
             <Route path="activity" element={<AdminActivity />} />
             <Route path="notifications" element={<AdminNotifications />} />
             <Route path="newsletter" element={<AdminNewsletter />} />
+            <Route path="system-settings" element={<AdminSystemSettings />} />
           </Route>
         </Route>
 

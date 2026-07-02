@@ -3,6 +3,7 @@ import { BarChart3, BookOpen, Loader2, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AdminPagination } from "@/components/admin/AdminPagination";
 import {
   adminStudentProgressService,
   type AdminProgressCourse,
@@ -38,6 +39,9 @@ export default function AdminStudentProgress() {
   const [query, setQuery] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const averageProgress = useMemo(() => {
     if (!rows.length) return 0;
@@ -46,12 +50,15 @@ export default function AdminStudentProgress() {
     );
   }, [rows]);
 
-  const loadProgress = async () => {
+  const loadProgress = async (nextPage = page) => {
     setLoading(true);
 
     try {
-      const data = await adminStudentProgressService.list(searchTerm, status, courseId);
+      const data = await adminStudentProgressService.list(searchTerm, status, courseId, nextPage);
       setRows(data.data);
+      setPage(data.current_page);
+      setLastPage(data.last_page);
+      setTotal(data.total);
     } catch (error) {
       const message =
         (error as { response?: { data?: { message?: string } } }).response?.data?.message ||
@@ -79,7 +86,7 @@ export default function AdminStudentProgress() {
   };
 
   useEffect(() => {
-    void loadProgress();
+    void loadProgress(1);
   }, [searchTerm, status, courseId]);
 
   useEffect(() => {
@@ -88,6 +95,7 @@ export default function AdminStudentProgress() {
 
   const handleSearch = (event: FormEvent) => {
     event.preventDefault();
+    setPage(1);
     setSearchTerm(query.trim());
   };
 
@@ -152,7 +160,7 @@ export default function AdminStudentProgress() {
       <div className="mb-5 grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
           <div className="text-xs uppercase tracking-wide text-zinc-500">Records</div>
-          <div className="mt-2 text-2xl font-semibold text-white">{rows.length}</div>
+          <div className="mt-2 text-2xl font-semibold text-white">{total}</div>
           <div className="mt-1 text-xs text-zinc-500">
             {courseId ? "Students in selected course" : "All progress records"}
           </div>
@@ -247,6 +255,14 @@ export default function AdminStudentProgress() {
             </tbody>
           </table>
         </div>
+        <AdminPagination
+          page={page}
+          lastPage={lastPage}
+          total={total}
+          label="progress records"
+          loading={loading}
+          onPageChange={(nextPage) => void loadProgress(nextPage)}
+        />
       </div>
     </div>
   );

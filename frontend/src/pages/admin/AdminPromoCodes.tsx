@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AdminDeleteModal } from "@/components/admin/AdminDeleteModal";
+import { AdminPagination } from "@/components/admin/AdminPagination";
 import { useAdminAuth } from "@/lib/admin/useAdminAuth";
 import {
   adminCouponService,
@@ -130,6 +131,9 @@ export default function AdminPromoCodes() {
   const [search, setSearch] = useState("");
   const [type, setType] = useState("");
   const [status, setStatus] = useState("");
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const canManage = Boolean(auth.role && manageRoles.includes(auth.role));
   const canDelete = Boolean(auth.role && deleteRoles.includes(auth.role));
@@ -143,12 +147,15 @@ export default function AdminPromoCodes() {
     return { active, used, courseSpecific };
   }, [coupons]);
 
-  const loadCoupons = async () => {
+  const loadCoupons = async (nextPage = page) => {
     setLoading(true);
 
     try {
-      const data = await adminCouponService.list({ search, type, status });
+      const data = await adminCouponService.list({ search, type, status, page: nextPage });
       setCoupons(data.data);
+      setPage(data.current_page);
+      setLastPage(data.last_page);
+      setTotal(data.total);
     } catch (error) {
       toast.error(firstError(error, "Promo codes load hoyni."));
     } finally {
@@ -167,7 +174,7 @@ export default function AdminPromoCodes() {
 
   useEffect(() => {
     if (canManage) {
-      void loadCoupons();
+      void loadCoupons(1);
       void loadOptions();
     } else {
       setLoading(false);
@@ -186,6 +193,7 @@ export default function AdminPromoCodes() {
 
   const handleSearch = (event: FormEvent) => {
     event.preventDefault();
+    setPage(1);
     setSearch(query.trim());
   };
 
@@ -546,6 +554,14 @@ export default function AdminPromoCodes() {
             </tbody>
           </table>
         </div>
+        <AdminPagination
+          page={page}
+          lastPage={lastPage}
+          total={total}
+          label="promo codes"
+          loading={loading}
+          onPageChange={(nextPage) => void loadCoupons(nextPage)}
+        />
       </div>
 
       <AdminDeleteModal

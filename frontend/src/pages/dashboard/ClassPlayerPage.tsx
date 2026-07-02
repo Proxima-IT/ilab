@@ -338,12 +338,17 @@ export default function ClassPlayerPage() {
   };
 
   const askQuestion = async () => {
-    if (!questionText.trim()) return;
+    const text = questionText.trim();
+
+    if (!text) {
+      toast.error("Please write your question first.");
+      return;
+    }
 
     setSaving(true);
 
     try {
-      const question = await learningService.addQuestion(currentLessonId, questionText.trim());
+      const question = await learningService.addQuestion(currentLessonId, text);
       setPlayer((current) =>
         current
           ? {
@@ -358,8 +363,16 @@ export default function ClassPlayerPage() {
       setQuestionPage(1);
       setQuestionText("");
       toast.success("Question submitted.");
-    } catch {
-      toast.error("Question submit hoyni.");
+    } catch (error) {
+      const message =
+        (error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })
+          .response?.data?.message ||
+        Object.values(
+          (error as { response?: { data?: { errors?: Record<string, string[]> } } }).response?.data?.errors || {}
+        )[0]?.[0] ||
+        "Question submit hoyni.";
+
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -626,6 +639,7 @@ export default function ClassPlayerPage() {
                         className="glass-input w-full resize-none px-3 py-2 text-xs"
                       />
                       <button
+                        type="button"
                         onClick={askQuestion}
                         disabled={saving}
                         className="glass-button flex items-center gap-1.5 px-4 py-2 text-xs disabled:opacity-60"

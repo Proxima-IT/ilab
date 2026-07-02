@@ -17,6 +17,30 @@ export type AdminStudent = {
   updated_at?: string | null;
 };
 
+export type AdminStudentCourse = {
+  id: number;
+  title: string;
+  slug?: string | null;
+  thumbnail?: string | null;
+  status?: string | null;
+  enrolled_at?: string | null;
+  expires_at?: string | null;
+  completed_lessons?: number;
+  instructor?: {
+    id: number;
+    name: string;
+    email?: string | null;
+    avatar?: string | null;
+  } | null;
+};
+
+export type AdminStudentProfile = AdminStudent & {
+  role?: string;
+  provider?: string | null;
+  certificates_count?: number;
+  courses: AdminStudentCourse[];
+};
+
 export type AdminStudentPayload = {
   name: string;
   email?: string | null;
@@ -52,6 +76,15 @@ type StudentMutationResponse = {
   errors: unknown;
 };
 
+type StudentProfileResponse = {
+  success: boolean;
+  data: {
+    student: AdminStudentProfile;
+  };
+  message: string;
+  errors: unknown;
+};
+
 export const adminStudentService = {
   async list(page = 1, search = ""): Promise<PaginatedStudents> {
     const response = await get<StudentListResponse>("/admin/students", {
@@ -63,6 +96,11 @@ export const adminStudentService = {
 
   async create(payload: AdminStudentPayload): Promise<StudentMutationResponse> {
     return post<StudentMutationResponse>("/admin/students", payload);
+  },
+
+  async show(id: number): Promise<AdminStudentProfile> {
+    const response = await get<StudentProfileResponse>(`/admin/students/${id}`);
+    return response.data.student;
   },
 
   async update(id: number, payload: AdminStudentPayload): Promise<StudentMutationResponse> {

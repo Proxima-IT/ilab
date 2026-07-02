@@ -85,7 +85,7 @@ export const adminCouponService = {
         type: type || undefined,
         status: status || undefined,
         page,
-        per_page: 50,
+        per_page: 20,
       },
     });
 

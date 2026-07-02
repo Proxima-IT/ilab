@@ -1,4 +1,4 @@
-import { get, post } from "@/lib/api";
+import { get, post, put } from "@/lib/api";
 
 export type AdminNotificationStudent = {
   id: number;
@@ -23,6 +23,17 @@ export type AdminNotificationPayload = {
   action_url?: string | null;
 };
 
+export type AdminTopbarNotification = {
+  id: number;
+  type: "new_enrollment" | string;
+  title: string;
+  message: string;
+  action_url?: string | null;
+  data?: Record<string, unknown> | null;
+  read_at?: string | null;
+  created_at: string;
+};
+
 type ListResponse<T> = {
   success: boolean;
   data: T;
@@ -39,7 +50,44 @@ type SendResponse = {
   errors: unknown;
 };
 
+type TopbarResponse = {
+  success: boolean;
+  data: {
+    notifications: AdminTopbarNotification[];
+    unread_count: number;
+    qna_open_count: number;
+  };
+  message: string;
+  errors: unknown;
+};
+
+type SummaryResponse = {
+  success: boolean;
+  data: {
+    unread_count: number;
+    qna_open_count: number;
+  };
+  message: string;
+  errors: unknown;
+};
+
 export const adminNotificationService = {
+  async latest(): Promise<TopbarResponse["data"]> {
+    const response = await get<TopbarResponse>("/admin/notifications");
+    return response.data;
+  },
+
+  async summary(): Promise<SummaryResponse["data"]> {
+    const response = await get<SummaryResponse>("/admin/notifications/summary");
+    return response.data;
+  },
+
+  async markRead(id: number): Promise<AdminTopbarNotification> {
+    const response = await put<ListResponse<AdminTopbarNotification>>(`/admin/notifications/${id}/read`);
+
+    return response.data;
+  },
+
   async searchStudents(search: string): Promise<AdminNotificationStudent[]> {
     const response = await get<ListResponse<AdminNotificationStudent[]>>(
       "/admin/notifications/students",

@@ -4,6 +4,10 @@ import { useAdminAuth } from "@/lib/admin/useAdminAuth";
 import { authStore, type UserRole } from "@/lib/auth";
 import { applyPrivateSeo } from "@/lib/seo";
 import { imageUrl } from "@/services/course-catalog.service";
+import {
+  adminNotificationService,
+  type AdminTopbarNotification,
+} from "@/services/admin/notification.service";
 import { Button } from "@/components/ui/button";
 import { SiteLogo } from "@/components/site/SiteLogo";
 import {
@@ -14,7 +18,6 @@ import {
   BarChart3,
   LayoutDashboard,
   BookOpen,
-  CheckCircle2,
   Users,
   Tag,
   GraduationCap,
@@ -33,6 +36,7 @@ import {
   Star,
   UserRound,
   X,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -201,34 +205,14 @@ const NAV: { group: string; items: NavItem[] }[] = [
         icon: Activity,
         superOnly: true,
       },
+      {
+        to: "/admin/system-settings",
+        label: "System Settings",
+        description: "Site, payments, maintenance",
+        icon: Settings,
+        allowedRoles: ["super_admin", "admin"],
+      },
     ],
-  },
-];
-
-const STATIC_NOTIFICATIONS = [
-  {
-    id: 1,
-    title: "New enrollment received",
-    message: "A student enrolled in a course. Dynamic admin notifications will be connected later.",
-    time: "Just now",
-    unread: true,
-    icon: ShoppingBag,
-  },
-  {
-    id: 2,
-    title: "Course content reminder",
-    message: "Check unpublished lessons before the next batch starts.",
-    time: "Today",
-    unread: true,
-    icon: BookOpen,
-  },
-  {
-    id: 3,
-    title: "System ready",
-    message: "Admin notification center placeholder is active.",
-    time: "Yesterday",
-    unread: false,
-    icon: CheckCircle2,
   },
 ];
 
@@ -241,6 +225,22 @@ function resolveAvatar(avatar?: string | null, name?: string | null) {
   return imageUrl(avatar);
 }
 
+function formatNotificationTime(value: string) {
+  const date = new Date(value);
+  const diffSeconds = Math.max(1, Math.floor((Date.now() - date.getTime()) / 1000));
+
+  if (diffSeconds < 60) return "Just now";
+  if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
+  if (diffSeconds < 86400) return `${Math.floor(diffSeconds / 3600)}h ago`;
+
+  return date.toLocaleDateString();
+}
+
+function notificationIcon(type: string) {
+  if (type === "new_enrollment") return ShoppingBag;
+  return BellRing;
+}
+
 export default function AdminLayout() {
   const auth = useAdminAuth();
   const navigate = useNavigate();
@@ -248,11 +248,33 @@ export default function AdminLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [notifications, setNotifications] = useState<AdminTopbarNotification[]>([]);
+  const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
+  const [qnaOpenCount, setQnaOpenCount] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const roleLabel = auth.role ? auth.role.replace(/_/g, " ") : "Staff";
   const profileName = auth.profile?.name || auth.name || "Admin";
   const profileEmail = auth.profile?.email || auth.email || "";
   const profileAvatar = resolveAvatar(auth.profile?.avatar, profileName);
-  const unreadCount = STATIC_NOTIFICATIONS.filter((notification) => notification.unread).length;
+
+  const loadAdminNotifications = async (showLoader = false) => {
+    if (!auth.userId) return;
+
+    if (showLoader) setNotificationsLoading(true);
+
+    try {
+      const data = await adminNotificationService.latest();
+      setNotifications(data.notifications);
+      setNotificationUnreadCount(data.unread_count);
+      setQnaOpenCount(data.qna_open_count);
+    } catch {
+      setNotifications([]);
+      setNotificationUnreadCount(0);
+      setQnaOpenCount(0);
+    } finally {
+      if (showLoader) setNotificationsLoading(false);
+    }
+  };
 
   useEffect(() => {
     applyPrivateSeo({
@@ -267,6 +289,28 @@ export default function AdminLayout() {
       navigate("/admin/login");
     }
   }, [auth.loading, auth.userId, navigate]);
+
+  useEffect(() => {
+    if (!auth.userId || !auth.isAdmin) return;
+
+    void loadAdminNotifications(true);
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void loadAdminNotifications(false);
+      }
+    }, 30000);
+
+    const refreshOnFocus = () => void loadAdminNotifications(false);
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnFocus);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
+    };
+  }, [auth.userId, auth.isAdmin]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -309,6 +353,30 @@ export default function AdminLayout() {
   const logout = async () => {
     await authStore.logout();
     navigate("/admin/login");
+  };
+
+  const openNotifications = () => {
+    setShowNotifications((current) => !current);
+    setShowProfile(false);
+    void loadAdminNotifications(true);
+  };
+
+  const handleNotificationClick = async (notification: AdminTopbarNotification) => {
+    if (!notification.read_at) {
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === notification.id ? { ...item, read_at: new Date().toISOString() } : item
+        )
+      );
+      setNotificationUnreadCount((current) => Math.max(0, current - 1));
+      await adminNotificationService.markRead(notification.id);
+    }
+
+    setShowNotifications(false);
+
+    if (notification.action_url) {
+      navigate(notification.action_url);
+    }
   };
 
   const sidebar = (
@@ -367,7 +435,14 @@ export default function AdminLayout() {
                         <Icon className="h-4 w-4" />
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium">{item.label}</span>
+                        <span className="flex min-w-0 items-center justify-between gap-2">
+                          <span className="truncate text-sm font-medium">{item.label}</span>
+                          {item.to === "/admin/qna" && qnaOpenCount > 0 && (
+                            <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                              {qnaOpenCount > 99 ? "99+" : qnaOpenCount}
+                            </span>
+                          )}
+                        </span>
                         <span className="block truncate text-[11px] text-zinc-500 group-hover:text-zinc-400">
                           {item.description}
                         </span>
@@ -462,17 +537,14 @@ export default function AdminLayout() {
             <div className="relative">
               <button
                 type="button"
-                onClick={() => {
-                  setShowNotifications((current) => !current);
-                  setShowProfile(false);
-                }}
+                onClick={openNotifications}
                 className="relative grid h-10 w-10 place-items-center rounded-full border border-zinc-800 bg-zinc-900 text-zinc-300 transition hover:border-primary/40 hover:text-white"
                 aria-label="Open notifications"
               >
                 <Bell className="h-4 w-4" />
-                {unreadCount > 0 && (
+                {notificationUnreadCount > 0 && (
                   <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
-                    {unreadCount}
+                    {notificationUnreadCount > 99 ? "99+" : notificationUnreadCount}
                   </span>
                 )}
               </button>
@@ -540,14 +612,14 @@ export default function AdminLayout() {
         <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-950/95 px-4 py-3 lg:hidden">
           <button
             type="button"
-            onClick={() => setShowNotifications((current) => !current)}
+            onClick={openNotifications}
             className="relative grid h-9 w-9 place-items-center rounded-md border border-zinc-800 text-zinc-200"
             aria-label="Open notifications"
           >
             <Bell className="h-4 w-4" />
-            {unreadCount > 0 && (
+            {notificationUnreadCount > 0 && (
               <span className="absolute -right-1 -top-1 h-4 min-w-4 rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">
-                {unreadCount}
+                {notificationUnreadCount > 99 ? "99+" : notificationUnreadCount}
               </span>
             )}
           </button>
@@ -563,45 +635,49 @@ export default function AdminLayout() {
         </div>
 
         {showNotifications && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 px-4 py-20 backdrop-blur-sm">
-            <button
-              type="button"
-              className="absolute inset-0"
-              aria-label="Close notifications"
-              onClick={() => setShowNotifications(false)}
-            />
-            <div className="relative w-full max-w-lg overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 shadow-2xl shadow-black/40">
-              <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
-                <div>
-                  <p className="text-sm font-semibold text-white">Notifications</p>
-                  <p className="text-[11px] text-zinc-500">Static preview for now</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
-                    {unreadCount} unread
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setShowNotifications(false)}
-                    className="grid h-8 w-8 place-items-center rounded-md text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
-                    aria-label="Close notifications"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
+          <div className="fixed right-4 top-20 z-50 w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 shadow-2xl shadow-black/40 lg:right-6 lg:top-20">
+            <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold text-white">Notifications</p>
+                <p className="text-[11px] text-zinc-500">Latest staff alerts</p>
               </div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
+                  {notificationUnreadCount} unread
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowNotifications(false)}
+                  className="grid h-8 w-8 place-items-center rounded-md text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+                  aria-label="Close notifications"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
 
-              <div className="max-h-[460px] overflow-y-auto p-3">
-                {STATIC_NOTIFICATIONS.map((notification) => {
-                  const Icon = notification.icon;
+            <div className="admin-scrollbar max-h-[460px] overflow-y-auto p-3">
+              {notificationsLoading ? (
+                <div className="grid h-28 place-items-center text-zinc-500">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="rounded-xl border border-zinc-800 bg-zinc-950/40 p-6 text-center text-xs text-zinc-500">
+                  No notifications yet.
+                </div>
+              ) : (
+                notifications.map((notification) => {
+                  const Icon = notificationIcon(notification.type);
+                  const unread = !notification.read_at;
 
                   return (
                     <button
                       key={notification.id}
                       type="button"
+                      onClick={() => void handleNotificationClick(notification)}
                       className={
                         "mb-2 flex w-full gap-3 rounded-xl border p-3 text-left transition hover:border-primary/30 " +
-                        (notification.unread
+                        (unread
                           ? "border-primary/20 bg-primary/10"
                           : "border-zinc-800 bg-zinc-950/40")
                       }
@@ -614,21 +690,19 @@ export default function AdminLayout() {
                           <span className="truncate text-xs font-semibold text-white">
                             {notification.title}
                           </span>
-                          {notification.unread && (
-                            <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
-                          )}
+                          {unread && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
                         </span>
                         <span className="mt-1 line-clamp-2 block text-[11px] leading-5 text-zinc-400">
                           {notification.message}
                         </span>
                         <span className="mt-2 block text-[10px] text-zinc-500">
-                          {notification.time}
+                          {formatNotificationTime(notification.created_at)}
                         </span>
                       </span>
                     </button>
                   );
-                })}
-              </div>
+                })
+              )}
             </div>
           </div>
         )}

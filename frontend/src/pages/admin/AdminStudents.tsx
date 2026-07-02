@@ -9,6 +9,7 @@ import {
   Save,
   Search,
   Trash2,
+  UserRound,
   UserPlus,
   X,
 } from "lucide-react";
@@ -17,12 +18,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AdminDeleteModal } from "@/components/admin/AdminDeleteModal";
+import { AdminPagination } from "@/components/admin/AdminPagination";
 import { useAdminAuth } from "@/lib/admin/useAdminAuth";
 import {
   adminStudentService,
   type AdminStudent,
+  type AdminStudentProfile,
   type AdminStudentPayload,
 } from "@/services/admin/student.service";
+import { imageUrl } from "@/services/course-catalog.service";
 
 type StudentForm = {
   id?: number;
@@ -80,6 +84,19 @@ function firstError(error: unknown, fallback: string) {
   return data?.errors ? Object.values(data.errors)[0]?.[0] || fallback : data?.message || fallback;
 }
 
+function fallbackAvatar(name?: string | null) {
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || "Student")}&background=18181b&color=ffffff`;
+}
+
+function resolveImage(path?: string | null, name?: string | null) {
+  return path ? imageUrl(path) : fallbackAvatar(name);
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString();
+}
+
 export default function AdminStudents() {
   const auth = useAdminAuth();
   const [students, setStudents] = useState<AdminStudent[]>([]);
@@ -87,10 +104,15 @@ export default function AdminStudents() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminStudent | null>(null);
+  const [profile, setProfile] = useState<AdminStudentProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<StudentForm>(emptyForm);
   const [query, setQuery] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const canManage = useMemo(
     () => Boolean(auth.role && ["super_admin", "admin", "manager"].includes(auth.role)),
@@ -98,12 +120,15 @@ export default function AdminStudents() {
   );
   const editing = Boolean(form.id);
 
-  const loadStudents = async () => {
+  const loadStudents = async (nextPage = page) => {
     setLoading(true);
 
     try {
-      const data = await adminStudentService.list(1, searchTerm);
+      const data = await adminStudentService.list(nextPage, searchTerm);
       setStudents(data.data);
+      setPage(data.current_page);
+      setLastPage(data.last_page);
+      setTotal(data.total);
     } catch (error) {
       toast.error(firstError(error, "Student list load hoyni."));
     } finally {
@@ -113,7 +138,7 @@ export default function AdminStudents() {
 
   useEffect(() => {
     if (auth.userId) {
-      void loadStudents();
+      void loadStudents(1);
     }
   }, [auth.userId, searchTerm]);
 
@@ -127,8 +152,22 @@ export default function AdminStudents() {
     setFormOpen(true);
   };
 
+  const openProfile = async (student: AdminStudent) => {
+    setProfileLoading(true);
+    setProfile(null);
+
+    try {
+      setProfile(await adminStudentService.show(student.id));
+    } catch (error) {
+      toast.error(firstError(error, "Student profile load hoyni."));
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   const handleSearch = (event: FormEvent) => {
     event.preventDefault();
+    setPage(1);
     setSearchTerm(query.trim());
   };
 
@@ -378,7 +417,13 @@ export default function AdminStudents() {
                 students.map((student) => (
                   <tr key={student.id}>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-zinc-100">{student.name}</div>
+                      <button
+                        type="button"
+                        onClick={() => void openProfile(student)}
+                        className="font-medium text-zinc-100 underline-offset-4 transition hover:text-primary hover:underline"
+                      >
+                        {student.name}
+                      </button>
                       <div className="mt-0.5 line-clamp-1 text-xs text-zinc-500">
                         {student.bio || "No bio added"}
                       </div>
@@ -451,6 +496,14 @@ export default function AdminStudents() {
             </tbody>
           </table>
         </div>
+        <AdminPagination
+          page={page}
+          lastPage={lastPage}
+          total={total}
+          label="students"
+          loading={loading}
+          onPageChange={(nextPage) => void loadStudents(nextPage)}
+        />
       </div>
 
       <AdminDeleteModal
@@ -465,6 +518,129 @@ export default function AdminStudents() {
         }}
         onConfirm={() => void confirmDeleteStudent()}
       />
+
+      {(profileLoading || profile) && (
+        <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-black/70 px-4 py-10 backdrop-blur-sm">
+          <button
+            type="button"
+            className="absolute inset-0"
+            aria-label="Close student profile"
+            onClick={() => {
+              if (!profileLoading) setProfile(null);
+            }}
+          />
+          <div className="relative w-full max-w-4xl overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl shadow-black/50">
+            <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4">
+              <div className="flex items-center gap-2">
+                <UserRound className="h-4 w-4 text-primary" />
+                <h2 className="text-lg font-semibold text-white">Student Profile</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProfile(null)}
+                disabled={profileLoading}
+                className="grid h-8 w-8 place-items-center rounded-md text-zinc-500 transition hover:bg-zinc-900 hover:text-white disabled:opacity-50"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {profileLoading ? (
+              <div className="grid min-h-80 place-items-center text-zinc-500">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : profile ? (
+              <div className="grid gap-6 p-5 lg:grid-cols-[280px_minmax(0,1fr)]">
+                <aside className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                  <img
+                    src={resolveImage(profile.avatar, profile.name)}
+                    alt={profile.name}
+                    className="mx-auto h-28 w-28 rounded-full object-cover ring-2 ring-primary/30"
+                  />
+                  <h3 className="mt-4 text-center text-lg font-semibold text-white">{profile.name}</h3>
+                  <p className="mt-1 text-center text-xs text-zinc-500">{profile.email || profile.phone || "No contact"}</p>
+                  <div className="mt-4 flex justify-center">
+                    <span className={`rounded-full px-2 py-1 text-[11px] ${profile.status ? "bg-emerald-500/10 text-emerald-300" : "bg-rose-500/10 text-rose-300"}`}>
+                      {profile.status ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+
+                  <div className="mt-5 space-y-3 text-sm">
+                    <Info label="Email" value={profile.email || "-"} verified={Boolean(profile.email_verified_at)} />
+                    <Info label="Phone" value={profile.phone || "-"} verified={Boolean(profile.phone_verified_at)} />
+                    <Info label="Education" value={profile.education_level || "-"} />
+                    <Info label="District" value={profile.district || "-"} />
+                    <Info label="Joined" value={formatDate(profile.created_at)} />
+                    <Info label="Certificates" value={String(profile.certificates_count || 0)} />
+                  </div>
+                </aside>
+
+                <section className="space-y-5">
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                    <h4 className="text-sm font-semibold text-white">Bio</h4>
+                    <p className="mt-2 whitespace-pre-line text-sm leading-6 text-zinc-400">
+                      {profile.bio || "No bio added."}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-zinc-800 bg-zinc-900/50">
+                    <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+                      <h4 className="text-sm font-semibold text-white">Enrolled Courses</h4>
+                      <span className="rounded-full bg-primary/10 px-2 py-1 text-[11px] text-primary">
+                        {profile.courses.length}
+                      </span>
+                    </div>
+                    <div className="divide-y divide-zinc-800">
+                      {profile.courses.length === 0 ? (
+                        <div className="p-6 text-center text-sm text-zinc-500">No enrolled courses found.</div>
+                      ) : (
+                        profile.courses.map((course) => (
+                          <div key={course.id} className="flex gap-3 p-4">
+                            <img
+                              src={resolveImage(course.thumbnail, course.title)}
+                              alt={course.title}
+                              className="h-16 w-24 rounded-lg object-cover"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-semibold text-white">{course.title}</p>
+                              <p className="mt-1 text-xs text-zinc-500">
+                                Instructor: {course.instructor?.name || "-"}
+                              </p>
+                              <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                                <span className="rounded-full bg-zinc-800 px-2 py-1 text-zinc-300">
+                                  {course.status || "active"}
+                                </span>
+                                <span className="rounded-full bg-zinc-800 px-2 py-1 text-zinc-300">
+                                  Enrolled {formatDate(course.enrolled_at)}
+                                </span>
+                                <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                                  {course.completed_lessons || 0} lessons completed
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </section>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Info({ label, value, verified }: { label: string; value: string; verified?: boolean }) {
+  return (
+    <div>
+      <p className="text-[11px] uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="mt-0.5 flex items-center gap-1 text-zinc-200">
+        {value}
+        {verified && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />}
+      </p>
     </div>
   );
 }

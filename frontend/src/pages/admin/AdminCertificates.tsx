@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AdminDeleteModal } from "@/components/admin/AdminDeleteModal";
+import { AdminPagination } from "@/components/admin/AdminPagination";
 import { useAdminAuth } from "@/lib/admin/useAdminAuth";
 import {
   adminCertificateService,
@@ -107,6 +108,10 @@ export default function AdminCertificates() {
   const [form, setForm] = useState<CertificateForm>(emptyForm);
   const [query, setQuery] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [lastPage, setLastPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const canManage = useMemo(
     () => Boolean(auth.role && ["super_admin", "admin", "manager"].includes(auth.role)),
@@ -114,12 +119,15 @@ export default function AdminCertificates() {
   );
   const editing = Boolean(form.id);
 
-  const loadCertificates = async () => {
+  const loadCertificates = async (nextPage = page) => {
     setLoading(true);
 
     try {
-      const data = await adminCertificateService.list(searchTerm);
+      const data = await adminCertificateService.list(searchTerm, nextPage);
       setCertificates(data.data);
+      setPage(data.current_page);
+      setLastPage(data.last_page);
+      setTotal(data.total);
     } catch (error) {
       toast.error(firstError(error, "Certificate list load hoyni."));
     } finally {
@@ -127,13 +135,13 @@ export default function AdminCertificates() {
     }
   };
 
-  const loadOptions = async () => {
+  const loadOptions = async (nextStudentSearch = studentSearch) => {
     if (!canManage) return;
 
     setOptionsLoading(true);
 
     try {
-      const data = await adminCertificateService.options();
+      const data = await adminCertificateService.options(nextStudentSearch.trim());
       setStudents(data.students);
       setCourses(data.courses);
     } catch (error) {
@@ -145,28 +153,59 @@ export default function AdminCertificates() {
 
   useEffect(() => {
     if (auth.userId) {
-      void loadCertificates();
+      void loadCertificates(1);
     }
   }, [auth.userId, searchTerm]);
 
   useEffect(() => {
     if (auth.userId && canManage) {
-      void loadOptions();
+      void loadOptions("");
     }
   }, [auth.userId, canManage]);
 
+  useEffect(() => {
+    if (!formOpen || !canManage || editing) return;
+
+    const term = studentSearch.trim();
+
+    if (term.length < 2) {
+      setStudents([]);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      void loadOptions(term);
+    }, 350);
+
+    return () => window.clearTimeout(timeout);
+  }, [studentSearch, formOpen, canManage, editing]);
+
   const openCreate = () => {
     setForm(emptyForm);
+    setStudentSearch("");
+    setStudents([]);
     setFormOpen(true);
   };
 
   const openEdit = (certificate: AdminCertificate) => {
     setForm(toForm(certificate));
+    setStudentSearch(certificate.user?.name || "");
+    if (certificate.user) {
+      setStudents([
+        {
+          id: certificate.user.id,
+          name: certificate.user.name,
+          email: certificate.user.email,
+          phone: certificate.user.phone,
+        },
+      ]);
+    }
     setFormOpen(true);
   };
 
   const handleSearch = (event: FormEvent) => {
     event.preventDefault();
+    setPage(1);
     setSearchTerm(query.trim());
   };
 
@@ -280,19 +319,39 @@ export default function AdminCertificates() {
           <form onSubmit={handleSubmit} className="grid gap-4 lg:grid-cols-2">
             <div>
               <Label className="text-zinc-300">Student</Label>
+              {!editing && (
+                <Input
+                  value={studentSearch}
+                  onChange={(event) => {
+                    setStudentSearch(event.target.value);
+                    setForm((current) => ({ ...current, user_id: "" }));
+                  }}
+                  placeholder="Search by student name, email, or phone..."
+                  className="mt-1 border-zinc-700 bg-zinc-950 text-white"
+                />
+              )}
               <select
                 value={form.user_id}
                 onChange={(event) => setForm((current) => ({ ...current, user_id: event.target.value }))}
                 disabled={optionsLoading}
-                className="mt-1 h-10 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 text-sm text-white outline-none focus:border-primary"
+                className="mt-2 h-10 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 text-sm text-white outline-none focus:border-primary"
               >
-                <option value="">Select student</option>
+                <option value="">
+                  {optionsLoading
+                    ? "Searching students..."
+                    : studentSearch.trim().length < 2 && !editing
+                      ? "Type at least 2 characters"
+                      : "Select student"}
+                </option>
                 {students.map((student) => (
                   <option key={student.id} value={student.id}>
-                    {student.name} {student.email ? `- ${student.email}` : ""}
+                    {student.name} {student.email ? `- ${student.email}` : student.phone ? `- ${student.phone}` : ""}
                   </option>
                 ))}
               </select>
+              {!editing && studentSearch.trim().length >= 2 && !optionsLoading && students.length === 0 && (
+                <p className="mt-2 text-xs text-amber-300">No matching student found.</p>
+              )}
             </div>
 
             <div>
@@ -471,6 +530,14 @@ export default function AdminCertificates() {
             </tbody>
           </table>
         </div>
+        <AdminPagination
+          page={page}
+          lastPage={lastPage}
+          total={total}
+          label="certificates"
+          loading={loading}
+          onPageChange={(nextPage) => void loadCertificates(nextPage)}
+        />
       </div>
 
       <AdminDeleteModal

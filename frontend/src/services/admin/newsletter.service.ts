@@ -35,12 +35,13 @@ type SubscriberMutationResponse = {
 };
 
 export const adminNewsletterService = {
-  async list(search = "", status = ""): Promise<PaginatedSubscribers> {
+  async list(search = "", status = "", page = 1): Promise<PaginatedSubscribers> {
     const response = await get<SubscriberListResponse>("/admin/newsletter/subscribers", {
       params: {
+        page,
         search: search || undefined,
         status: status || undefined,
-        per_page: 50,
+        per_page: 20,
       },
     });
 

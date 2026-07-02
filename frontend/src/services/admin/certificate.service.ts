@@ -89,16 +89,20 @@ type CertificateOptionsResponse = {
 };
 
 export const adminCertificateService = {
-  async list(search = ""): Promise<PaginatedCertificates> {
+  async list(search = "", page = 1): Promise<PaginatedCertificates> {
     const response = await get<CertificateListResponse>("/admin/certificates", {
-      params: { search: search || undefined, per_page: 50 },
+      params: { page, search: search || undefined, per_page: 20 },
     });
 
     return response.data;
   },
 
-  async options(): Promise<CertificateOptionsResponse["data"]> {
-    const response = await get<CertificateOptionsResponse>("/admin/certificates/options");
+  async options(studentSearch = ""): Promise<CertificateOptionsResponse["data"]> {
+    const response = await get<CertificateOptionsResponse>("/admin/certificates/options", {
+      params: {
+        student_search: studentSearch || undefined,
+      },
+    });
     return response.data;
   },
 
