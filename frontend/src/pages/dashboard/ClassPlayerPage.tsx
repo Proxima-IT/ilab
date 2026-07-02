@@ -29,6 +29,7 @@ import {
 } from "@/services/student/learning.service";
 
 const tabs = ["overview", "notes", "qna", "resourcesTab"] as const;
+const questionsPerPage = 5;
 
 declare global {
   interface Window {
@@ -100,10 +101,17 @@ export default function ClassPlayerPage() {
   const [expandedModules, setExpandedModules] = useState<number[]>([]);
   const [noteText, setNoteText] = useState("");
   const [questionText, setQuestionText] = useState("");
+  const [questionPage, setQuestionPage] = useState(1);
 
   const currentLessonId = player?.lesson.id ?? lectureId;
   const duration = player?.lesson.duration || 0;
   const watchPercent = duration > 0 ? Math.min(100, Math.round((watchSeconds / duration) * 100)) : 0;
+  const questions = player?.lesson.questions || [];
+  const totalQuestionPages = Math.max(1, Math.ceil(questions.length / questionsPerPage));
+  const visibleQuestions = questions.slice(
+    (questionPage - 1) * questionsPerPage,
+    questionPage * questionsPerPage
+  );
 
   useEffect(() => {
     watchSecondsRef.current = watchSeconds;
@@ -140,6 +148,14 @@ export default function ClassPlayerPage() {
   useEffect(() => {
     void loadPlayer();
   }, [loadPlayer]);
+
+  useEffect(() => {
+    setQuestionPage(1);
+  }, [currentLessonId]);
+
+  useEffect(() => {
+    setQuestionPage((current) => Math.min(current, totalQuestionPages));
+  }, [totalQuestionPages]);
 
   useEffect(() => {
     if (!player || player.lesson.type !== "video" || !isTracking) return;
@@ -339,6 +355,7 @@ export default function ClassPlayerPage() {
             }
           : current
       );
+      setQuestionPage(1);
       setQuestionText("");
       toast.success("Question submitted.");
     } catch {
@@ -619,8 +636,8 @@ export default function ClassPlayerPage() {
                     </div>
 
                     <div className="space-y-3">
-                      {player.lesson.questions.length === 0 && <p>No questions yet.</p>}
-                      {player.lesson.questions.map((question) => (
+                      {questions.length === 0 && <p>No questions yet.</p>}
+                      {visibleQuestions.map((question) => (
                         <div key={question.id} className="space-y-3 rounded-lg border border-border/30 p-3">
                           <div className="flex items-start justify-between gap-3">
                             <div>
@@ -658,6 +675,32 @@ export default function ClassPlayerPage() {
                           )}
                         </div>
                       ))}
+
+                      {questions.length > questionsPerPage && (
+                        <div className="flex flex-col gap-2 border-t border-border/30 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                          <span className="text-[10px] text-muted-foreground">
+                            Page {questionPage} of {totalQuestionPages}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setQuestionPage((current) => Math.max(1, current - 1))}
+                              disabled={questionPage === 1}
+                              className="rounded-lg border border-border/30 px-3 py-1.5 text-[11px] text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              Previous
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setQuestionPage((current) => Math.min(totalQuestionPages, current + 1))}
+                              disabled={questionPage === totalQuestionPages}
+                              className="rounded-lg border border-border/30 px-3 py-1.5 text-[11px] text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              Next
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

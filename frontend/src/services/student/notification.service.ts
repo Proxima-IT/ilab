@@ -6,7 +6,9 @@ export type StudentNotificationType =
   | "event"
   | "profile_update"
   | "course_completion"
-  | "certificate_ready";
+  | "certificate_ready"
+  | "admin_message"
+  | "qna_answer";
 
 export type StudentNotification = {
   id: number;

@@ -13,6 +13,7 @@ import {
 } from "@/hooks/useStudentData";
 import { useAuth } from "@/lib/auth";
 import { useAdminAuth } from "@/lib/admin/useAdminAuth";
+import { Toaster } from "@/components/ui/sonner";
 
 import Index from "@/pages/Index";
 import Login from "@/pages/Login";
@@ -44,6 +45,13 @@ import AdminSite from "@/pages/admin/AdminSite";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminProfile from "@/pages/admin/AdminProfile";
 import AdminStudents from "@/pages/admin/AdminStudents";
+import AdminCertificates from "@/pages/admin/AdminCertificates";
+import AdminStudentProgress from "@/pages/admin/AdminStudentProgress";
+import AdminPermissionsMatrix from "@/pages/admin/AdminPermissionsMatrix";
+import AdminQna from "@/pages/admin/AdminQna";
+import AdminActivity from "@/pages/admin/AdminActivity";
+import AdminNotifications from "@/pages/admin/AdminNotifications";
+import AdminNewsletter from "@/pages/admin/AdminNewsletter";
 
 import DashboardLayout from "@/pages/dashboard/DashboardLayout";
 import OverviewPage from "@/pages/dashboard/OverviewPage";
@@ -152,6 +160,13 @@ export default function App() {
             <Route path="users" element={<AdminUsers />} />
             <Route path="profile" element={<AdminProfile />} />
             <Route path="students" element={<AdminStudents />} />
+            <Route path="certificates" element={<AdminCertificates />} />
+            <Route path="student-progress" element={<AdminStudentProgress />} />
+            <Route path="permissions" element={<AdminPermissionsMatrix />} />
+            <Route path="qna" element={<AdminQna />} />
+            <Route path="activity" element={<AdminActivity />} />
+            <Route path="notifications" element={<AdminNotifications />} />
+            <Route path="newsletter" element={<AdminNewsletter />} />
           </Route>
         </Route>
 
@@ -176,6 +191,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <Toaster richColors position="top-right" closeButton />
     </BrowserRouter>
   );
 }

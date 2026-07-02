@@ -1,101 +1,106 @@
+import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Facebook, Twitter, Instagram, Linkedin, Mail, Phone } from "lucide-react";
+import { Loader2, Mail, Phone, Send } from "lucide-react";
+import { toast } from "sonner";
 import { SiteLogo } from "@/components/site/SiteLogo";
-import { useState } from "react";
+import { newsletterService } from "@/services/newsletter.service";
 
-type FooterLink = { label: string; to?: string; hash?: string; href?: string };
+type FooterLink = { label: string; to: string };
 
 const sections: { title: string; links: FooterLink[] }[] = [
   {
-    title: "Platform",
+    title: "Learning",
     links: [
-      { label: "Courses", to: "/courses" },
-      { label: "Demo Class", to: "/", hash: "demo" },
-      { label: "Structure", to: "/", hash: "structure" },
-      { label: "Certificates", to: "/", hash: "certificate" },
+      { label: "All Courses", to: "/courses" },
+      { label: "Free Courses", to: "/courses?free=true" },
+      { label: "Featured Courses", to: "/#courses" },
+      { label: "Student Reviews", to: "/#reviews" },
     ],
   },
   {
-    title: "Company",
+    title: "Explore",
     links: [
-      { label: "About", to: "/", hash: "structure" },
+      { label: "Home", to: "/" },
+      { label: "Events", to: "/events" },
       { label: "Blog", to: "/blog" },
-      { label: "Reviews", to: "/", hash: "reviews" },
-      { label: "Contact", href: "mailto:hello@ilab.com" },
+      { label: "Next Batch", to: "/#batch-preview" },
     ],
   },
   {
-    title: "Support",
+    title: "Account",
     links: [
-      { label: "Sign up", to: "/signup" },
-      { label: "Log in", to: "/login" },
-      { label: "Dashboard", to: "/dashboard" },
-      { label: "Help", href: "mailto:support@ilab.com" },
+      { label: "Login", to: "/login" },
+      { label: "Sign Up", to: "/signup" },
+      { label: "Student Dashboard", to: "/dashboard" },
+      { label: "My Profile", to: "/profile" },
     ],
   },
 ];
 
-const socials = [
-  { Icon: Facebook, href: "https://facebook.com" },
-  { Icon: Twitter, href: "https://twitter.com" },
-  { Icon: Instagram, href: "https://instagram.com" },
-  { Icon: Linkedin, href: "https://linkedin.com" },
-];
+function firstError(error: unknown, fallback: string) {
+  const data = (error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })
+    .response?.data;
+  return data?.errors ? Object.values(data.errors)[0]?.[0] || fallback : data?.message || fallback;
+}
 
 export function Footer() {
   const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    setSubscribed(true);
-    setEmail("");
-    setTimeout(() => setSubscribed(false), 3000);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    const value = email.trim().toLowerCase();
+
+    if (!value) return;
+
+    setSubmitting(true);
+    setSuccess(false);
+
+    try {
+      await newsletterService.subscribe(value);
+      setEmail("");
+      setSuccess(true);
+      toast.success("Newsletter subscription successful.");
+    } catch (error) {
+      toast.error(firstError(error, "Newsletter subscribe hoyni."));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <footer className="bg-foreground text-white">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid lg:grid-cols-[1.4fr_1fr_1fr_1fr_1.2fr] gap-10">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1.25fr]">
           <div>
-            <Link to="/">
+            <Link to="/" aria-label="iLab BD home">
               <SiteLogo size="md" />
             </Link>
-            <p className="mt-4 text-sm text-white/60 max-w-xs">
-              The modern EdTech platform helping learners build future-ready careers.
+            <p className="mt-4 max-w-xs text-sm leading-6 text-white/60">
+              Practical mobile servicing and career-focused technology courses for Bangladeshi learners.
             </p>
-            <div className="mt-6 flex gap-2">
-              {socials.map(({ Icon, href }) => (
-                <a
-                  key={href}
-                  href={href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="grid h-9 w-9 place-items-center rounded-lg bg-white/10 hover:bg-primary hover:text-foreground transition-colors"
-                  aria-label="Social link"
-                >
-                  <Icon className="h-4 w-4" />
-                </a>
-              ))}
+            <div className="mt-6 space-y-2 text-sm text-white/60">
+              <a href="mailto:support@ilabbd.com" className="flex items-center gap-2 transition hover:text-primary">
+                <Mail className="h-4 w-4" />
+                support@ilabbd.com
+              </a>
+              <a href="tel:+8801234567890" className="flex items-center gap-2 transition hover:text-primary">
+                <Phone className="h-4 w-4" />
+                +880 1234 567 890
+              </a>
             </div>
           </div>
 
-          {sections.map((s) => (
-            <div key={s.title}>
-              <p className="text-sm font-bold uppercase tracking-wider text-white/90">{s.title}</p>
+          {sections.map((section) => (
+            <div key={section.title}>
+              <p className="text-sm font-bold uppercase tracking-wider text-white/90">{section.title}</p>
               <ul className="mt-4 space-y-3">
-                {s.links.map((l) => (
-                  <li key={l.label}>
-                    {l.to ? (
-                      <Link to={`${l.to}${l.hash ? `#${l.hash}` : ""}`} className="text-sm text-white/60 hover:text-primary transition-colors">
-                        {l.label}
-                      </Link>
-                    ) : (
-                      <a href={l.href} className="text-sm text-white/60 hover:text-primary transition-colors">
-                        {l.label}
-                      </a>
-                    )}
+                {section.links.map((link) => (
+                  <li key={link.label}>
+                    <Link to={link.to} className="text-sm text-white/60 transition hover:text-primary">
+                      {link.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -104,33 +109,39 @@ export function Footer() {
 
           <div>
             <p className="text-sm font-bold uppercase tracking-wider text-white/90">Newsletter</p>
-            <p className="mt-4 text-sm text-white/60">Get learning tips and new course alerts.</p>
+            <p className="mt-4 text-sm leading-6 text-white/60">
+              Get course updates, events, and learning tips in your inbox.
+            </p>
             <form className="mt-4 flex gap-2" onSubmit={submit}>
               <input
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  setSuccess(false);
+                }}
                 placeholder="you@email.com"
-                className="flex-1 min-w-0 px-3.5 py-2.5 rounded-lg bg-white/10 border border-white/10 text-sm placeholder:text-white/40 focus:outline-none focus:border-primary"
+                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/10 px-3.5 py-2.5 text-sm placeholder:text-white/40 focus:border-primary focus:outline-none"
               />
-              <button type="submit" className="px-4 py-2.5 rounded-lg gradient-orange text-white text-sm font-semibold shrink-0">
-                {subscribed ? "✓ Done" : "Subscribe"}
+              <button
+                type="submit"
+                disabled={submitting}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg gradient-orange px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                Subscribe
               </button>
             </form>
-            {subscribed && (
-              <p className="mt-2 text-xs text-primary">Thanks! Check your inbox to confirm.</p>
+            {success && (
+              <p className="mt-2 text-xs text-primary">Subscribed successfully. Thank you.</p>
             )}
-            <div className="mt-6 space-y-2 text-sm text-white/60">
-              <a href="mailto:hello@ilab.com" className="flex items-center gap-2 hover:text-primary"><Mail className="h-4 w-4" /> hello@ilab.com</a>
-              <a href="tel:+8801234567890" className="flex items-center gap-2 hover:text-primary"><Phone className="h-4 w-4" /> +880 1234 567 890</a>
-            </div>
           </div>
         </div>
 
-        <div className="mt-14 pt-8 border-t border-white/10 flex flex-col sm:flex-row justify-between gap-3 text-xs text-white/50">
-          <p>© {new Date().getFullYear()} iLab. All rights reserved.</p>
-          <p>Built for learners, by educators.</p>
+        <div className="mt-14 flex flex-col gap-3 border-t border-white/10 pt-8 text-xs text-white/50 sm:flex-row sm:justify-between">
+          <p>© {new Date().getFullYear()} iLab BD. All rights reserved.</p>
+          <p>Built for learners, mentors, and career growth.</p>
         </div>
       </div>
     </footer>

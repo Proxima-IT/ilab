@@ -10,6 +10,7 @@ import {
   Gift,
   LogOut,
   Menu,
+  MessageCircle,
   UserCog,
 } from "lucide-react";
 import { useStudent } from "@/hooks/useStudentData";
@@ -67,6 +68,8 @@ export default function DashboardNavbar({
     profile_update: UserCog,
     course_completion: CheckCircle2,
     certificate_ready: Award,
+    admin_message: Bell,
+    qna_answer: MessageCircle,
   };
 
   function formatNotificationTime(date: string): string {
@@ -82,7 +85,7 @@ export default function DashboardNavbar({
     return [...items].sort((a, b) => {
       const dateDiff = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       return dateDiff || b.id - a.id;
-    });
+    }).slice(0, 15);
   }
 
   useEffect(() => {
@@ -103,9 +106,9 @@ export default function DashboardNavbar({
   useEffect(() => {
     let mounted = true;
 
-    async function loadNotifications() {
+    async function loadNotifications(force = false) {
       try {
-        const data = await notificationService.getLatest();
+        const data = await notificationService.getLatest(force);
 
         if (mounted) {
           setNotifications(sortNotifications(data.notifications));
@@ -119,10 +122,28 @@ export default function DashboardNavbar({
       }
     }
 
-    void loadNotifications();
+    const refreshOnFocus = () => {
+      if (document.visibilityState === "visible") {
+        void loadNotifications(true);
+      }
+    };
+
+    void loadNotifications(true);
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void loadNotifications(true);
+      }
+    }, 30000);
+
+    document.addEventListener("visibilitychange", refreshOnFocus);
+    window.addEventListener("focus", refreshOnFocus);
 
     return () => {
       mounted = false;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshOnFocus);
+      window.removeEventListener("focus", refreshOnFocus);
     };
   }, []);
 

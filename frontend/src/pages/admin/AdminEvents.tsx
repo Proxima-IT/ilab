@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ImagePlus, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { AdminDeleteModal } from "@/components/admin/AdminDeleteModal";
+import { imageUrl } from "@/services/course-catalog.service";
 
 type AdminEvent = {
   id: number;
@@ -29,6 +31,13 @@ type EventsResponse = {
     data: AdminEvent[];
   };
   message: string;
+};
+
+type UploadResponse = {
+  success: boolean;
+  data: {
+    cover_url: string;
+  };
 };
 
 type EventForm = {
@@ -109,9 +118,12 @@ export default function AdminEvents() {
   const [events, setEvents] = useState<AdminEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<AdminEvent | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminEvent | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState<EventForm>(emptyForm);
 
   const loadEvents = async () => {
@@ -171,15 +183,42 @@ export default function AdminEvents() {
     }
   };
 
-  const deleteEvent = async (event: AdminEvent) => {
-    if (!confirm(`Delete "${event.title}"?`)) return;
+  const uploadCover = async (file?: File) => {
+    if (!file) return;
+
+    const data = new FormData();
+    data.append("cover", file);
+
+    setUploadingCover(true);
 
     try {
-      await api.delete(`/admin/events/${event.id}`);
+      const response = await api.post<UploadResponse>("/admin/events/cover", data, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      updateField("cover_url", response.data.data.cover_url);
+      toast.success("Event thumbnail uploaded.");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Could not upload thumbnail.");
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  const deleteEvent = async () => {
+    if (!deleteTarget) return;
+
+    setDeleting(true);
+
+    try {
+      await api.delete(`/admin/events/${deleteTarget.id}`);
       toast.success("Event deleted.");
+      setDeleteTarget(null);
       await loadEvents();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Could not delete event.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -257,7 +296,7 @@ export default function AdminEvents() {
                       <Button size="sm" variant="ghost" className="text-zinc-300 hover:bg-zinc-800 hover:text-white" onClick={() => openEdit(event)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-red-300 hover:bg-red-950/40 hover:text-red-200" onClick={() => deleteEvent(event)}>
+                      <Button size="sm" variant="ghost" className="text-red-300 hover:bg-red-950/40 hover:text-red-200" onClick={() => setDeleteTarget(event)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -289,7 +328,26 @@ export default function AdminEvents() {
               <Input type="datetime-local" value={form.starts_at} onChange={(event) => updateField("starts_at", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
               <Input type="datetime-local" value={form.ends_at} onChange={(event) => updateField("ends_at", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
               <Input placeholder="Location" value={form.location} onChange={(event) => updateField("location", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
-              <Input placeholder="Cover image URL or storage path" value={form.cover_url} onChange={(event) => updateField("cover_url", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
+              <div className="md:col-span-2">
+                <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900">
+                  {form.cover_url ? (
+                    <img src={imageUrl(form.cover_url)} alt={form.title || "Event thumbnail"} className="h-52 w-full object-cover" />
+                  ) : (
+                    <div className="grid h-52 place-items-center text-sm text-zinc-500">No thumbnail uploaded</div>
+                  )}
+                </div>
+                <label className="mt-3 inline-flex cursor-pointer items-center rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-900">
+                  {uploadingCover ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
+                  Upload thumbnail
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    disabled={uploadingCover}
+                    onChange={(event) => void uploadCover(event.target.files?.[0])}
+                  />
+                </label>
+              </div>
               <Textarea placeholder="Description" value={form.description} onChange={(event) => updateField("description", event.target.value)} className="min-h-28 border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
               <Input placeholder="SEO title" value={form.meta_title} onChange={(event) => updateField("meta_title", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
               <Textarea placeholder="SEO description" value={form.meta_description} onChange={(event) => updateField("meta_description", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
@@ -311,6 +369,18 @@ export default function AdminEvents() {
           </div>
         </div>
       )}
+      <AdminDeleteModal
+        open={Boolean(deleteTarget)}
+        title="Delete event?"
+        description="This event will be removed from the admin panel and public events page. This action cannot be undone."
+        itemName={deleteTarget?.title}
+        loading={deleting}
+        confirmLabel="Delete Event"
+        onClose={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+        onConfirm={() => void deleteEvent()}
+      />
     </div>
   );
 }

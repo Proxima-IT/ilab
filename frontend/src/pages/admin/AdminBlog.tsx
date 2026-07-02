@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ImagePlus, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { AdminDeleteModal } from "@/components/admin/AdminDeleteModal";
+import { imageUrl } from "@/services/course-catalog.service";
 
 type AdminBlogPost = {
   id: number;
@@ -28,6 +30,13 @@ type BlogResponse = {
   success: boolean;
   data: {
     data: AdminBlogPost[];
+  };
+};
+
+type UploadResponse = {
+  success: boolean;
+  data: {
+    cover_url: string;
   };
 };
 
@@ -105,9 +114,12 @@ export default function AdminBlog() {
   const [posts, setPosts] = useState<AdminBlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<AdminBlogPost | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminBlogPost | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState<BlogForm>(emptyForm);
 
   const loadPosts = async () => {
@@ -170,15 +182,42 @@ export default function AdminBlog() {
     }
   };
 
-  const deletePost = async (post: AdminBlogPost) => {
-    if (!confirm(`Delete "${post.title}"?`)) return;
+  const uploadCover = async (file?: File) => {
+    if (!file) return;
+
+    const data = new FormData();
+    data.append("cover", file);
+
+    setUploadingCover(true);
 
     try {
-      await api.delete(`/admin/blog-posts/${post.id}`);
+      const response = await api.post<UploadResponse>("/admin/blog-posts/cover", data, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      updateField("cover_url", response.data.data.cover_url);
+      toast.success("Blog thumbnail uploaded.");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Could not upload thumbnail.");
+    } finally {
+      setUploadingCover(false);
+    }
+  };
+
+  const deletePost = async () => {
+    if (!deleteTarget) return;
+
+    setDeleting(true);
+
+    try {
+      await api.delete(`/admin/blog-posts/${deleteTarget.id}`);
       toast.success("Blog post deleted.");
+      setDeleteTarget(null);
       await loadPosts();
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Could not delete blog post.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -254,7 +293,7 @@ export default function AdminBlog() {
                       <Button size="sm" variant="ghost" className="text-zinc-300 hover:bg-zinc-800 hover:text-white" onClick={() => openEdit(post)}>
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-red-300 hover:bg-red-950/40 hover:text-red-200" onClick={() => deletePost(post)}>
+                      <Button size="sm" variant="ghost" className="text-red-300 hover:bg-red-950/40 hover:text-red-200" onClick={() => setDeleteTarget(post)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
@@ -274,7 +313,7 @@ export default function AdminBlog() {
                 {editing ? "Edit blog post" : "Create blog post"}
               </h2>
               <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-                Close
+                <X className="h-4 w-4" />
               </Button>
             </div>
 
@@ -283,7 +322,26 @@ export default function AdminBlog() {
               <Input placeholder="Slug (optional)" value={form.slug} onChange={(event) => updateField("slug", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
               <Input placeholder="Author name" value={form.author_name} onChange={(event) => updateField("author_name", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
               <Input type="datetime-local" value={form.published_at} onChange={(event) => updateField("published_at", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
-              <Input placeholder="Cover image URL or storage path" value={form.cover_url} onChange={(event) => updateField("cover_url", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
+              <div className="md:col-span-2">
+                <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900">
+                  {form.cover_url ? (
+                    <img src={imageUrl(form.cover_url)} alt={form.title || "Blog thumbnail"} className="h-52 w-full object-cover" />
+                  ) : (
+                    <div className="grid h-52 place-items-center text-sm text-zinc-500">No thumbnail uploaded</div>
+                  )}
+                </div>
+                <label className="mt-3 inline-flex cursor-pointer items-center rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-200 transition hover:bg-zinc-900">
+                  {uploadingCover ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
+                  Upload thumbnail
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    disabled={uploadingCover}
+                    onChange={(event) => void uploadCover(event.target.files?.[0])}
+                  />
+                </label>
+              </div>
               <Input placeholder="Author avatar URL or storage path" value={form.author_avatar} onChange={(event) => updateField("author_avatar", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
               <Textarea placeholder="Excerpt" value={form.excerpt} onChange={(event) => updateField("excerpt", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
               <Textarea placeholder="Content. Use blank lines between paragraphs." value={form.content} onChange={(event) => updateField("content", event.target.value)} className="min-h-44 border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
@@ -307,6 +365,18 @@ export default function AdminBlog() {
           </div>
         </div>
       )}
+      <AdminDeleteModal
+        open={Boolean(deleteTarget)}
+        title="Delete blog post?"
+        description="This blog post will be removed from the admin panel and public blog. This action cannot be undone."
+        itemName={deleteTarget?.title}
+        loading={deleting}
+        confirmLabel="Delete Post"
+        onClose={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+        onConfirm={() => void deletePost()}
+      />
     </div>
   );
 }
