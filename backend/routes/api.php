@@ -125,13 +125,11 @@ Route::prefix('v1')->group(function () {
     | Public Payment Redirect Routes
     |--------------------------------------------------------------------------
     */
-    Route::get('/checkout/uddoktapay/success', function () {
-        return redirect(config('app.frontend_url', 'https://domainname.com') . '/dashboard/learning?payment=success');
-    })->middleware('throttle:30,1');
+    Route::get('/checkout/uddoktapay/success', [UddoktaPayCheckoutController::class, 'success'])
+        ->middleware('throttle:30,1');
 
-    Route::get('/checkout/uddoktapay/cancel', function () {
-        return redirect(config('app.frontend_url', 'https://domainname.com') . '/course-details?payment=failed');
-    })->middleware('throttle:30,1');
+    Route::get('/checkout/uddoktapay/cancel', [UddoktaPayCheckoutController::class, 'cancel'])
+        ->middleware('throttle:30,1');
 
     /*
     |--------------------------------------------------------------------------
@@ -149,6 +147,8 @@ Route::prefix('v1')->group(function () {
         */
         Route::post('/checkout/init', [UddoktaPayCheckoutController::class, 'initiatePayment'])
             ->middleware('throttle:20,1');
+        Route::post('/checkout/coupon/preview', [UddoktaPayCheckoutController::class, 'previewCoupon'])
+            ->middleware('throttle:30,1');
 
         /*
         |--------------------------------------------------------------------------

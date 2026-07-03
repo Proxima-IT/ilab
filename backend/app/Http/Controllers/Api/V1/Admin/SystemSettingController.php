@@ -37,13 +37,10 @@ class SystemSettingController extends Controller
             'settings.general.currency_code' => ['required', 'string', 'max:10'],
             'settings.general.currency_symbol' => ['required', 'string', 'max:10'],
 
-            'settings.payments' => ['required', 'array'],
-            'settings.payments.uddoktapay_enabled' => ['required', 'boolean'],
-            'settings.payments.free_enrollment_enabled' => ['required', 'boolean'],
-            'settings.payments.manual_payment_enabled' => ['required', 'boolean'],
-            'settings.payments.sandbox_mode' => ['required', 'boolean'],
-            'settings.payments.payment_support_text' => ['nullable', 'string', 'max:1000'],
-            'settings.payments.manual_payment_instructions' => ['nullable', 'string', 'max:2000'],
+            'settings.social_media' => ['nullable', 'array', 'max:20'],
+            'settings.social_media.*.name' => ['required_with:settings.social_media', 'string', 'max:80'],
+            'settings.social_media.*.icon' => ['required_with:settings.social_media', 'string', 'max:80'],
+            'settings.social_media.*.url' => ['required_with:settings.social_media', 'url', 'max:500'],
 
             'settings.maintenance' => ['required', 'array'],
             'settings.maintenance.enabled' => ['required', 'boolean'],
@@ -55,17 +52,27 @@ class SystemSettingController extends Controller
 
         $settings = $validated['settings'];
         $settings['general']['currency_code'] = strtoupper($settings['general']['currency_code']);
-        $settings['payments']['payment_support_text'] = $settings['payments']['payment_support_text'] ?? '';
-        $settings['payments']['manual_payment_instructions'] = $settings['payments']['manual_payment_instructions'] ?? '';
+        $settings['social_media'] = array_values($settings['social_media'] ?? []);
         $settings['maintenance']['allowed_ips'] = array_values(array_filter(
             $settings['maintenance']['allowed_ips'] ?? [],
             fn ($ip) => filled($ip)
         ));
 
         foreach (SystemSetting::defaults() as $key => $default) {
+            if (! array_key_exists($key, $settings)) {
+                SystemSetting::firstOrCreate(
+                    ['key' => $key],
+                    ['value' => $default]
+                );
+
+                continue;
+            }
+
             SystemSetting::updateOrCreate(
                 ['key' => $key],
-                ['value' => array_replace_recursive($default, $settings[$key] ?? [])]
+                ['value' => is_array($settings[$key]) && array_is_list($settings[$key])
+                    ? $settings[$key]
+                    : array_replace_recursive($default, $settings[$key])]
             );
         }
 

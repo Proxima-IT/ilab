@@ -32,6 +32,13 @@ return [
         'client_id' => env('GOOGLE_CLIENT_ID'),
     ],
 
+    'uddoktapay' => [
+        'api_key' => env('UDDOKTAPAY_API_KEY'),
+        'payment_domain' => env('UDDOKTAPAY_PAYMENT_DOMAIN', 'https://sandbox.uddoktapay.com'),
+        'checkout_endpoint' => '/api/checkout-v2',
+        'verify_endpoint' => '/api/verify-payment',
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

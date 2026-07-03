@@ -33,6 +33,7 @@ class SystemSetting extends Model
                 'payment_support_text' => 'For payment support, contact our support team.',
                 'manual_payment_instructions' => '',
             ],
+            'social_media' => [],
             'maintenance' => [
                 'enabled' => false,
                 'title' => 'We are improving iLab BD',

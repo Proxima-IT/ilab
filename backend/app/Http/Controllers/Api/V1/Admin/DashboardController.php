@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DashboardController extends Controller
 {
@@ -18,11 +19,11 @@ class DashboardController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'period' => ['nullable', 'string', 'in:7,30,90,365,all'],
+            'period' => ['nullable', 'string', 'in:today,7,30,90,365,all'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:20'],
         ]);
 
-        $period = $validated['period'] ?? '30';
+        $period = $validated['period'] ?? 'today';
         $perPage = $validated['per_page'] ?? 5;
 
         $courseScope = $this->courseScope($user);
@@ -38,9 +39,14 @@ class DashboardController extends Controller
                 'course_overview' => $this->courseOverview($courseScope),
                 'student_overview' => $this->studentOverview($courseScope, $period),
                 'revenue_overview' => $this->revenueOverview($courseScope, $period),
+                'enrollment_status_overview' => $this->enrollmentStatusOverview($courseScope, $period),
+                'payment_overview' => $this->paymentOverview($courseScope, $period),
+                'content_overview' => $this->contentOverview($courseScope),
+                'today_overview' => $this->todayOverview($courseScope),
+                'growth_overview' => $this->growthOverview($courseScope, $period),
 
-                'recent_enrollments' => $this->recentEnrollments($courseScope, $perPage),
-                'top_courses' => $this->topCourses($courseScope, $perPage),
+                'recent_enrollments' => $this->recentEnrollments($courseScope, $period, $perPage),
+                'top_courses' => $this->topCourses($courseScope, $period, $perPage),
                 'low_progress_students' => $this->lowProgressStudents($courseScope, $perPage),
             ],
             'message' => 'Dashboard loaded successfully.',
@@ -79,6 +85,11 @@ class DashboardController extends Controller
             'completed_enrollments' => (int) DB::table('enrollments')
                 ->when($courseIds !== null, fn ($q) => $q->whereIn('course_id', $courseIds))
                 ->where('status', 'completed')
+                ->count(),
+
+            'suspended_enrollments' => (int) DB::table('enrollments')
+                ->when($courseIds !== null, fn ($q) => $q->whereIn('course_id', $courseIds))
+                ->where('status', 'suspended')
                 ->count(),
         ];
     }
@@ -130,13 +141,15 @@ class DashboardController extends Controller
 
     private function revenueOverview(?array $courseIds, string $period): array
     {
+        $bucket = $this->dateBucketExpression($period, 'created_at');
+
         $query = DB::table('enrollments')
             ->select(
-                DB::raw('DATE(created_at) as date'),
+                DB::raw($bucket . ' as date'),
                 DB::raw('SUM(enrolled_price) as revenue'),
                 DB::raw('COUNT(id) as enrollments')
             )
-            ->groupBy(DB::raw('DATE(created_at)'))
+            ->groupBy(DB::raw($bucket))
             ->orderBy('date');
 
         $this->applyCourseScope($query, $courseIds);
@@ -149,9 +162,183 @@ class DashboardController extends Controller
         ])->toArray();
     }
 
-    private function recentEnrollments(?array $courseIds, int $limit)
+    private function enrollmentStatusOverview(?array $courseIds, string $period): array
     {
-        return DB::table('enrollments')
+        $query = DB::table('enrollments')
+            ->select('status', DB::raw('COUNT(id) as total'))
+            ->groupBy('status')
+            ->orderBy('status');
+
+        $this->applyCourseScope($query, $courseIds);
+        $this->applyPeriod($query, $period, 'created_at');
+
+        return $query->get()->map(fn ($row) => [
+            'status' => $row->status,
+            'total' => (int) $row->total,
+        ])->toArray();
+    }
+
+    private function paymentOverview(?array $courseIds, string $period): array
+    {
+        if (! Schema::hasTable('payments')) {
+            return [
+                'total_amount' => 0,
+                'completed_amount' => 0,
+                'pending_amount' => 0,
+                'refunded_amount' => 0,
+                'failed_count' => 0,
+                'by_status' => [],
+                'by_method' => [],
+            ];
+        }
+
+        $base = DB::table('payments');
+        $this->applyCourseScope($base, $courseIds);
+        $this->applyPeriod($base, $period, 'created_at');
+
+        $byStatus = DB::table('payments')
+            ->select('status', DB::raw('COUNT(id) as total'), DB::raw('SUM(amount) as amount'))
+            ->when($courseIds !== null, fn ($q) => $q->whereIn('course_id', $courseIds))
+            ->groupBy('status')
+            ->orderBy('status');
+        $this->applyPeriod($byStatus, $period, 'created_at');
+        $byStatus = $byStatus->get();
+
+        $byMethod = DB::table('payments')
+            ->select('method', DB::raw('COUNT(id) as total'), DB::raw('SUM(amount) as amount'))
+            ->when($courseIds !== null, fn ($q) => $q->whereIn('course_id', $courseIds))
+            ->groupBy('method')
+            ->orderByDesc('amount');
+        $this->applyPeriod($byMethod, $period, 'created_at');
+        $byMethod = $byMethod->get();
+
+        return [
+            'total_amount' => (float) (clone $base)->sum('amount'),
+            'completed_amount' => (float) (clone $base)->where('status', 'completed')->sum('amount'),
+            'pending_amount' => (float) (clone $base)->where('status', 'pending')->sum('amount'),
+            'refunded_amount' => (float) (clone $base)->where('status', 'refunded')->sum('amount'),
+            'failed_count' => (int) (clone $base)->where('status', 'failed')->count(),
+            'by_status' => $byStatus->map(fn ($row) => [
+                'status' => $row->status,
+                'total' => (int) $row->total,
+                'amount' => (float) $row->amount,
+            ])->toArray(),
+            'by_method' => $byMethod->map(fn ($row) => [
+                'method' => $row->method,
+                'total' => (int) $row->total,
+                'amount' => (float) $row->amount,
+            ])->toArray(),
+        ];
+    }
+
+    private function contentOverview(?array $courseIds): array
+    {
+        return [
+            'certificates' => Schema::hasTable('certificates')
+                ? (int) DB::table('certificates')
+                    ->when($courseIds !== null, fn ($q) => $q->whereIn('course_id', $courseIds))
+                    ->count()
+                : 0,
+            'open_questions' => Schema::hasTable('lesson_questions')
+                ? (int) DB::table('lesson_questions')
+                    ->join('lessons', 'lesson_questions.lesson_id', '=', 'lessons.id')
+                    ->join('sections', 'lessons.section_id', '=', 'sections.id')
+                    ->when($courseIds !== null, fn ($q) => $q->whereIn('sections.course_id', $courseIds))
+                    ->where('lesson_questions.status', 'open')
+                    ->count()
+                : 0,
+            'answered_questions' => Schema::hasTable('lesson_questions')
+                ? (int) DB::table('lesson_questions')
+                    ->join('lessons', 'lesson_questions.lesson_id', '=', 'lessons.id')
+                    ->join('sections', 'lessons.section_id', '=', 'sections.id')
+                    ->when($courseIds !== null, fn ($q) => $q->whereIn('sections.course_id', $courseIds))
+                    ->where('lesson_questions.status', 'answered')
+                    ->count()
+                : 0,
+            'published_events' => Schema::hasTable('events')
+                ? (int) DB::table('events')->where('is_published', true)->count()
+                : 0,
+            'published_blog_posts' => Schema::hasTable('blog_posts')
+                ? (int) DB::table('blog_posts')->where('is_published', true)->count()
+                : 0,
+            'published_reviews' => Schema::hasTable('reviews')
+                ? (int) DB::table('reviews')->where('is_published', true)->count()
+                : 0,
+            'newsletter_subscribers' => Schema::hasTable('newsletter_subscribers')
+                ? (int) DB::table('newsletter_subscribers')->where('is_active', true)->count()
+                : 0,
+            'event_registrations' => Schema::hasTable('event_registrations')
+                ? (int) DB::table('event_registrations')->count()
+                : 0,
+        ];
+    }
+
+    private function todayOverview(?array $courseIds): array
+    {
+        $enrollments = DB::table('enrollments');
+        $this->applyCourseScope($enrollments, $courseIds);
+        $this->applyPeriod($enrollments, 'today', 'created_at');
+
+        return [
+            'revenue' => (float) (clone $enrollments)->sum('enrolled_price'),
+            'enrollments' => (int) (clone $enrollments)->count(),
+            'students_registered' => (int) DB::table('users')
+                ->where('role', 'student')
+                ->whereDate('created_at', today())
+                ->count(),
+            'certificates' => Schema::hasTable('certificates')
+                ? (int) DB::table('certificates')
+                    ->when($courseIds !== null, fn ($q) => $q->whereIn('course_id', $courseIds))
+                    ->whereBetween('created_at', [today()->startOfDay(), today()->endOfDay()])
+                    ->count()
+                : 0,
+            'open_questions' => Schema::hasTable('lesson_questions')
+                ? (int) DB::table('lesson_questions')
+                    ->join('lessons', 'lesson_questions.lesson_id', '=', 'lessons.id')
+                    ->join('sections', 'lessons.section_id', '=', 'sections.id')
+                    ->when($courseIds !== null, fn ($q) => $q->whereIn('sections.course_id', $courseIds))
+                    ->where('lesson_questions.status', 'open')
+                    ->whereBetween('lesson_questions.created_at', [today()->startOfDay(), today()->endOfDay()])
+                    ->count()
+                : 0,
+        ];
+    }
+
+    private function growthOverview(?array $courseIds, string $period): array
+    {
+        $bucket = $this->dateBucketExpression($period, 'created_at');
+
+        $students = DB::table('users')
+            ->select(DB::raw($bucket . ' as date'), DB::raw('COUNT(id) as students'))
+            ->where('role', 'student')
+            ->groupBy(DB::raw($bucket))
+            ->orderBy('date');
+
+        $this->applyPeriod($students, $period, 'created_at');
+
+        $enrollments = DB::table('enrollments')
+            ->select(DB::raw($bucket . ' as date'), DB::raw('COUNT(id) as enrollments'))
+            ->groupBy(DB::raw($bucket))
+            ->orderBy('date');
+
+        $this->applyCourseScope($enrollments, $courseIds);
+        $this->applyPeriod($enrollments, $period, 'created_at');
+
+        return [
+            'students' => $students->get()->map(fn ($row) => [
+                'date' => $row->date,
+                'students' => (int) $row->students,
+            ])->toArray(),
+            'enrollments' => $enrollments->get()->map(fn ($row) => [
+                'date' => $row->date,
+                'enrollments' => (int) $row->enrollments,
+            ])->toArray(),
+        ];
+    }
+
+    private function recentEnrollments(?array $courseIds, string $period, int $limit)
+    {
+        $query = DB::table('enrollments')
             ->join('users', 'enrollments.user_id', '=', 'users.id')
             ->join('courses', 'enrollments.course_id', '=', 'courses.id')
             ->when($courseIds !== null, fn ($q) => $q->whereIn('enrollments.course_id', $courseIds))
@@ -167,13 +354,16 @@ class DashboardController extends Controller
                 'enrollments.created_at'
             )
             ->orderByDesc('enrollments.created_at')
-            ->limit($limit)
-            ->get();
+            ->limit($limit);
+
+        $this->applyPeriod($query, $period, 'enrollments.created_at');
+
+        return $query->get();
     }
 
-    private function topCourses(?array $courseIds, int $limit)
+    private function topCourses(?array $courseIds, string $period, int $limit)
     {
-        return DB::table('enrollments')
+        $query = DB::table('enrollments')
             ->join('courses', 'enrollments.course_id', '=', 'courses.id')
             ->when($courseIds !== null, fn ($q) => $q->whereIn('enrollments.course_id', $courseIds))
             ->select(
@@ -186,8 +376,11 @@ class DashboardController extends Controller
             )
             ->groupBy('courses.id', 'courses.title', 'courses.slug')
             ->orderByDesc('enrollment_count')
-            ->limit($limit)
-            ->get();
+            ->limit($limit);
+
+        $this->applyPeriod($query, $period, 'enrollments.created_at');
+
+        return $query->get();
     }
 
     private function lowProgressStudents(?array $courseIds, int $limit)
@@ -231,9 +424,23 @@ class DashboardController extends Controller
 
     private function applyPeriod($query, string $period, string $column): void
     {
-        if ($period !== 'all') {
-            $query->where($column, '>=', now()->subDays((int) $period));
+        if ($period === 'today') {
+            $query->whereBetween($column, [today()->startOfDay(), today()->endOfDay()]);
+            return;
         }
+
+        if ($period !== 'all') {
+            $query->where($column, '>=', now()->subDays((int) $period)->startOfDay());
+        }
+    }
+
+    private function dateBucketExpression(string $period, string $column): string
+    {
+        if (in_array($period, ['365', 'all'], true)) {
+            return "DATE_FORMAT($column, '%Y-%m-01')";
+        }
+
+        return "DATE($column)";
     }
 
     private function canViewDashboard($user): bool
