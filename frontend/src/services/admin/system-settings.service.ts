@@ -8,14 +8,11 @@ export type SystemSettings = {
     currency_code: string;
     currency_symbol: string;
   };
-  payments: {
-    uddoktapay_enabled: boolean;
-    free_enrollment_enabled: boolean;
-    manual_payment_enabled: boolean;
-    sandbox_mode: boolean;
-    payment_support_text: string;
-    manual_payment_instructions: string;
-  };
+  social_media: {
+    name: string;
+    icon: string;
+    url: string;
+  }[];
   maintenance: {
     enabled: boolean;
     title: string;
@@ -24,16 +21,10 @@ export type SystemSettings = {
   };
 };
 
-export type PaymentEnvironment = {
-  uddoktapay_api_url_configured: boolean;
-  uddoktapay_api_key_configured: boolean;
-};
-
 type SystemSettingsResponse = {
   success: boolean;
   data: {
     settings: SystemSettings;
-    payment_environment: PaymentEnvironment;
   };
   message: string;
   errors: unknown;

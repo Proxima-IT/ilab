@@ -5,15 +5,11 @@ import {
   ArrowLeft,
   BadgeCheck,
   CheckCircle2,
-  CreditCard,
   Loader2,
   Lock,
   LogIn,
   Mail,
-  Smartphone,
   Tag,
-  ShieldCheck,
-  Sparkles,
   User as UserIcon,
   Wallet,
   X,
@@ -21,31 +17,50 @@ import {
 
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
-import { fetchCourseBySlug, type CourseDetails } from "@/services/courses";
+import {
+  fetchPublicCourseBySlug,
+  type PublicCourseDetails,
+} from "@/services/course-catalog.service";
 import { useAuth } from "@/lib/auth";
 import {
   createUddoktaPayCheckout,
   validateCoupon,
   type CouponResult,
 } from "@/services/payments";
-import { absoluteUrl } from "@/lib/seo";
+import { studentProfileService } from "@/services/student/profile.service";
 
-type Method = "bkash" | "nagad" | "rocket" | "upay" | "card";
+type Method = "bkash" | "nagad";
 
-const METHODS: { id: Method; name: string; tag: string; gradient: string; emoji: string }[] = [
-  { id: "bkash", name: "bKash", tag: "Most popular", gradient: "from-pink-500 to-pink-600", emoji: "📱" },
-  { id: "nagad", name: "Nagad", tag: "Mobile wallet", gradient: "from-orange-500 to-rose-500", emoji: "💸" },
-  { id: "rocket", name: "Rocket", tag: "DBBL", gradient: "from-purple-600 to-fuchsia-600", emoji: "🚀" },
-  { id: "upay", name: "Upay", tag: "UCB", gradient: "from-emerald-500 to-teal-600", emoji: "💳" },
-  { id: "card", name: "Card", tag: "Visa · MasterCard · Amex", gradient: "from-slate-700 to-slate-900", emoji: "💳" },
+const METHODS: { id: Method; name: string; tag: string; logo: string }[] = [
+  {
+    id: "bkash",
+    name: "bKash",
+    tag: "Mobile wallet",
+    logo: "https://www.logo.wine/a/logo/BKash/BKash-bKash-Logo.wine.svg",
+  },
+  {
+    id: "nagad",
+    name: "Nagad",
+    tag: "Mobile wallet",
+    logo: "https://download.logo.wine/logo/Nagad/Nagad-Logo.wine.png",
+  },
 ];
+
+const TAKA_SIGN = "\u09F3";
+
+function firstError(error: unknown, fallback: string) {
+  const data = (error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })
+    .response?.data;
+  return data?.errors ? Object.values(data.errors)[0]?.[0] || fallback : data?.message || fallback;
+}
 
 export default function EnrollPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
-  const [course, setCourse] = useState<CourseDetails | null>(null);
+  const { user, isAuthenticated, isStudent } = useAuth();
+  const [course, setCourse] = useState<PublicCourseDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [checkingEnrollment, setCheckingEnrollment] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -54,7 +69,7 @@ export default function EnrollPage() {
     setLoading(true);
     setError(false);
 
-    fetchCourseBySlug(slug).then((res) => {
+    fetchPublicCourseBySlug(slug).then((res) => {
       if (cancelled) return;
       if (!res) {
         setError(true);
@@ -62,6 +77,7 @@ export default function EnrollPage() {
         return;
       }
       setCourse(res);
+      setCheckingEnrollment(Boolean(isAuthenticated && isStudent));
       setLoading(false);
       document.title = `Enroll in ${res.title} — iLab BD`;
     }).catch(() => {
@@ -72,7 +88,7 @@ export default function EnrollPage() {
     });
 
     return () => { cancelled = true; };
-  }, [slug]);
+  }, [isAuthenticated, isStudent, slug]);
 
   const fullName = user?.name ?? "";
   const email = user?.email ?? "";
@@ -90,14 +106,56 @@ export default function EnrollPage() {
   const pricing = useMemo(() => {
     if (!course) return { base: 0, couponDiscount: 0, subtotal: 0, tax: 0, total: 0 };
     const base = course.price;
-    const couponDiscount = coupon ? Math.round((base * coupon.percentOff) / 100) : 0;
+    const couponDiscount = coupon ? Math.min(base, Math.round(coupon.discountAmount)) : 0;
     const subtotal = base - couponDiscount;
     const tax = 0; // no VAT for now
     const total = subtotal + tax;
     return { base, couponDiscount, subtotal, tax, total };
   }, [course, coupon]);
 
-  if (loading) {
+  useEffect(() => {
+    if (!course || !isAuthenticated || !user || !isStudent) return;
+
+    let cancelled = false;
+    setCheckingEnrollment(true);
+
+    studentProfileService
+      .getProfile()
+      .then((response) => {
+        if (cancelled) return;
+
+        const enrollments = Array.isArray(response.data.user.enrollments)
+          ? (response.data.user.enrollments as any[])
+          : [];
+        const enrollment = enrollments.find((item) => {
+          return item?.course?.slug === course.slug || String(item?.course_id || "") === course.id;
+        });
+
+        if (!enrollment || ["suspended", "expired"].includes(String(enrollment.status || ""))) {
+          return;
+        }
+
+        const firstLessonId = enrollment.course?.sections
+          ?.flatMap((section: any) => Array.isArray(section.lessons) ? section.lessons : [])
+          ?.sort((a: any, b: any) => Number(a.order || 0) - Number(b.order || 0))?.[0]?.id;
+
+        navigate(
+          firstLessonId
+            ? `/dashboard/player/${course.slug}/${firstLessonId}`
+            : "/dashboard/my-courses",
+          { replace: true }
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setCheckingEnrollment(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [course, isAuthenticated, isStudent, navigate, user]);
+
+  if (loading || checkingEnrollment) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -121,11 +179,18 @@ export default function EnrollPage() {
   async function applyCoupon() {
     if (!couponInput.trim()) return;
     setCouponState("checking");
-    const result = await validateCoupon(couponInput);
-    if (result) {
+    try {
+      const result = await validateCoupon(couponInput, course.id);
+
+      if (!result) {
+        setCoupon(null);
+        setCouponState("invalid");
+        return;
+      }
+
       setCoupon(result);
       setCouponState("idle");
-    } else {
+    } catch {
       setCoupon(null);
       setCouponState("invalid");
     }
@@ -161,34 +226,45 @@ export default function EnrollPage() {
         coupon: coupon?.code,
       });
       // Real flow → window.location.href = result.paymentUrl
-      navigate({ to: "/enroll/success", search: { invoice_id: result.invoiceId } });
+      if (result.isFree || result.redirectUrl) {
+        navigate(`/enroll/success?invoice_id=${encodeURIComponent(result.invoiceId)}`);
+        return;
+      }
+
+      if (result.paymentUrl) {
+        window.location.href = result.paymentUrl;
+        return;
+      }
+
+      navigate(`/enroll/success?invoice_id=${encodeURIComponent(result.invoiceId)}`);
+    } catch (error) {
+      setErrors((current) => ({
+        ...current,
+        submit: firstError(error, "Checkout could not be initialized. Please try again."),
+      }));
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (!isAuthenticated || !user) {
-    return <LoginRequired course={course} />;
+  if (!isAuthenticated || !user || !isStudent) {
+    return <LoginRequired course={course} isWrongRole={Boolean(user && !isStudent)} />;
   }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      <main className="flex-1">
+      <main className="flex-1 pt-20">
         {/* breadcrumb */}
         <div className="border-b border-border bg-surface/50">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between text-sm">
             <Link
-              to="/courses/$slug"
-              params={{ slug: course.slug }}
+              to={`/courses/${course.slug}`}
               className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition"
             >
               <ArrowLeft className="h-4 w-4" /> Back to course
             </Link>
-            <div className="inline-flex items-center gap-2 text-xs font-semibold text-success">
-              <Lock className="h-3.5 w-3.5" /> Secure 256-bit checkout
-            </div>
           </div>
         </div>
 
@@ -248,7 +324,7 @@ export default function EnrollPage() {
               </FormCard>
 
               {/* Coupon */}
-              <FormCard step="2" title="Have a coupon?" subtitle="Try ILAB10, ILAB20 or EID2026.">
+              <FormCard step="2" title="Have a coupon?" subtitle="Enter your promo code if you have one.">
                 {coupon ? (
                   <div className="flex items-center gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3">
                     <BadgeCheck className="h-5 w-5 text-success" />
@@ -295,14 +371,13 @@ export default function EnrollPage() {
                   </div>
                 )}
               </FormCard>
-
               {/* Payment method */}
               <FormCard
                 step="3"
                 title="Payment method"
-                subtitle="Powered by UddoktaPay — all popular Bangladeshi wallets supported."
+                subtitle="Choose your preferred mobile wallet."
               >
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   {METHODS.map((m) => {
                     const active = method === m.id;
                     return (
@@ -316,8 +391,8 @@ export default function EnrollPage() {
                             : "border-border hover:border-foreground/20 hover:bg-surface"
                         }`}
                       >
-                        <div className={`grid place-items-center h-9 w-9 rounded-lg bg-gradient-to-br ${m.gradient} text-white text-base font-bold`}>
-                          {m.emoji}
+                        <div className="grid h-14 w-20 place-items-center rounded-lg bg-white p-2 shadow-sm">
+                          <img src={m.logo} alt={`${m.name} logo`} className="max-h-10 max-w-full object-contain" />
                         </div>
                         <p className="mt-2.5 text-sm font-bold text-foreground">{m.name}</p>
                         <p className="text-[11px] text-muted-foreground leading-tight">{m.tag}</p>
@@ -330,22 +405,7 @@ export default function EnrollPage() {
                     );
                   })}
                 </div>
-
-                <div className="mt-4 rounded-xl bg-surface/70 border border-border/70 p-4 text-sm text-muted-foreground flex items-start gap-3">
-                  {method === "card" ? <CreditCard className="h-5 w-5 mt-0.5 text-foreground shrink-0" /> : <Smartphone className="h-5 w-5 mt-0.5 text-foreground shrink-0" />}
-                  <p>
-                    You'll be redirected to the secure <span className="font-semibold text-foreground">UddoktaPay</span> gateway to complete your{" "}
-                    <span className="font-semibold text-foreground capitalize">{method}</span> payment.
-                  </p>
-                </div>
               </FormCard>
-
-              {/* Trust row */}
-              <div className="grid sm:grid-cols-3 gap-3 text-xs">
-                <Trust icon={<ShieldCheck className="h-4 w-4 text-success" />} text="30-day money-back guarantee" />
-                <Trust icon={<Lock className="h-4 w-4 text-success" />} text="Encrypted, PCI-compliant checkout" />
-                <Trust icon={<Sparkles className="h-4 w-4 text-accent" />} text="Lifetime access · free updates" />
-              </div>
             </div>
 
             {/* RIGHT — order summary */}
@@ -405,6 +465,7 @@ export default function EnrollPage() {
                     </span>
                   </label>
                   {errors.agree && <p className="text-xs text-destructive">{errors.agree}</p>}
+                  {errors.submit && <p className="text-xs text-destructive">{errors.submit}</p>}
 
                   <button
                     type="submit"
@@ -421,10 +482,6 @@ export default function EnrollPage() {
                       </>
                     )}
                   </button>
-
-                  <p className="text-[11px] text-center text-muted-foreground inline-flex items-center justify-center gap-1.5 w-full">
-                    <Lock className="h-3 w-3" /> Secured by UddoktaPay · You won't be charged until you confirm
-                  </p>
                 </div>
               </motion.div>
 
@@ -534,21 +591,12 @@ function Row({ label, value, muted, highlight }: { label: string; value: string;
   );
 }
 
-function Trust({ icon, text }: { icon: React.ReactNode; text: string }) {
-  return (
-    <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5">
-      {icon}
-      <span className="text-foreground/80 font-medium">{text}</span>
-    </div>
-  );
-}
-
-function LoginRequired({ course }: { course: CourseDetails }) {
+function LoginRequired({ course, isWrongRole = false }: { course: PublicCourseDetails; isWrongRole?: boolean }) {
   const redirect = `/enroll/${course.slug}`;
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
-      <main className="flex-1 grid place-items-center px-4 py-16">
+      <main className="flex-1 grid place-items-center px-4 pb-16 pt-32">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -558,9 +606,13 @@ function LoginRequired({ course }: { course: CourseDetails }) {
           <div className="mx-auto grid place-items-center h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary-glow text-white">
             <Lock className="h-7 w-7" />
           </div>
-          <h1 className="mt-5 text-2xl font-extrabold text-foreground">Login required</h1>
+          <h1 className="mt-5 text-2xl font-extrabold text-foreground">
+            {isWrongRole ? "Student account required" : "Login required"}
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Enrollment is only available to signed-in students. Please log in or create a free account to enroll in{" "}
+            {isWrongRole
+              ? "Please log in with a student account to enroll in "
+              : "Enrollment is only available to signed-in students. Please log in or create a free account to enroll in "}
             <span className="font-semibold text-foreground">{course.title}</span>.
           </p>
 
@@ -575,22 +627,19 @@ function LoginRequired({ course }: { course: CourseDetails }) {
 
           <div className="mt-6 grid gap-2.5">
             <Link
-              to="/login"
-              search={{ redirect }}
+              to={`/login?redirect=${encodeURIComponent(redirect)}`}
               className="inline-flex items-center justify-center gap-2 rounded-full gradient-orange py-3 text-sm font-bold text-white shadow-orange-glow hover:scale-[1.02] transition-transform"
             >
               <LogIn className="h-4 w-4" /> Login to continue
             </Link>
             <Link
-              to="/signup"
-              search={{ redirect }}
+              to={`/signup?redirect=${encodeURIComponent(redirect)}`}
               className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card py-3 text-sm font-bold text-foreground hover:bg-surface transition"
             >
               Create a free account
             </Link>
             <Link
-              to="/courses/$slug"
-              params={{ slug: course.slug }}
+              to={`/courses/${course.slug}`}
               className="mt-1 text-xs text-muted-foreground hover:text-foreground transition"
             >
               ← Back to course details

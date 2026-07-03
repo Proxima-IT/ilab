@@ -208,7 +208,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
       {
         to: "/admin/system-settings",
         label: "System Settings",
-        description: "Site, payments, maintenance",
+        description: "Site, social, maintenance",
         icon: Settings,
         allowedRoles: ["super_admin", "admin"],
       },

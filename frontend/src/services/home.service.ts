@@ -57,6 +57,20 @@ export type WebsiteSettings = {
     highlight: string;
     description: string;
   };
+  system?: {
+    general?: {
+      website_name?: string;
+      support_email?: string;
+      support_phone?: string;
+      currency_code?: string;
+      currency_symbol?: string;
+    };
+    social_media?: {
+      name: string;
+      icon: string;
+      url: string;
+    }[];
+  };
 };
 
 type LaravelReview = {

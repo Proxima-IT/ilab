@@ -1,8 +1,21 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Mail, Phone, Send } from "lucide-react";
+import {
+  ExternalLink,
+  Facebook,
+  Instagram,
+  Linkedin,
+  Loader2,
+  Mail,
+  Phone,
+  Send,
+  Twitter,
+  Youtube,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { SiteLogo } from "@/components/site/SiteLogo";
+import { fetchWebsiteSettings, type WebsiteSettings } from "@/services/home.service";
 import { newsletterService } from "@/services/newsletter.service";
 
 type FooterLink = { label: string; to: string };
@@ -37,6 +50,15 @@ const sections: { title: string; links: FooterLink[] }[] = [
   },
 ];
 
+const socialIcons: Record<string, LucideIcon> = {
+  facebook: Facebook,
+  instagram: Instagram,
+  linkedin: Linkedin,
+  twitter: Twitter,
+  x: Twitter,
+  youtube: Youtube,
+};
+
 function firstError(error: unknown, fallback: string) {
   const data = (error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })
     .response?.data;
@@ -47,6 +69,28 @@ export function Footer() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [settings, setSettings] = useState<WebsiteSettings | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    fetchWebsiteSettings()
+      .then((data) => {
+        if (mounted) setSettings(data);
+      })
+      .catch(() => {
+        if (mounted) setSettings(null);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const general = settings?.system?.general;
+  const socialLinks = (settings?.system?.social_media || []).filter((item) => item.name && item.url);
+  const supportEmail = general?.support_email || "support@ilabbd.com";
+  const supportPhone = general?.support_phone || "+880 1234 567 890";
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -81,15 +125,36 @@ export function Footer() {
               Practical mobile servicing and career-focused technology courses for Bangladeshi learners.
             </p>
             <div className="mt-6 space-y-2 text-sm text-white/60">
-              <a href="mailto:support@ilabbd.com" className="flex items-center gap-2 transition hover:text-primary">
+              <a href={`mailto:${supportEmail}`} className="flex items-center gap-2 transition hover:text-primary">
                 <Mail className="h-4 w-4" />
-                support@ilabbd.com
+                {supportEmail}
               </a>
-              <a href="tel:+8801234567890" className="flex items-center gap-2 transition hover:text-primary">
+              <a href={`tel:${supportPhone.replace(/\s+/g, "")}`} className="flex items-center gap-2 transition hover:text-primary">
                 <Phone className="h-4 w-4" />
-                +880 1234 567 890
+                {supportPhone}
               </a>
             </div>
+            {socialLinks.length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {socialLinks.map((item) => {
+                  const Icon = socialIcons[item.icon.trim().toLowerCase()] || ExternalLink;
+
+                  return (
+                    <a
+                      key={`${item.name}-${item.url}`}
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={item.name}
+                      title={item.name}
+                      className="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/10 text-white/70 transition hover:border-primary/40 hover:bg-primary hover:text-white"
+                    >
+                      <Icon className="h-4 w-4" />
+                    </a>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {sections.map((section) => (
@@ -141,7 +206,17 @@ export function Footer() {
 
         <div className="mt-14 flex flex-col gap-3 border-t border-white/10 pt-8 text-xs text-white/50 sm:flex-row sm:justify-between">
           <p>© {new Date().getFullYear()} iLab BD. All rights reserved.</p>
-          <p>Built for learners, mentors, and career growth.</p>
+          <p>
+            Website designed and developed by{" "}
+            <a
+              href="https://facebook.com/proximait"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-white/80 transition hover:text-primary"
+            >
+              Proxima IT
+            </a>
+          </p>
         </div>
       </div>
     </footer>

@@ -1,29 +1,13 @@
-// Mock UddoktaPay client. Swap for real API calls later.
-//
-// Real integration (server-side, never client) will hit:
-//   POST https://sandbox.uddoktapay.com/api/checkout-v2
-//   Headers: RT-UDDOKTAPAY-API-KEY: <key>
-//   Body: { full_name, email, amount, metadata, redirect_url, return_type, cancel_url, webhook_url }
-// And verify with:
-//   POST https://sandbox.uddoktapay.com/api/verify-payment  { invoice_id }
+import { post } from "@/lib/api";
 
 export type CouponResult = {
   code: string;
-  percentOff: number;
+  type: "percentage" | "fixed";
+  value: number;
+  discountAmount: number;
+  finalAmount: number;
   label: string;
 };
-
-const COUPONS: Record<string, CouponResult> = {
-  ILAB10: { code: "ILAB10", percentOff: 10, label: "10% student discount" },
-  ILAB20: { code: "ILAB20", percentOff: 20, label: "20% early-bird discount" },
-  EID2026: { code: "EID2026", percentOff: 25, label: "25% Eid special" },
-};
-
-export async function validateCoupon(code: string): Promise<CouponResult | null> {
-  await new Promise((r) => setTimeout(r, 350));
-  const found = COUPONS[code.trim().toUpperCase()];
-  return found ?? null;
-}
 
 export type CheckoutPayload = {
   courseId: string;
@@ -38,39 +22,93 @@ export type CheckoutPayload = {
 
 export type CheckoutResult = {
   invoiceId: string;
-  paymentUrl: string; // in real flow we'd window.location = paymentUrl
-  status: "pending";
+  paymentUrl?: string;
+  redirectUrl?: string;
+  isFree: boolean;
 };
 
-export async function createUddoktaPayCheckout(
-  payload: CheckoutPayload,
-): Promise<CheckoutResult> {
-  // simulate network latency to the gateway
-  await new Promise((r) => setTimeout(r, 1100));
-  const invoiceId = `UP-${Date.now().toString(36).toUpperCase()}-${Math.random()
-    .toString(36)
-    .slice(2, 6)
-    .toUpperCase()}`;
-  // Persist locally so the success page can render order details.
-  if (typeof window !== "undefined") {
-    try {
-      window.localStorage.setItem(
-        `ilab.invoice.${invoiceId}`,
-        JSON.stringify({ ...payload, invoiceId, createdAt: new Date().toISOString() }),
-      );
-    } catch {
-      /* ignore */
-    }
-  }
-  return {
-    invoiceId,
-    paymentUrl: `/enroll/success?invoice_id=${invoiceId}`,
-    status: "pending",
+type CouponPreviewResponse = {
+  success: boolean;
+  data: {
+    code: string;
+    type: "percentage" | "fixed";
+    value: number | string;
+    discount_amount: number | string;
+    final_amount: number | string;
+    label: string;
+  } | null;
+  message: string;
+  errors: unknown;
+};
+
+type CheckoutResponse = {
+  success: boolean;
+  data: {
+    is_free: boolean;
+    invoice_id: string;
+    payment_url?: string;
+    redirect_url?: string;
   };
+  message: string;
+  errors: unknown;
+};
+
+export async function validateCoupon(code: string, courseId: string): Promise<CouponResult | null> {
+  if (!code.trim()) return null;
+
+  const response = await post<CouponPreviewResponse>("/checkout/coupon/preview", {
+    course_id: Number(courseId),
+    coupon_code: code.trim().toUpperCase(),
+  });
+
+  if (!response.data) return null;
+
+  return {
+    code: response.data.code,
+    type: response.data.type,
+    value: Number(response.data.value || 0),
+    discountAmount: Number(response.data.discount_amount || 0),
+    finalAmount: Number(response.data.final_amount || 0),
+    label: response.data.label,
+  };
+}
+
+export async function createUddoktaPayCheckout(payload: CheckoutPayload): Promise<CheckoutResult> {
+  const response = await post<CheckoutResponse>("/checkout/init", {
+    course_id: Number(payload.courseId),
+    coupon_code: payload.coupon || null,
+    phone: payload.phone,
+  });
+
+  const result = {
+    invoiceId: response.data.invoice_id,
+    paymentUrl: response.data.payment_url,
+    redirectUrl: response.data.redirect_url,
+    isFree: response.data.is_free,
+  };
+
+  rememberInvoice({
+    ...payload,
+    invoiceId: result.invoiceId,
+    createdAt: new Date().toISOString(),
+  });
+
+  return result;
+}
+
+export function rememberInvoice(invoice: CheckoutPayload & { invoiceId: string; createdAt: string }) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(`ilab.invoice.${invoice.invoiceId}`, JSON.stringify(invoice));
+  } catch {
+    /* ignore */
+  }
 }
 
 export function getInvoice(invoiceId: string): (CheckoutPayload & { invoiceId: string; createdAt: string }) | null {
   if (typeof window === "undefined") return null;
+
   try {
     const raw = window.localStorage.getItem(`ilab.invoice.${invoiceId}`);
     return raw ? JSON.parse(raw) : null;

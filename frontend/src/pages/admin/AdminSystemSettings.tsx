@@ -1,14 +1,16 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
-  CreditCard,
   Globe2,
+  Link2,
   Loader2,
   Mail,
   Phone,
+  Plus,
   Save,
   Settings,
-  ShieldCheck,
+  Share2,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,7 +19,6 @@ import { Label } from "@/components/ui/label";
 import { useAdminAuth } from "@/lib/admin/useAdminAuth";
 import {
   adminSystemSettingsService,
-  type PaymentEnvironment,
   type SystemSettings,
 } from "@/services/admin/system-settings.service";
 
@@ -29,25 +30,13 @@ const defaultSettings: SystemSettings = {
     currency_code: "BDT",
     currency_symbol: "৳",
   },
-  payments: {
-    uddoktapay_enabled: true,
-    free_enrollment_enabled: true,
-    manual_payment_enabled: false,
-    sandbox_mode: false,
-    payment_support_text: "For payment support, contact our support team.",
-    manual_payment_instructions: "",
-  },
+  social_media: [],
   maintenance: {
     enabled: false,
     title: "We are improving iLab BD",
     message: "The platform is temporarily under maintenance. Please check back soon.",
     allowed_ips: [],
   },
-};
-
-const defaultEnvironment: PaymentEnvironment = {
-  uddoktapay_api_url_configured: false,
-  uddoktapay_api_key_configured: false,
 };
 
 function firstError(error: unknown, fallback: string) {
@@ -59,7 +48,6 @@ function firstError(error: unknown, fallback: string) {
 export default function AdminSystemSettings() {
   const auth = useAdminAuth();
   const [settings, setSettings] = useState<SystemSettings>(defaultSettings);
-  const [environment, setEnvironment] = useState<PaymentEnvironment>(defaultEnvironment);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [allowedIpText, setAllowedIpText] = useState("");
@@ -78,8 +66,11 @@ export default function AdminSystemSettings() {
       .get()
       .then((data) => {
         if (!mounted) return;
-        setSettings(data.settings);
-        setEnvironment(data.payment_environment);
+        setSettings({
+          ...defaultSettings,
+          ...data.settings,
+          social_media: data.settings.social_media || [],
+        });
         setAllowedIpText(data.settings.maintenance.allowed_ips.join("\n"));
       })
       .catch((error) => {
@@ -104,12 +95,36 @@ export default function AdminSystemSettings() {
     }));
   };
 
+  const updateSocialMedia = (index: number, value: Partial<SystemSettings["social_media"][number]>) => {
+    setSettings((current) => ({
+      ...current,
+      social_media: current.social_media.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...value } : item
+      ),
+    }));
+  };
+
+  const addSocialMedia = () => {
+    setSettings((current) => ({
+      ...current,
+      social_media: [...current.social_media, { name: "", icon: "", url: "" }],
+    }));
+  };
+
+  const removeSocialMedia = (index: number) => {
+    setSettings((current) => ({
+      ...current,
+      social_media: current.social_media.filter((_, itemIndex) => itemIndex !== index),
+    }));
+  };
+
   const save = async () => {
     setSaving(true);
 
     try {
       const payload: SystemSettings = {
-        ...settings,
+        general: settings.general,
+        social_media: settings.social_media,
         maintenance: {
           ...settings.maintenance,
           allowed_ips: allowedIpText
@@ -120,8 +135,11 @@ export default function AdminSystemSettings() {
       };
 
       const data = await adminSystemSettingsService.update(payload);
-      setSettings(data.settings);
-      setEnvironment(data.payment_environment);
+      setSettings({
+        ...defaultSettings,
+        ...data.settings,
+        social_media: data.settings.social_media || [],
+      });
       setAllowedIpText(data.settings.maintenance.allowed_ips.join("\n"));
       toast.success("System settings saved.");
     } catch (error) {
@@ -156,7 +174,7 @@ export default function AdminSystemSettings() {
         <div>
           <h1 className="text-2xl font-semibold text-white">System Settings</h1>
           <p className="mt-1 text-sm text-zinc-400">
-            Control site identity, support contact, currency, payments, and maintenance mode.
+            Control site identity, support contact, currency, social links, and maintenance mode.
           </p>
         </div>
         <Button onClick={() => void save()} disabled={saving}>
@@ -212,56 +230,72 @@ export default function AdminSystemSettings() {
         </Section>
 
         <Section
-          title="Payment Settings"
-          description="Gateway switches and support messaging. API secrets stay in backend .env."
-          icon={<CreditCard className="h-4 w-4" />}
+          title="Social Media"
+          description="Add the social profiles used around the public website."
+          icon={<Share2 className="h-4 w-4" />}
         >
-          <div className="grid gap-3 md:grid-cols-2">
-            <StatusCard label="UddoktaPay API URL" ok={environment.uddoktapay_api_url_configured} />
-            <StatusCard label="UddoktaPay API Key" ok={environment.uddoktapay_api_key_configured} />
+          <div className="space-y-3">
+            {settings.social_media.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-zinc-700 bg-zinc-950 p-5 text-center text-sm text-zinc-500">
+                No social media links added yet.
+              </div>
+            ) : (
+              settings.social_media.map((item, index) => (
+                <div key={index} className="rounded-lg border border-zinc-800 bg-zinc-950 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                      <Share2 className="h-4 w-4 text-primary" />
+                      Social Link {index + 1}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removeSocialMedia(index)}
+                      className="border-rose-500/30 bg-transparent text-rose-300 hover:bg-rose-500/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="grid gap-3 lg:grid-cols-[1fr_1fr_2fr]">
+                    <Field label="Name">
+                      <Input
+                        value={item.name}
+                        onChange={(event) => updateSocialMedia(index, { name: event.target.value })}
+                        placeholder="Facebook"
+                        className="border-zinc-700 bg-zinc-900 text-white"
+                      />
+                    </Field>
+                    <Field label="Icon">
+                      <Input
+                        value={item.icon}
+                        onChange={(event) => updateSocialMedia(index, { icon: event.target.value })}
+                        placeholder="facebook"
+                        className="border-zinc-700 bg-zinc-900 text-white"
+                      />
+                    </Field>
+                    <Field label="URL" icon={<Link2 className="h-3.5 w-3.5" />}>
+                      <Input
+                        value={item.url}
+                        onChange={(event) => updateSocialMedia(index, { url: event.target.value })}
+                        placeholder="https://facebook.com/ilabbd"
+                        className="border-zinc-700 bg-zinc-900 text-white"
+                      />
+                    </Field>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <Toggle
-              label="UddoktaPay online payment"
-              checked={settings.payments.uddoktapay_enabled}
-              onChange={(checked) => updateSection("payments", { uddoktapay_enabled: checked })}
-            />
-            <Toggle
-              label="Free enrollment"
-              checked={settings.payments.free_enrollment_enabled}
-              onChange={(checked) => updateSection("payments", { free_enrollment_enabled: checked })}
-            />
-            <Toggle
-              label="Manual payment"
-              checked={settings.payments.manual_payment_enabled}
-              onChange={(checked) => updateSection("payments", { manual_payment_enabled: checked })}
-            />
-            <Toggle
-              label="Sandbox mode"
-              checked={settings.payments.sandbox_mode}
-              onChange={(checked) => updateSection("payments", { sandbox_mode: checked })}
-            />
-          </div>
-
-          <Field label="Payment support text">
-            <textarea
-              value={settings.payments.payment_support_text}
-              onChange={(event) => updateSection("payments", { payment_support_text: event.target.value })}
-              rows={3}
-              className="w-full resize-none rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-primary"
-            />
-          </Field>
-
-          <Field label="Manual payment instructions">
-            <textarea
-              value={settings.payments.manual_payment_instructions}
-              onChange={(event) => updateSection("payments", { manual_payment_instructions: event.target.value })}
-              rows={5}
-              placeholder="Example: Send payment to bKash/Nagad number, then contact support with transaction ID."
-              className="w-full resize-none rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-white outline-none focus:border-primary"
-            />
-          </Field>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={addSocialMedia}
+            className="border-zinc-700 bg-transparent text-zinc-200 hover:bg-zinc-800"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Social Link
+          </Button>
         </Section>
 
         <Section
@@ -373,22 +407,5 @@ function Toggle({
         className={`h-5 w-5 accent-primary ${danger ? "accent-rose-500" : ""}`}
       />
     </label>
-  );
-}
-
-function StatusCard({ label, ok }: { label: string; ok: boolean }) {
-  return (
-    <div className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-950 p-3">
-      <span className="text-sm text-zinc-300">{label}</span>
-      <span
-        className={
-          "inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] " +
-          (ok ? "bg-emerald-500/10 text-emerald-300" : "bg-rose-500/10 text-rose-300")
-        }
-      >
-        <ShieldCheck className="h-3.5 w-3.5" />
-        {ok ? "Configured" : "Missing"}
-      </span>
-    </div>
   );
 }
