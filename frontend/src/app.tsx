@@ -18,6 +18,9 @@ import { Toaster } from "@/components/ui/sonner";
 import Index from "@/pages/Index";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
+import VerifyEmail from "@/pages/VerifyEmail";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import Courses from "@/pages/Courses";
 import CourseDetail from "@/pages/CourseDetail";
 import Enroll from "@/pages/Enroll";
@@ -26,6 +29,8 @@ import Events from "@/pages/Events";
 import EventDetail from "@/pages/EventDetail";
 import Blog from "@/pages/Blog";
 import BlogDetail from "@/pages/BlogDetail";
+import Terms from "@/pages/Terms";
+import Privacy from "@/pages/Privacy";
 
 import AdminLayout from "@/pages/admin/AdminLayout";
 import AdminLogin from "@/pages/admin/AdminLogin";
@@ -33,14 +38,11 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminCourses from "@/pages/admin/AdminCourses";
 import AdminCategories from "@/pages/admin/AdminCategories";
 import AdminInstructors from "@/pages/admin/AdminInstructors";
-import AdminBatches from "@/pages/admin/AdminBatches";
 import AdminPromoCodes from "@/pages/admin/AdminPromoCodes";
 import AdminEnrollments from "@/pages/admin/AdminEnrollments";
 import AdminBlog from "@/pages/admin/AdminBlog";
 import AdminEvents from "@/pages/admin/AdminEvents";
 import AdminReviews from "@/pages/admin/AdminReviews";
-import AdminFaqs from "@/pages/admin/AdminFaqs";
-import AdminOfferings from "@/pages/admin/AdminOfferings";
 import AdminSite from "@/pages/admin/AdminSite";
 import AdminUsers from "@/pages/admin/AdminUsers";
 import AdminProfile from "@/pages/admin/AdminProfile";
@@ -132,8 +134,13 @@ export default function App() {
         <Route path="/events/:eventId" element={<EventDetail />} />
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<BlogDetail />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route path="/login" element={<LoginRoute />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route element={<ProtectedRoute />}>
           <Route path="/enroll/:slug" element={<Enroll />} />
@@ -149,14 +156,11 @@ export default function App() {
             <Route path="courses" element={<AdminCourses />} />
             <Route path="categories" element={<AdminCategories />} />
             <Route path="instructors" element={<AdminInstructors />} />
-            <Route path="batches" element={<AdminBatches />} />
             <Route path="promo-codes" element={<AdminPromoCodes />} />
             <Route path="enrollments" element={<AdminEnrollments />} />
             <Route path="blog" element={<AdminBlog />} />
             <Route path="events" element={<AdminEvents />} />
             <Route path="reviews" element={<AdminReviews />} />
-            <Route path="faqs" element={<AdminFaqs />} />
-            <Route path="offerings" element={<AdminOfferings />} />
             <Route path="site" element={<AdminSite />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="profile" element={<AdminProfile />} />

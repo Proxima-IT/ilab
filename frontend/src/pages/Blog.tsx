@@ -5,38 +5,37 @@ import { ArrowUpRight, AlertCircle } from "lucide-react";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { fetchPosts, type BlogPost } from "@/services/blog";
-
-function setMeta(name: string, content: string, property = false) {
-  const selector = property ? `meta[property="${name}"]` : `meta[name="${name}"]`;
-  let tag = document.head.querySelector<HTMLMetaElement>(selector);
-
-  if (!tag) {
-    tag = document.createElement("meta");
-    tag.setAttribute(property ? "property" : "name", name);
-    document.head.appendChild(tag);
-  }
-
-  tag.content = content;
-}
+import { applyJsonLd, applySeo, breadcrumbSchema, siteUrl } from "@/lib/seo";
 
 function applyBlogSeo(posts: BlogPost[]) {
   const title = "Blog - Mobile Repairing Tips & Career Guides | iLab BD";
   const description =
     "Read iLab BD blog articles, mobile repairing tips, career guides, and practical learning resources.";
-  const image = posts[0]?.cover || `${window.location.origin}/og-image.jpg`;
+  const image = posts[0]?.cover || null;
 
-  document.title = title;
-  setMeta("description", description);
-  setMeta("robots", "index,follow");
-  setMeta("og:type", "website", true);
-  setMeta("og:title", title, true);
-  setMeta("og:description", description, true);
-  setMeta("og:image", image, true);
-  setMeta("og:url", window.location.href, true);
-  setMeta("twitter:card", "summary_large_image");
-  setMeta("twitter:title", title);
-  setMeta("twitter:description", description);
-  setMeta("twitter:image", image);
+  applySeo({ title, description, path: "/blog", image });
+  applyJsonLd("page-json-ld", [
+    breadcrumbSchema([
+      { name: "Home", url: siteUrl("/") },
+      { name: "Blog", url: siteUrl("/blog") },
+    ]),
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: title,
+      description,
+      url: siteUrl("/blog"),
+      mainEntity: {
+        "@type": "ItemList",
+        itemListElement: posts.map((post, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          url: siteUrl(`/blog/${post.slug}`),
+          name: post.title,
+        })),
+      },
+    },
+  ]);
 }
 
 export default function BlogIndex() {

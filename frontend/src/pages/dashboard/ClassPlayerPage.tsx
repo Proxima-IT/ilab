@@ -92,6 +92,7 @@ export default function ClassPlayerPage() {
 
   const [player, setPlayer] = useState<PlayerData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   const [isTracking, setIsTracking] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -123,6 +124,7 @@ export default function ClassPlayerPage() {
     setLoading(true);
 
     try {
+      setLoadError("");
       const data = await learningService.getPlayer(courseSlug, lectureId);
       setPlayer(data);
       setWatchSeconds(data.lesson.watch_seconds || 0);
@@ -137,8 +139,15 @@ export default function ClassPlayerPage() {
 
       if (status === 401) {
         navigate("/login", { replace: true });
-      } else if (status === 403 || status === 404) {
+      } else if (status === 403) {
         navigate("/dashboard/my-courses", { replace: true });
+      } else {
+        setPlayer(null);
+        setLoadError(
+          status === 404
+            ? "No class is available for this course yet."
+            : message
+        );
       }
     } finally {
       setLoading(false);
@@ -443,7 +452,27 @@ export default function ClassPlayerPage() {
   }
 
   if (!player) {
-    return null;
+    return (
+      <div className="grid min-h-[420px] place-items-center">
+        <div className="glass-card w-full max-w-lg p-8 text-center">
+          <FolderOpen className="mx-auto h-10 w-10 text-muted-foreground" />
+          <h1 className="mt-4 font-display text-xl text-foreground">
+            Classes are not added yet
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {loadError || "This enrolled course does not have any class content yet. You can stay in your dashboard and check again later."}
+          </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <Link to="/dashboard" className="glass-button px-4 py-2 text-xs">
+              Go to dashboard
+            </Link>
+            <Link to="/dashboard/my-courses" className="glass-button px-4 py-2 text-xs">
+              My courses
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const tabConfig = [

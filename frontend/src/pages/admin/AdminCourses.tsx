@@ -199,7 +199,10 @@ export default function AdminCourses() {
   const thumbnailInputRef = useRef<HTMLInputElement | null>(null);
 
   const canDelete = auth.role === "super_admin" || auth.role === "admin";
+  const canManageInstructor = auth.role === "super_admin" || auth.role === "admin" || auth.role === "manager";
+  const isInstructor = auth.role === "instructor";
   const editingCourse = Boolean(courseForm.id);
+  const currentInstructorLabel = selected?.instructor?.name || auth.name || "Current instructor";
   const selectedStats = useMemo(() => {
     const sections = selected?.sections || [];
     const lessons = sections.flatMap((section) => section.lessons || []);
@@ -262,6 +265,10 @@ export default function AdminCourses() {
     event.preventDefault();
     if (!courseForm.title.trim() || !courseForm.category_id || !courseForm.description.trim()) {
       toast.error("Title, category, and description are required.");
+      return;
+    }
+    if (canManageInstructor && !courseForm.instructor_id) {
+      toast.error("Please assign an instructor before saving this course.");
       return;
     }
 
@@ -411,7 +418,10 @@ export default function AdminCourses() {
 
   const startNewCourse = () => {
     setSelected(null);
-    setCourseForm(emptyCourse);
+    setCourseForm({
+      ...emptyCourse,
+      instructor_id: isInstructor && auth.userId ? String(auth.userId) : "",
+    });
     setActiveTab("details");
   };
 
@@ -509,10 +519,19 @@ export default function AdminCourses() {
                 </select>
               </Field>
               <Field label="Instructor">
-                <select value={courseForm.instructor_id} onChange={(e) => setCourseForm({ ...courseForm, instructor_id: e.target.value })} className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 text-sm text-white">
-                  <option value="">Auto assign</option>
-                  {instructors.map((item) => <option key={item.id} value={item.id}>{item.name || item.email}</option>)}
-                </select>
+                {canManageInstructor ? (
+                  <select value={courseForm.instructor_id} onChange={(e) => setCourseForm({ ...courseForm, instructor_id: e.target.value })} className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 text-sm text-white">
+                    <option value="">Select instructor</option>
+                    {instructors.map((item) => <option key={item.id} value={item.id}>{item.name || item.email}</option>)}
+                  </select>
+                ) : (
+                  <div
+                    aria-disabled="true"
+                    className="pointer-events-none select-none rounded-md border border-zinc-700 bg-zinc-950/70 px-3 py-2 text-sm text-zinc-500"
+                  >
+                    {editingCourse ? currentInstructorLabel : "You will be assigned as the instructor automatically."}
+                  </div>
+                )}
               </Field>
               <Field label="Status">
                 <select value={courseForm.status} onChange={(e) => setCourseForm({ ...courseForm, status: e.target.value as CourseForm["status"] })} className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 text-sm text-white">

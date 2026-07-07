@@ -108,8 +108,9 @@ export default function OverviewPage() {
       title: e.course.title,
       slug: e.course.slug,
       progress: e.progress,
+      firstLessonId: e.firstLessonId,
       color,
-      lectures: [completedLectures, totalLectures],
+      lectures: [completedLectures, e.totalLessons],
     };
   });
 
@@ -117,7 +118,11 @@ export default function OverviewPage() {
     title: "No courses enrolled",
     slug: "",
     progress: 0,
+    firstLessonId: null,
   };
+  const activeCourseLink = activeCourse.firstLessonId
+    ? `/dashboard/player/${activeCourse.slug}/${activeCourse.firstLessonId}`
+    : "/dashboard/my-courses";
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
@@ -128,9 +133,9 @@ export default function OverviewPage() {
           <p className="text-sm text-muted-foreground mt-1 font-ui">{t('todayGoal')}</p>
           {mappedCourses.length > 0 && (
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              <Link to={`/dashboard/player/${activeCourse.slug}/1`}>
+              <Link to={activeCourseLink}>
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="glass-button px-5 py-2.5 text-sm flex items-center gap-2">
-                  <Play className="w-4 h-4" /> {t('resumeWhere')}
+                  <Play className="w-4 h-4" /> {activeCourse.firstLessonId ? t('resumeWhere') : "View course"}
                 </motion.button>
               </Link>
               <p className="text-xs text-muted-foreground font-ui">
@@ -188,7 +193,10 @@ export default function OverviewPage() {
         <h3 className="font-display text-sm text-foreground mb-3">{t('allMyCourses')}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {mappedCourses.map((course, i) => (
-            <Link key={course.id} to={`/dashboard/player/${course.slug}/1`}>
+            <Link
+              key={course.id}
+              to={course.firstLessonId ? `/dashboard/player/${course.slug}/${course.firstLessonId}` : "/dashboard/my-courses"}
+            >
               <motion.div whileHover={{ y: -4 }} className="glass-card p-4 cursor-pointer group">
                 <div className="h-16 rounded-lg mb-3 flex items-center justify-center overflow-hidden" style={{ background: `linear-gradient(135deg, ${course.color}22, ${course.color}08)` }}>
                   {course.progress === 100 ? <CheckCircle2 className="w-8 h-8 text-primary" /> : <BookOpen className="w-8 h-8" style={{ color: course.color }} />}

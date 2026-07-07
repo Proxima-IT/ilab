@@ -40,6 +40,13 @@ const sections: { title: string; links: FooterLink[] }[] = [
     ],
   },
   {
+    title: "Legal",
+    links: [
+      { label: "Terms", to: "/terms" },
+      { label: "Privacy Policy", to: "/privacy" },
+    ],
+  },
+  {
     title: "Account",
     links: [
       { label: "Login", to: "/login" },
@@ -116,7 +123,7 @@ export function Footer() {
   return (
     <footer className="bg-foreground text-white">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1.25fr]">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.35fr_0.85fr_0.85fr_0.85fr_0.85fr_1.25fr]">
           <div>
             <Link to="/" aria-label="iLab BD home">
               <SiteLogo size="md" />

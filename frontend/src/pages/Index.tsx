@@ -15,13 +15,37 @@ import {
   fetchWebsiteSettings,
   type WebsiteSettings,
 } from "@/services/home.service";
+import { applyJsonLd, applySeo, breadcrumbSchema, siteUrl } from "@/lib/seo";
 
 export default function HomePage() {
   const [settings, setSettings] = useState<WebsiteSettings | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
 
   useEffect(() => {
-    document.title = "Mobile Repairing Courses in Bangladesh | iLab BD";
+    applySeo({
+      title: "Mobile Repairing Courses in Bangladesh | iLab BD",
+      description:
+        "Learn mobile repairing and practical technology skills with iLab BD courses, live classes, recorded lessons, certificates, events, and career-focused training.",
+      path: "/",
+    });
+    applyJsonLd("page-json-ld", [
+      breadcrumbSchema([{ name: "Home", url: siteUrl("/") }]),
+      {
+        "@context": "https://schema.org",
+        "@type": "EducationalOrganization",
+        name: "iLab BD",
+        url: siteUrl("/"),
+        description:
+          "Practical mobile repairing and technology training for Bangladeshi learners.",
+        areaServed: "Bangladesh",
+        knowsAbout: [
+          "Mobile repairing",
+          "Technology training",
+          "Career development",
+          "Online courses",
+        ],
+      },
+    ]);
   }, []);
 
   useEffect(() => {

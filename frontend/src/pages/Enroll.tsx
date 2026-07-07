@@ -4,7 +4,6 @@ import { useMemo, useState, useEffect } from "react";
 import {
   ArrowLeft,
   BadgeCheck,
-  CheckCircle2,
   Loader2,
   Lock,
   LogIn,
@@ -28,25 +27,10 @@ import {
   type CouponResult,
 } from "@/services/payments";
 import { studentProfileService } from "@/services/student/profile.service";
-
-type Method = "bkash" | "nagad";
-
-const METHODS: { id: Method; name: string; tag: string; logo: string }[] = [
-  {
-    id: "bkash",
-    name: "bKash",
-    tag: "Mobile wallet",
-    logo: "https://www.logo.wine/a/logo/BKash/BKash-bKash-Logo.wine.svg",
-  },
-  {
-    id: "nagad",
-    name: "Nagad",
-    tag: "Mobile wallet",
-    logo: "https://download.logo.wine/logo/Nagad/Nagad-Logo.wine.png",
-  },
-];
+import { applySeo } from "@/lib/seo";
 
 const TAKA_SIGN = "\u09F3";
+const UDDOKTAPAY_LOGO = "https://uddoktapay.com/assets/images/logo.png";
 
 function firstError(error: unknown, fallback: string) {
   const data = (error as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })
@@ -79,7 +63,6 @@ export default function EnrollPage() {
       setCourse(res);
       setCheckingEnrollment(Boolean(isAuthenticated && isStudent));
       setLoading(false);
-      document.title = `Enroll in ${res.title} — iLab BD`;
     }).catch(() => {
       if (!cancelled) {
         setError(true);
@@ -93,7 +76,6 @@ export default function EnrollPage() {
   const fullName = user?.name ?? "";
   const email = user?.email ?? "";
   const [phone, setPhone] = useState("");
-  const [method, setMethod] = useState<Method>("bkash");
   const [agree, setAgree] = useState(true);
 
   const [couponInput, setCouponInput] = useState("");
@@ -102,6 +84,18 @@ export default function EnrollPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!course) return;
+
+    applySeo({
+      title: `Enroll in ${course.title} | iLab BD`,
+      description: `Complete your secure enrollment for ${course.title} on iLab BD.`,
+      path: `/enroll/${course.slug}`,
+      image: course.cover || null,
+      robots: "noindex,nofollow",
+    });
+  }, [course]);
 
   const pricing = useMemo(() => {
     if (!course) return { base: 0, couponDiscount: 0, subtotal: 0, tax: 0, total: 0 };
@@ -177,6 +171,7 @@ export default function EnrollPage() {
   }
 
   async function applyCoupon() {
+    if (!course) return;
     if (!couponInput.trim()) return;
     setCouponState("checking");
     try {
@@ -212,6 +207,7 @@ export default function EnrollPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!course) return;
     if (!validate()) return;
     setSubmitting(true);
     try {
@@ -375,35 +371,24 @@ export default function EnrollPage() {
               <FormCard
                 step="3"
                 title="Payment method"
-                subtitle="Choose your preferred mobile wallet."
+                subtitle="You will choose bKash, Nagad, or another available option inside UddoktaPay checkout."
               >
-                <div className="grid grid-cols-2 gap-3">
-                  {METHODS.map((m) => {
-                    const active = method === m.id;
-                    return (
-                      <button
-                        type="button"
-                        key={m.id}
-                        onClick={() => setMethod(m.id)}
-                        className={`relative text-left rounded-xl border-2 p-3.5 transition ${
-                          active
-                            ? "border-primary bg-primary/5 shadow-sm"
-                            : "border-border hover:border-foreground/20 hover:bg-surface"
-                        }`}
-                      >
-                        <div className="grid h-14 w-20 place-items-center rounded-lg bg-white p-2 shadow-sm">
-                          <img src={m.logo} alt={`${m.name} logo`} className="max-h-10 max-w-full object-contain" />
-                        </div>
-                        <p className="mt-2.5 text-sm font-bold text-foreground">{m.name}</p>
-                        <p className="text-[11px] text-muted-foreground leading-tight">{m.tag}</p>
-                        {active && (
-                          <span className="absolute top-2 right-2 grid place-items-center h-5 w-5 rounded-full bg-primary text-primary-foreground">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+                <div className="rounded-xl border-2 border-primary bg-primary/5 p-4 shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="grid h-16 w-32 shrink-0 place-items-center rounded-lg bg-white p-3 shadow-sm">
+                      <img
+                        src={UDDOKTAPAY_LOGO}
+                        alt="UddoktaPay logo"
+                        className="max-h-10 max-w-full object-contain"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground">UddoktaPay secure checkout</p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                        Complete payment safely through UddoktaPay. Available payment options will appear on the next page.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </FormCard>
             </div>
@@ -460,8 +445,11 @@ export default function EnrollPage() {
                       className="mt-0.5 h-4 w-4 accent-[hsl(var(--primary))]"
                     />
                     <span>
-                      I agree to iLab's <span className="underline">Terms</span> and{" "}
-                      <span className="underline">Refund Policy</span>, and authorize this payment via UddoktaPay.
+                      I agree to iLab's{" "}
+                      <Link to="/terms" className="font-semibold text-primary hover:underline">Terms</Link>{" "}
+                      and{" "}
+                      <Link to="/privacy" className="font-semibold text-primary hover:underline">Privacy Policy</Link>
+                      , and authorize this payment via UddoktaPay.
                     </span>
                   </label>
                   {errors.agree && <p className="text-xs text-destructive">{errors.agree}</p>}

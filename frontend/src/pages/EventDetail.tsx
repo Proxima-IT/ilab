@@ -20,6 +20,7 @@ import {
   type EventRegistrationPayload,
   type PublicEvent,
 } from "@/services/event.service";
+import { applyJsonLd, applySeo, breadcrumbSchema, siteUrl } from "@/lib/seo";
 
 const emptyForm: EventRegistrationPayload = {
   full_name: "",
@@ -30,32 +31,42 @@ const emptyForm: EventRegistrationPayload = {
   why_want_to_learn: "",
 };
 
-function setMeta(name: string, content: string, property = false) {
-  const selector = property ? `meta[property="${name}"]` : `meta[name="${name}"]`;
-  let tag = document.head.querySelector<HTMLMetaElement>(selector);
-
-  if (!tag) {
-    tag = document.createElement("meta");
-    tag.setAttribute(property ? "property" : "name", name);
-    document.head.appendChild(tag);
-  }
-
-  tag.content = content;
-}
-
 function applyEventSeo(event: PublicEvent) {
-  document.title = event.metaTitle;
-  setMeta("description", event.metaDescription);
-  setMeta("robots", "index,follow");
-  setMeta("og:type", "article", true);
-  setMeta("og:title", event.metaTitle, true);
-  setMeta("og:description", event.metaDescription, true);
-  setMeta("og:image", event.coverUrl, true);
-  setMeta("og:url", window.location.href, true);
-  setMeta("twitter:card", "summary_large_image");
-  setMeta("twitter:title", event.metaTitle);
-  setMeta("twitter:description", event.metaDescription);
-  setMeta("twitter:image", event.coverUrl);
+  applySeo({
+    title: event.metaTitle,
+    description: event.metaDescription,
+    path: `/events/${event.slug}`,
+    image: event.coverUrl,
+    type: "article",
+  });
+  applyJsonLd("page-json-ld", [
+    breadcrumbSchema([
+      { name: "Home", url: siteUrl("/") },
+      { name: "Events", url: siteUrl("/events") },
+      { name: event.title, url: siteUrl(`/events/${event.slug}`) },
+    ]),
+    {
+      "@context": "https://schema.org",
+      "@type": "Event",
+      name: event.title,
+      description: event.metaDescription,
+      image: event.coverUrl,
+      startDate: event.startsAt,
+      endDate: event.endsAt || undefined,
+      eventStatus: event.isFinished ? "https://schema.org/EventCompleted" : "https://schema.org/EventScheduled",
+      eventAttendanceMode: "https://schema.org/MixedEventAttendanceMode",
+      location: {
+        "@type": "Place",
+        name: event.location,
+      },
+      organizer: {
+        "@type": "Organization",
+        name: "iLab BD",
+        url: siteUrl("/"),
+      },
+      url: siteUrl(`/events/${event.slug}`),
+    },
+  ]);
 }
 
 function RegistrationForm({

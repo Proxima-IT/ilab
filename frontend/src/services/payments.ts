@@ -1,4 +1,4 @@
-import { post } from "@/lib/api";
+import { get, post } from "@/lib/api";
 
 export type CouponResult = {
   code: string;
@@ -27,6 +27,26 @@ export type CheckoutResult = {
   isFree: boolean;
 };
 
+export type PaymentInvoice = {
+  invoiceId: string;
+  status: "pending" | "completed" | "failed" | "refunded" | string;
+  amount: number;
+  method: string;
+  transactionId?: string | null;
+  paymentMethod?: string | null;
+  senderNumber?: string | null;
+  gatewayTransactionId?: string | null;
+  course: {
+    id: number;
+    title: string;
+    slug: string;
+    thumbnail?: string | null;
+  };
+  coupon?: string | null;
+  paidAt?: string | null;
+  createdAt?: string | null;
+};
+
 type CouponPreviewResponse = {
   success: boolean;
   data: {
@@ -48,6 +68,31 @@ type CheckoutResponse = {
     invoice_id: string;
     payment_url?: string;
     redirect_url?: string;
+  };
+  message: string;
+  errors: unknown;
+};
+
+type PaymentInvoiceResponse = {
+  success: boolean;
+  data: {
+    invoice_id: string;
+    status: string;
+    amount: number | string;
+    method: string;
+    transaction_id?: string | null;
+    payment_method?: string | null;
+    sender_number?: string | null;
+    gateway_transaction_id?: string | null;
+    course: {
+      id: number;
+      title: string;
+      slug: string;
+      thumbnail?: string | null;
+    };
+    coupon?: string | null;
+    paid_at?: string | null;
+    created_at?: string | null;
   };
   message: string;
   errors: unknown;
@@ -104,6 +149,27 @@ export function rememberInvoice(invoice: CheckoutPayload & { invoiceId: string; 
   } catch {
     /* ignore */
   }
+}
+
+export async function fetchPaymentInvoice(invoiceId: string): Promise<PaymentInvoice> {
+  const response = await get<PaymentInvoiceResponse>(
+    `/checkout/payments/${encodeURIComponent(invoiceId)}`
+  );
+
+  return {
+    invoiceId: response.data.invoice_id,
+    status: response.data.status,
+    amount: Number(response.data.amount || 0),
+    method: response.data.method,
+    transactionId: response.data.transaction_id,
+    paymentMethod: response.data.payment_method,
+    senderNumber: response.data.sender_number,
+    gatewayTransactionId: response.data.gateway_transaction_id,
+    course: response.data.course,
+    coupon: response.data.coupon,
+    paidAt: response.data.paid_at,
+    createdAt: response.data.created_at,
+  };
 }
 
 export function getInvoice(invoiceId: string): (CheckoutPayload & { invoiceId: string; createdAt: string }) | null {

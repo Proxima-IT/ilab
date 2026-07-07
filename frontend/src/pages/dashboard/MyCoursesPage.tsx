@@ -96,7 +96,7 @@ export default function MyCoursesPage() {
           const course = enrollment.course;
           const continueTo = enrollment.firstLessonId
             ? `/dashboard/player/${course.slug}/${enrollment.firstLessonId}`
-            : `/courses/${course.slug}`;
+            : null;
 
           return (
             <motion.article
@@ -199,15 +199,26 @@ export default function MyCoursesPage() {
                   </div>
                 </div>
 
-                <Link to={continueTo}>
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    className="glass-button mt-4 flex w-full items-center justify-center gap-1.5 py-2 text-xs"
+                {continueTo ? (
+                  <Link to={continueTo}>
+                    <motion.button
+                      whileHover={{ scale: 1.03 }}
+                      className="glass-button mt-4 flex w-full items-center justify-center gap-1.5 py-2 text-xs"
+                    >
+                      <Play className="h-3 w-3" />
+                      {enrollment.progress >= 100 ? "Review Course" : t("continue")}
+                    </motion.button>
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    disabled
+                    className="glass-button mt-4 flex w-full cursor-not-allowed items-center justify-center gap-1.5 py-2 text-xs opacity-60"
                   >
-                    <Play className="h-3 w-3" />
-                    {enrollment.progress >= 100 ? "Review Course" : t("continue")}
-                  </motion.button>
-                </Link>
+                    <Clock className="h-3 w-3" />
+                    Classes not added yet
+                  </button>
+                )}
               </div>
             </motion.article>
           );

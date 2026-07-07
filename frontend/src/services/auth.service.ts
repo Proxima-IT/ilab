@@ -20,6 +20,10 @@ export type LoginPayload = {
 export type LoginData = {
   user: AuthUser;
   token: string;
+  token_type?: string;
+  profile_completed?: boolean;
+  phone_verification_required?: boolean;
+  email_verification_required?: boolean;
 };
 
 export type LoginResponse = ApiResponse<LoginData>;
@@ -40,8 +44,8 @@ export type UpdateAdminProfilePayload = {
 
 export type RegisterPayload = {
   name: string;
-  phone: string;
-  email?: string | null;
+  phone?: string | null;
+  email: string;
   password: string;
   password_confirmation: string;
   device_id?: string;
@@ -49,7 +53,21 @@ export type RegisterPayload = {
   fcm_token?: string | null;
 };
 
-export type RegisterResponse = LoginResponse;
+export type RegisterResponse = ApiResponse<{
+  user?: AuthUser;
+  verification_required: boolean;
+  email?: string;
+  profile_completed?: boolean;
+  email_verification_required?: boolean;
+}>;
+
+export type VerifyEmailPayload = {
+  email: string;
+  otp: string;
+  device_id?: string;
+  platform?: "web" | "android" | "ios";
+  fcm_token?: string | null;
+};
 
 export type ForgotPasswordPayload = {
   identifier: string;
@@ -70,6 +88,22 @@ export const authService = {
 
   async register(payload: RegisterPayload): Promise<RegisterResponse> {
     const response = await api.post<RegisterResponse>("/auth/register", payload);
+    return response.data;
+  },
+
+  async verifyEmail(payload: VerifyEmailPayload): Promise<LoginResponse> {
+    const response = await api.post<LoginResponse>("/auth/verify-email", payload);
+    return response.data;
+  },
+
+  async resendEmailVerification(
+    email: string
+  ): Promise<ApiResponse<null>> {
+    const response = await api.post<ApiResponse<null>>(
+      "/auth/resend-email-verification",
+      { email }
+    );
+
     return response.data;
   },
 

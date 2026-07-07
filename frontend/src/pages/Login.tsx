@@ -1,10 +1,11 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { Eye, EyeOff, Mail, Lock, Loader2, Smartphone } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Loader2 } from "lucide-react";
 import { GoogleLogin, CredentialResponse } from "@react-oauth/google";
 import { AuthLayout } from "@/components/site/AuthLayout";
-import { authStore, type AuthUser } from "@/lib/auth";
+import { authStore, useAuth, type AuthUser } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { applySeo } from "@/lib/seo";
 
 type ApiLoginResponse = {
   success: boolean;
@@ -43,9 +44,14 @@ function getErrorMessage(error: any): string {
   );
 }
 
+function getVerificationEmail(error: any): string | null {
+  return error?.response?.data?.data?.email || null;
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { isAuthenticated, isAdmin } = useAuth();
   const redirect = searchParams.get("redirect") || undefined;
 
   const [login, setLogin] = useState("");
@@ -57,8 +63,19 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    document.title = "Log in — iLab BD";
+    applySeo({
+      title: "Log in | iLab BD",
+      description: "Log in to your iLab BD student account to access enrolled courses, progress, notes, certificates, and notifications.",
+      path: "/login",
+      robots: "noindex,nofollow",
+    });
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
+  }, [isAuthenticated, isAdmin, navigate]);
 
   const afterLogin = () => {
     if (redirect) {
@@ -94,6 +111,13 @@ export default function LoginPage() {
         afterLogin();
       }
     } catch (err) {
+      const verificationEmail = getVerificationEmail(err);
+
+      if (verificationEmail) {
+        navigate(`/verify-email?email=${encodeURIComponent(verificationEmail)}`);
+        return;
+      }
+
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
@@ -131,7 +155,7 @@ export default function LoginPage() {
   return (
     <AuthLayout
       title="Welcome back"
-      subtitle="Log in with your phone number, email, or Google account."
+      subtitle="Log in with your email or Google account."
       highlight={{
         eyebrow: "Join 25,000+ learners",
         heading: "Build a future-ready career with iLab.",
@@ -168,18 +192,14 @@ export default function LoginPage() {
 
         <Divider />
 
-        <Field label="Phone or Email">
-          {login.includes("@") ? (
-            <Mail className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <Smartphone className="h-4 w-4 text-muted-foreground" />
-          )}
+        <Field label="Email">
+          <Mail className="h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             autoComplete="username"
             value={login}
             onChange={(e) => setLogin(e.target.value)}
-            placeholder="01700000000 or you@example.com"
+            placeholder="you@example.com"
             className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground/70"
           />
         </Field>
@@ -260,7 +280,7 @@ function Divider() {
       </div>
       <div className="relative flex justify-center">
         <span className="bg-background px-3 text-xs uppercase tracking-wider text-muted-foreground">
-          or continue with phone/email
+          or continue with email
         </span>
       </div>
     </div>

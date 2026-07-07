@@ -11,6 +11,7 @@ import {
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { CourseCard } from "@/components/site/CourseCard";
+import { applyJsonLd, applySeo, breadcrumbSchema, siteUrl } from "@/lib/seo";
 
 import {
   fetchPublicCourses,
@@ -62,8 +63,43 @@ export default function CourseListingPage() {
   };
 
   useEffect(() => {
-    document.title = "All Courses - Mobile Repairing & Tech Training | iLab BD";
-  }, []);
+    applySeo({
+      title: free
+        ? "Free Mobile Repairing & Tech Courses | iLab BD"
+        : "All Courses - Mobile Repairing & Tech Training | iLab BD",
+      description:
+        "Explore iLab BD mobile repairing and technology courses. Filter by category, level, mode, price, and find free or featured courses.",
+      path: free ? "/courses?free=true" : "/courses",
+    });
+  }, [free]);
+
+  useEffect(() => {
+    const items = result?.items || [];
+
+    applyJsonLd("page-json-ld", [
+      breadcrumbSchema([
+        { name: "Home", url: siteUrl("/") },
+        { name: "Courses", url: siteUrl("/courses") },
+      ]),
+      {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: free
+          ? "Free Mobile Repairing & Tech Courses"
+          : "All Mobile Repairing & Tech Courses",
+        url: siteUrl(free ? "/courses?free=true" : "/courses"),
+        mainEntity: {
+          "@type": "ItemList",
+          itemListElement: items.map((course, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            url: siteUrl(`/courses/${course.slug}`),
+            name: course.title,
+          })),
+        },
+      },
+    ]);
+  }, [free, result]);
 
   useEffect(() => {
     let cancelled = false;

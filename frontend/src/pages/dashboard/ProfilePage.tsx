@@ -59,6 +59,8 @@ const defaultNotifications: StudentNotificationSettings = {
   profile_update: true,
   course_completion: true,
   certificate_ready: true,
+  admin_message: true,
+  qna_answer: true,
   email: true,
   sms: false,
   push: true,

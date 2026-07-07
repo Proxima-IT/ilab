@@ -33,6 +33,7 @@ import {
   type CourseLessonType,
   type PublicCourseDetails,
 } from "@/services/course-catalog.service";
+import { applyJsonLd, applySeo, breadcrumbSchema, siteUrl } from "@/lib/seo";
 
 const TAKA_SIGN = "\u09F3";
 
@@ -156,24 +157,6 @@ export default function CourseDetailsPage() {
   );
 }
 
-function upsertMeta(selector: string, attrs: Record<string, string>) {
-  let element = document.head.querySelector(selector) as HTMLMetaElement | HTMLLinkElement | null;
-
-  if (!element) {
-    element = selector.startsWith('link')
-      ? document.createElement('link')
-      : document.createElement('meta');
-    document.head.appendChild(element);
-  }
-
-  Object.entries(attrs).forEach(([key, value]) => element?.setAttribute(key, value));
-}
-
-function siteUrl(): string {
-  const configured = import.meta.env.VITE_SITE_URL as string | undefined;
-  return (configured || window.location.origin).replace(/\/+$/, '');
-}
-
 function seoDescription(course: PublicCourseDetails): string {
   const plain = course.description.replace(/<[^>]*>/g, '').trim();
   if (plain.length > 155) return `${plain.slice(0, 152)}...`;
@@ -183,59 +166,47 @@ function seoDescription(course: PublicCourseDetails): string {
 function applyCourseSeo(course: PublicCourseDetails) {
   const title = `${course.title} | iLab BD`;
   const description = seoDescription(course);
-  const url = `${siteUrl()}/courses/${course.slug}`;
+  const url = siteUrl(`/courses/${course.slug}`);
 
-  document.title = title;
-
-  upsertMeta('meta[name="description"]', { name: 'description', content: description });
-  upsertMeta('meta[name="robots"]', { name: 'robots', content: 'index, follow, max-image-preview:large' });
-  upsertMeta('link[rel="canonical"]', { rel: 'canonical', href: url });
-
-  upsertMeta('meta[property="og:type"]', { property: 'og:type', content: 'website' });
-  upsertMeta('meta[property="og:title"]', { property: 'og:title', content: title });
-  upsertMeta('meta[property="og:description"]', { property: 'og:description', content: description });
-  upsertMeta('meta[property="og:image"]', { property: 'og:image', content: course.cover });
-  upsertMeta('meta[property="og:url"]', { property: 'og:url', content: url });
-  upsertMeta('meta[property="og:site_name"]', { property: 'og:site_name', content: 'iLab BD' });
-
-  upsertMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary_large_image' });
-  upsertMeta('meta[name="twitter:title"]', { name: 'twitter:title', content: title });
-  upsertMeta('meta[name="twitter:description"]', { name: 'twitter:description', content: description });
-  upsertMeta('meta[name="twitter:image"]', { name: 'twitter:image', content: course.cover });
-
-  let schema = document.getElementById('course-json-ld') as HTMLScriptElement | null;
-  if (!schema) {
-    schema = document.createElement('script');
-    schema.id = 'course-json-ld';
-    schema.type = 'application/ld+json';
-    document.head.appendChild(schema);
-  }
-
-  schema.textContent = JSON.stringify({
-    '@context': 'https://schema.org',
-    '@type': 'Course',
-    name: course.title,
+  applySeo({
+    title,
     description,
+    path: `/courses/${course.slug}`,
     image: course.cover,
-    url,
-    provider: {
-      '@type': 'Organization',
-      name: 'iLab BD',
-      url: siteUrl(),
-    },
-    offers: {
-      '@type': 'Offer',
-      price: course.price,
-      priceCurrency: 'BDT',
-      availability: 'https://schema.org/InStock',
-      url,
-    },
-    hasCourseInstance: {
-      '@type': 'CourseInstance',
-      courseMode: course.mode,
-      inLanguage: course.language,
-    },
   });
+
+  applyJsonLd("page-json-ld", [
+    breadcrumbSchema([
+      { name: "Home", url: siteUrl("/") },
+      { name: "Courses", url: siteUrl("/courses") },
+      { name: course.title, url },
+    ]),
+    {
+      "@context": "https://schema.org",
+      "@type": "Course",
+      name: course.title,
+      description,
+      image: course.cover,
+      url,
+      provider: {
+        "@type": "Organization",
+        name: "iLab BD",
+        url: siteUrl("/"),
+      },
+      offers: {
+        "@type": "Offer",
+        price: course.price,
+        priceCurrency: "BDT",
+        availability: "https://schema.org/InStock",
+        url,
+      },
+      hasCourseInstance: {
+        "@type": "CourseInstance",
+        courseMode: course.mode,
+        inLanguage: course.language,
+      },
+    },
+  ]);
 }
 
 function youtubeEmbedUrl(value: string | null): string | null {
@@ -683,7 +654,7 @@ function InstructorSection({ course }: { course: PublicCourseDetails }) {
                 {course.instructorStudentsCount > 0 && (
                   <span className="inline-flex items-center gap-1.5">
                     <Users className="h-4 w-4 text-primary" />
-                    {course.instructorStudentsCount.toLocaleString()} unique students
+                    {course.instructorStudentsCount.toLocaleString()} students
                   </span>
                 )}
               </div>

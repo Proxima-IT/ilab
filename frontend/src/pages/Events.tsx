@@ -21,6 +21,7 @@ import {
   type EventRegistrationPayload,
   type PublicEvent,
 } from "@/services/event.service";
+import { applyJsonLd, applySeo, breadcrumbSchema, siteUrl } from "@/lib/seo";
 
 const emptyForm: EventRegistrationPayload = {
   full_name: "",
@@ -31,37 +32,35 @@ const emptyForm: EventRegistrationPayload = {
   why_want_to_learn: "",
 };
 
-function setMeta(name: string, content: string, property = false) {
-  const selector = property ? `meta[property="${name}"]` : `meta[name="${name}"]`;
-  let tag = document.head.querySelector<HTMLMetaElement>(selector);
-
-  if (!tag) {
-    tag = document.createElement("meta");
-    tag.setAttribute(property ? "property" : "name", name);
-    document.head.appendChild(tag);
-  }
-
-  tag.content = content;
-}
-
 function applyEventsSeo(events: PublicEvent[]) {
   const title = "Events, Workshops & Webinars | iLab BD";
   const description =
     "Join iLab events, workshops, webinars, and live mobile repairing learning sessions in Bangladesh.";
-  const image = events[0]?.coverUrl || `${window.location.origin}/og-image.jpg`;
+  const image = events[0]?.coverUrl || null;
 
-  document.title = title;
-  setMeta("description", description);
-  setMeta("robots", "index,follow");
-  setMeta("og:type", "website", true);
-  setMeta("og:title", title, true);
-  setMeta("og:description", description, true);
-  setMeta("og:image", image, true);
-  setMeta("og:url", window.location.href, true);
-  setMeta("twitter:card", "summary_large_image");
-  setMeta("twitter:title", title);
-  setMeta("twitter:description", description);
-  setMeta("twitter:image", image);
+  applySeo({ title, description, path: "/events", image });
+  applyJsonLd("page-json-ld", [
+    breadcrumbSchema([
+      { name: "Home", url: siteUrl("/") },
+      { name: "Events", url: siteUrl("/events") },
+    ]),
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: title,
+      description,
+      url: siteUrl("/events"),
+      mainEntity: {
+        "@type": "ItemList",
+        itemListElement: events.map((event, index) => ({
+          "@type": "ListItem",
+          position: index + 1,
+          url: siteUrl(`/events/${event.slug}`),
+          name: event.title,
+        })),
+      },
+    },
+  ]);
 }
 
 function RegistrationModal({

@@ -5,33 +5,44 @@ import { ArrowLeft, Calendar } from "lucide-react";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { fetchPostBySlug, fetchPosts, type BlogPost } from "@/services/blog";
-
-function setMeta(name: string, content: string, property = false) {
-  const selector = property ? `meta[property="${name}"]` : `meta[name="${name}"]`;
-  let tag = document.head.querySelector<HTMLMetaElement>(selector);
-
-  if (!tag) {
-    tag = document.createElement("meta");
-    tag.setAttribute(property ? "property" : "name", name);
-    document.head.appendChild(tag);
-  }
-
-  tag.content = content;
-}
+import { applyJsonLd, applySeo, breadcrumbSchema, siteUrl } from "@/lib/seo";
 
 function applyPostSeo(post: BlogPost) {
-  document.title = post.metaTitle;
-  setMeta("description", post.metaDescription);
-  setMeta("robots", "index,follow");
-  setMeta("og:type", "article", true);
-  setMeta("og:title", post.metaTitle, true);
-  setMeta("og:description", post.metaDescription, true);
-  setMeta("og:image", post.cover, true);
-  setMeta("og:url", window.location.href, true);
-  setMeta("twitter:card", "summary_large_image");
-  setMeta("twitter:title", post.metaTitle);
-  setMeta("twitter:description", post.metaDescription);
-  setMeta("twitter:image", post.cover);
+  applySeo({
+    title: post.metaTitle,
+    description: post.metaDescription,
+    path: `/blog/${post.slug}`,
+    image: post.cover,
+    type: "article",
+  });
+  applyJsonLd("page-json-ld", [
+    breadcrumbSchema([
+      { name: "Home", url: siteUrl("/") },
+      { name: "Blog", url: siteUrl("/blog") },
+      { name: post.title, url: siteUrl(`/blog/${post.slug}`) },
+    ]),
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: post.title,
+      description: post.metaDescription,
+      image: post.cover,
+      url: siteUrl(`/blog/${post.slug}`),
+      author: {
+        "@type": "Person",
+        name: post.author.name,
+      },
+      publisher: {
+        "@type": "Organization",
+        name: "iLab BD",
+        logo: {
+          "@type": "ImageObject",
+          url: siteUrl("/storage/website/ilab_ico.png"),
+        },
+      },
+      mainEntityOfPage: siteUrl(`/blog/${post.slug}`),
+    },
+  ]);
 }
 
 export default function BlogPostPage() {
