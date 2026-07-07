@@ -1,7 +1,7 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "title": "iLab EdTech API Documentation",
+        "title": "iLab API Documentation",
         "description": "Versioned REST API documentation for the iLab React Web SPA and Android/iOS mobile applications.",
         "contact": {
             "name": "Proxima IT",
@@ -15,11 +15,11 @@
             "description": "Local Development Server"
         },
         {
-            "url": "https://dev-api.yourdomain.com",
+            "url": "https://dev-api.ilabbd.com",
             "description": "Development Server"
         },
         {
-            "url": "https://api.yourdomain.com",
+            "url": "https://api.ilabbd.com",
             "description": "Production Server"
         }
     ],
@@ -30,7 +30,7 @@
                     "Authentication"
                 ],
                 "summary": "Register a new student",
-                "description": "Phone number is required. Email is optional. Registration creates an unverified account and sends phone OTP.",
+                "description": "Email is required and phone is optional. Manual registration creates an unverified account and sends an email verification code.",
                 "operationId": "b9e746d77661fb8df55d0ac63e1ece77",
                 "requestBody": {
                     "required": true,
@@ -39,7 +39,7 @@
                             "schema": {
                                 "required": [
                                     "name",
-                                    "phone",
+                                    "email",
                                     "password",
                                     "password_confirmation",
                                     "device_id",
@@ -52,13 +52,13 @@
                                     },
                                     "phone": {
                                         "type": "string",
-                                        "example": "01700000000"
+                                        "example": "01700000000",
+                                        "nullable": true
                                     },
                                     "email": {
                                         "type": "string",
                                         "format": "email",
-                                        "example": "john@gmail.com",
-                                        "nullable": true
+                                        "example": "john@gmail.com"
                                     },
                                     "password": {
                                         "type": "string",
@@ -99,7 +99,7 @@
                         "description": "Registration successful"
                     },
                     "409": {
-                        "description": "Account exists but phone verification is pending"
+                        "description": "Account exists but email verification is pending"
                     },
                     "422": {
                         "description": "Validation error"
@@ -113,7 +113,7 @@
                     "Authentication"
                 ],
                 "summary": "Login with phone/email and password",
-                "description": "User can login with phone or email. Phone-first accounts must verify phone before token is issued.",
+                "description": "User can login with phone or email. Manual student accounts must verify email before token is issued.",
                 "operationId": "a7997e7c1e3bfed64d4e56de82415931",
                 "requestBody": {
                     "required": true,
@@ -174,7 +174,7 @@
                         "description": "Login successful"
                     },
                     "403": {
-                        "description": "Phone verification required or unauthorized portal access"
+                        "description": "Email verification required or unauthorized portal access"
                     },
                     "422": {
                         "description": "Validation error"
@@ -713,13 +713,1278 @@
                 ]
             }
         },
+        "/api/v1/categories": {
+            "get": {
+                "tags": [
+                    "Public Catalog"
+                ],
+                "summary": "List public categories",
+                "description": "Returns published categories for course or blog content.",
+                "operationId": "d259759150095e2580ea3400daa16040",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Category type. Defaults to course.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "course",
+                            "enum": [
+                                "course",
+                                "blog"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Categories retrieved successfully"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
+        "/api/v1/reviews": {
+            "get": {
+                "tags": [
+                    "Public Catalog"
+                ],
+                "summary": "List public reviews",
+                "description": "Returns published student/customer reviews with pagination.",
+                "operationId": "b00ce86ce2dafa17b6a5bf95bcad89ab",
+                "parameters": [
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "description": "Items per page, from 1 to 12.",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "example": 6,
+                            "maximum": 12,
+                            "minimum": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Reviews retrieved successfully"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
+        "/api/v1/website-settings": {
+            "get": {
+                "tags": [
+                    "Public Catalog"
+                ],
+                "summary": "Get public website settings",
+                "description": "Returns public home page settings, system contact data, and social media links.",
+                "operationId": "e1cfd6217aef6677de517012f4559285",
+                "responses": {
+                    "200": {
+                        "description": "Website settings retrieved successfully"
+                    }
+                }
+            }
+        },
+        "/api/v1/newsletter/subscribe": {
+            "post": {
+                "tags": [
+                    "Newsletter"
+                ],
+                "summary": "Subscribe to newsletter",
+                "operationId": "c2f0ecd1353867f4fef4baef582b07c6",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "student@example.com"
+                                    },
+                                    "source": {
+                                        "type": "string",
+                                        "example": "footer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Subscription successful"
+                    },
+                    "409": {
+                        "description": "This email is already subscribed"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/verify-email": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Verify student email",
+                "description": "Verifies a manual registration email OTP and returns a student Bearer token.",
+                "operationId": "4929aaa3e7a04555e9eafc734dd3f590",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email",
+                                    "otp",
+                                    "device_id",
+                                    "platform"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "student@example.com"
+                                    },
+                                    "otp": {
+                                        "type": "string",
+                                        "example": "123456"
+                                    },
+                                    "device_id": {
+                                        "type": "string",
+                                        "example": "web-browser-uuid-123"
+                                    },
+                                    "platform": {
+                                        "type": "string",
+                                        "example": "web",
+                                        "enum": [
+                                            "web",
+                                            "android",
+                                            "ios"
+                                        ]
+                                    },
+                                    "fcm_token": {
+                                        "type": "string",
+                                        "example": "firebase-token",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Email verified successfully"
+                    },
+                    "400": {
+                        "description": "Invalid or expired verification code"
+                    },
+                    "404": {
+                        "description": "Student account not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/resend-email-verification": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Resend email verification code",
+                "operationId": "f935952d611c572c247dbbfacd5b607b",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "email"
+                                ],
+                                "properties": {
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "student@example.com"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Verification code sent when required"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/forgot-password": {
+            "post": {
+                "tags": [
+                    "Password Recovery"
+                ],
+                "summary": "Request password reset OTP",
+                "operationId": "7583bf89862f0a3e5b0b2d594e7e56a2",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "identifier"
+                                ],
+                                "properties": {
+                                    "identifier": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "student@example.com"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password reset code sent when account exists"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/reset-password": {
+            "post": {
+                "tags": [
+                    "Password Recovery"
+                ],
+                "summary": "Reset password with OTP",
+                "operationId": "a4e15e1fcf536ca28329a6da58bfe951",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "identifier",
+                                    "otp",
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "identifier": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "student@example.com"
+                                    },
+                                    "otp": {
+                                        "type": "string",
+                                        "example": "123456"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "SecurePass123!"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "SecurePass123!"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password reset successfully"
+                    },
+                    "400": {
+                        "description": "Invalid or expired OTP"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
+        "/api/v1/student/profile": {
+            "get": {
+                "tags": [
+                    "Student Profile"
+                ],
+                "summary": "Get authenticated student profile",
+                "operationId": "f1c8a73616702555a14d366378726dcd",
+                "responses": {
+                    "200": {
+                        "description": "Profile retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only student accounts can access this endpoint"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Student Profile"
+                ],
+                "summary": "Update authenticated student profile",
+                "operationId": "1b4e977a38694d57d160d894bd770473",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "John Doe"
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "01700000000",
+                                        "nullable": true
+                                    },
+                                    "email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "example": "john@example.com"
+                                    },
+                                    "bio": {
+                                        "type": "string",
+                                        "example": "Frontend learner",
+                                        "nullable": true
+                                    },
+                                    "district": {
+                                        "type": "string",
+                                        "example": "Dhaka",
+                                        "nullable": true
+                                    },
+                                    "education_level": {
+                                        "type": "string",
+                                        "example": "Bachelor",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Profile updated successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/profile/avatar": {
+            "post": {
+                "tags": [
+                    "Student Profile"
+                ],
+                "summary": "Upload student avatar",
+                "operationId": "0fe951ac11a3a91093d6bf1c6275f5b1",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "avatar"
+                                ],
+                                "properties": {
+                                    "avatar": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Avatar updated successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/profile/password": {
+            "put": {
+                "tags": [
+                    "Student Profile"
+                ],
+                "summary": "Change student password",
+                "operationId": "e9a0f91f887712698cb8f67e883aa6c3",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "current_password",
+                                    "password",
+                                    "password_confirmation"
+                                ],
+                                "properties": {
+                                    "current_password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "OldPass123!"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "NewPass123!"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "NewPass123!"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password updated successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/profile/notifications": {
+            "put": {
+                "tags": [
+                    "Student Profile"
+                ],
+                "summary": "Update legacy profile notification preferences",
+                "operationId": "543649d8043c3a94e19589fbe3932c1d",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "notification_prefs"
+                                ],
+                                "properties": {
+                                    "notification_prefs": {
+                                        "properties": {
+                                            "email": {
+                                                "type": "boolean",
+                                                "example": true
+                                            },
+                                            "sms": {
+                                                "type": "boolean",
+                                                "example": false
+                                            },
+                                            "push": {
+                                                "type": "boolean",
+                                                "example": true
+                                            },
+                                            "lecture": {
+                                                "type": "boolean",
+                                                "example": true
+                                            },
+                                            "streak": {
+                                                "type": "boolean",
+                                                "example": false
+                                            },
+                                            "congrats": {
+                                                "type": "boolean",
+                                                "example": true
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Notification preferences updated successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/notifications/{id}/read": {
+            "put": {
+                "tags": [
+                    "Student Notifications"
+                ],
+                "summary": "Mark one notification as read",
+                "operationId": "643e000953194a259a7dfffb0405d5d2",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 12
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Notification marked as read"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "404": {
+                        "description": "Notification not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/notification-settings": {
+            "get": {
+                "tags": [
+                    "Student Notifications"
+                ],
+                "summary": "Get student notification settings",
+                "operationId": "bc7ff2ac94ede665085f89ca4e0917b2",
+                "responses": {
+                    "200": {
+                        "description": "Notification settings retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Student Notifications"
+                ],
+                "summary": "Update student notification settings",
+                "operationId": "cd63b3f59eee1473f78598082e50203c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "new_lecture": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "special_offer": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "event": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "profile_update": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "course_completion": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "certificate_ready": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "admin_message": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "qna_answer": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "email": {
+                                        "type": "boolean",
+                                        "example": true
+                                    },
+                                    "sms": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "push": {
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Notification settings updated successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/qna": {
+            "get": {
+                "tags": [
+                    "Student Q&A"
+                ],
+                "summary": "List authenticated student Q&A",
+                "description": "Returns the latest questions asked by the authenticated student with answers and lesson/course details.",
+                "operationId": "c29d2bb6636a827a896ea57d4b9f3a17",
+                "responses": {
+                    "200": {
+                        "description": "Q&A retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/checkout/coupon/preview": {
+            "post": {
+                "tags": [
+                    "Checkout & Enrollment"
+                ],
+                "summary": "Preview coupon discount",
+                "description": "Checks whether a coupon is usable for a course and returns the calculated final amount.",
+                "operationId": "de1b5930c3e1a0a164134206830cdad2",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "course_id",
+                                    "coupon_code"
+                                ],
+                                "properties": {
+                                    "course_id": {
+                                        "type": "integer",
+                                        "example": 1
+                                    },
+                                    "coupon_code": {
+                                        "type": "string",
+                                        "example": "WELCOME50"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Coupon is available"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "422": {
+                        "description": "Invalid, expired, fully used coupon, or validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/webhook/uddoktapay": {
+            "post": {
+                "tags": [
+                    "Checkout & Enrollment"
+                ],
+                "summary": "UddoktaPay webhook callback",
+                "description": "Payment gateway callback endpoint. This is called by UddoktaPay, not by the client app.",
+                "operationId": "fbd25c7703fc947545dd7b1dbaa09508",
+                "parameters": [
+                    {
+                        "name": "RT-UDDOKTAPAY-API-KEY",
+                        "in": "header",
+                        "description": "Configured UddoktaPay API key",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "invoice_id"
+                                ],
+                                "properties": {
+                                    "invoice_id": {
+                                        "type": "string",
+                                        "example": "INV-123456"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Webhook processed"
+                    },
+                    "401": {
+                        "description": "Unauthorized webhook"
+                    },
+                    "422": {
+                        "description": "Invoice ID missing"
+                    }
+                }
+            }
+        },
+        "/api/v1/checkout/uddoktapay/success": {
+            "get": {
+                "tags": [
+                    "Checkout & Enrollment"
+                ],
+                "summary": "UddoktaPay success redirect",
+                "description": "Payment gateway success redirect. Verifies payment and redirects the user to the frontend.",
+                "operationId": "1b03c4d05c787d6a9e8fa3295bcb4b4a",
+                "parameters": [
+                    {
+                        "name": "invoice_id",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "INV-123456"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirects to frontend success or pending page"
+                    }
+                }
+            }
+        },
+        "/api/v1/checkout/uddoktapay/cancel": {
+            "get": {
+                "tags": [
+                    "Checkout & Enrollment"
+                ],
+                "summary": "UddoktaPay cancel redirect",
+                "description": "Payment gateway cancel redirect. Marks pending payment failed when possible and redirects to frontend.",
+                "operationId": "7b865a20a4e67b7231e7c3c8a1326d2c",
+                "parameters": [
+                    {
+                        "name": "invoice_id",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "example": "INV-123456"
+                        }
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirects to frontend cancelled page"
+                    }
+                }
+            }
+        },
+        "/api/v1/learn/resources": {
+            "get": {
+                "tags": [
+                    "Learning Experience"
+                ],
+                "summary": "List enrolled course resources",
+                "description": "Returns enrolled courses, modules, lessons, and active Google Drive/resource URLs only when resources exist.",
+                "operationId": "6d0ed4524daac3af11115bdc67ea6145",
+                "responses": {
+                    "200": {
+                        "description": "Resources retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/learn/courses/{slug}/player/{lesson}": {
+            "get": {
+                "tags": [
+                    "Learning Experience"
+                ],
+                "summary": "Get lesson player data",
+                "description": "Returns secure lesson player data for enrolled students, including YouTube embed URL, watermark identity, notes, resources, progress, and Q&A.",
+                "operationId": "d57856e4a346a8419e3ba7a90ea5caad",
+                "parameters": [
+                    {
+                        "name": "slug",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "web-development-masterclass"
+                        }
+                    },
+                    {
+                        "name": "lesson",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lesson player retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Student is not enrolled"
+                    },
+                    "404": {
+                        "description": "Course or lesson not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/learn/lessons/{lesson}/notes": {
+            "post": {
+                "tags": [
+                    "Learning Experience"
+                ],
+                "summary": "Save lesson note",
+                "operationId": "805c99a24853ec6079f1ea4412dfc269",
+                "parameters": [
+                    {
+                        "name": "lesson",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "note"
+                                ],
+                                "properties": {
+                                    "note": {
+                                        "type": "string",
+                                        "example": "Important concept about components."
+                                    },
+                                    "timestamp_seconds": {
+                                        "type": "integer",
+                                        "example": 145,
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Note saved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Student is not enrolled"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/learn/lessons/{lesson}/notes/{note}": {
+            "delete": {
+                "tags": [
+                    "Learning Experience"
+                ],
+                "summary": "Delete lesson note",
+                "operationId": "85889a058ecead866ff24ec485f2d2ac",
+                "parameters": [
+                    {
+                        "name": "lesson",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
+                        }
+                    },
+                    {
+                        "name": "note",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 5
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Note deleted successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Student is not enrolled"
+                    },
+                    "404": {
+                        "description": "Lesson not found"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/learn/lessons/{lesson}/questions": {
+            "post": {
+                "tags": [
+                    "Learning Experience"
+                ],
+                "summary": "Ask a lesson question",
+                "operationId": "b5fbaef612d85be047511ed68991bfce",
+                "parameters": [
+                    {
+                        "name": "lesson",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "question"
+                                ],
+                                "properties": {
+                                    "question": {
+                                        "type": "string",
+                                        "example": "Can you explain this topic again?"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Question submitted successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Student is not enrolled"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/learn/lessons/{lesson}/questions/{question}/answers": {
+            "post": {
+                "tags": [
+                    "Learning Experience"
+                ],
+                "summary": "Answer a lesson question",
+                "description": "Staff/instructor answer endpoint. Student apps normally read answers from the player or Q&A endpoints.",
+                "operationId": "c6be5eb85b1dd3f5952910f3d42c8f77",
+                "parameters": [
+                    {
+                        "name": "lesson",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 10
+                        }
+                    },
+                    {
+                        "name": "question",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 22
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "answer"
+                                ],
+                                "properties": {
+                                    "answer": {
+                                        "type": "string",
+                                        "example": "Here is the explanation..."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Answer submitted successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only instructors or admins can answer"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/progress/{course_id}": {
+            "get": {
+                "tags": [
+                    "Learning Experience"
+                ],
+                "summary": "Get student course progress",
+                "operationId": "83f38b5a13531f695da9b175846372e8",
+                "parameters": [
+                    {
+                        "name": "course_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Course progress retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Student is not enrolled"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/student/notifications": {
+            "get": {
+                "tags": [
+                    "Student Notifications"
+                ],
+                "summary": "Get latest student notifications",
+                "operationId": "dca96bbc6c69d3b4292c433144bf5780",
+                "responses": {
+                    "200": {
+                        "description": "Notifications retrieved successfully"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/api/v1/checkout/init": {
             "post": {
                 "tags": [
                     "Checkout & Enrollment"
                 ],
-                "summary": "Initialize UddoktaPay Checkout",
-                "description": "Calculates the final price securely and returns the UddoktaPay payment URL. If the course is 100% free (via coupon or base price), it enrolls the user instantly.",
+                "summary": "Initialize checkout",
+                "description": "Calculates the final price securely. Free courses enroll instantly; paid courses return a payment URL.",
                 "operationId": "b25513a3f79c7b58084daf284e3f54aa",
                 "requestBody": {
                     "required": true,
@@ -736,7 +2001,13 @@
                                     },
                                     "coupon_code": {
                                         "type": "string",
-                                        "example": "REACT50"
+                                        "example": "WELCOME50",
+                                        "nullable": true
+                                    },
+                                    "phone": {
+                                        "type": "string",
+                                        "example": "01700000000",
+                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -746,36 +2017,25 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Checkout initialized successfully",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "success": {
-                                            "type": "boolean",
-                                            "example": true
-                                        },
-                                        "data": {
-                                            "properties": {
-                                                "is_free": {
-                                                    "type": "boolean",
-                                                    "example": false
-                                                },
-                                                "payment_url": {
-                                                    "type": "string",
-                                                    "example": "https://pay.uddoktapay.com/checkout/12345"
-                                                }
-                                            },
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Checkout initialized or free enrollment completed"
                     },
-                    "400": {
-                        "description": "Invalid coupon or already enrolled"
+                    "401": {
+                        "description": "Unauthenticated"
+                    },
+                    "403": {
+                        "description": "Only student accounts can enroll"
+                    },
+                    "409": {
+                        "description": "Already enrolled or suspended from this course"
+                    },
+                    "422": {
+                        "description": "Validation error or invalid coupon"
+                    },
+                    "500": {
+                        "description": "Payment gateway unavailable"
+                    },
+                    "503": {
+                        "description": "Payment gateway is not configured or disabled"
                     }
                 },
                 "security": [
@@ -869,6 +2129,30 @@
         },
         {
             "name": "Learning Experience"
+        },
+        {
+            "name": "Password Recovery",
+            "description": "Endpoints for requesting OTPs and resetting user passwords"
+        },
+        {
+            "name": "Public Catalog",
+            "description": "Public website data used by the web app and mobile apps"
+        },
+        {
+            "name": "Newsletter",
+            "description": "Public newsletter subscription endpoint"
+        },
+        {
+            "name": "Student Profile",
+            "description": "Endpoints for student dashboard and profile management"
+        },
+        {
+            "name": "Student Notifications",
+            "description": "Student dashboard notifications and preferences"
+        },
+        {
+            "name": "Student Q&A",
+            "description": "Authenticated student course question and answer endpoints"
         },
         {
             "name": "Checkout & Enrollment",

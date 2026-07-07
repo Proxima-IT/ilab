@@ -63,6 +63,8 @@ Route::prefix('v1')->group(function () {
             Route::post('/register', [AuthController::class, 'register']);
             Route::post('/login', [AuthController::class, 'login']);
             Route::post('/google', [AuthController::class, 'googleLogin']);
+            Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
+            Route::post('/resend-email-verification', [AuthController::class, 'resendEmailVerification']);
 
             Route::post('/forgot-password', [PasswordResetController::class, 'forgotPassword']);
             Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']);
@@ -148,6 +150,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/checkout/init', [UddoktaPayCheckoutController::class, 'initiatePayment'])
             ->middleware('throttle:20,1');
         Route::post('/checkout/coupon/preview', [UddoktaPayCheckoutController::class, 'previewCoupon'])
+            ->middleware('throttle:30,1');
+        Route::get('/checkout/payments/{payment}', [UddoktaPayCheckoutController::class, 'invoice'])
             ->middleware('throttle:30,1');
 
         /*

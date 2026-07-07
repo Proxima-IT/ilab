@@ -5,7 +5,7 @@ return [
     'documentations' => [
         'default' => [
             'api' => [
-                'title' => 'E-Learning Platform API Documentation',
+                'title' => 'iLab API Documentation',
             ],
             'routes' => [
                 'api' => 'api/documentation',

@@ -7,7 +7,7 @@ use OpenApi\Attributes as OA;
 
 #[OA\Info(
     version: '1.0.0',
-    title: 'iLab EdTech API Documentation',
+    title: 'iLab API Documentation',
     description: 'Versioned REST API documentation for the iLab React Web SPA and Android/iOS mobile applications.',
     contact: new OA\Contact(
         name: 'Proxima IT',
@@ -19,11 +19,11 @@ use OpenApi\Attributes as OA;
     description: 'Local Development Server'
 )]
 #[OA\Server(
-    url: 'https://dev-api.yourdomain.com',
+    url: 'https://dev-api.ilabbd.com',
     description: 'Development Server'
 )]
 #[OA\Server(
-    url: 'https://api.yourdomain.com',
+    url: 'https://api.ilabbd.com',
     description: 'Production Server'
 )]
 #[OA\SecurityScheme(

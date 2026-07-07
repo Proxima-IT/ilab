@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\AuthEmailService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,9 +27,10 @@ class PasswordResetController extends Controller
             ],
         ]);
 
+        $identifier = mb_strtolower($validated['identifier']);
+
         $user = User::query()
-            ->where('email', $validated['identifier'])
-            ->orWhere('phone', $validated['identifier'])
+            ->where('email', $identifier)
             ->first();
 
         if (! $user) {
@@ -46,9 +48,7 @@ class PasswordResetController extends Controller
             ]
         );
 
-        // TODO: Dispatch queued job to send OTP via Email or BulkSMS BD.
-        // Example:
-        // SendPasswordResetOtpJob::dispatch($user, $otp);
+        app(AuthEmailService::class)->sendPasswordReset($user, (string) $otp);
 
         return $this->forgotPasswordSuccessResponse();
     }
@@ -66,9 +66,10 @@ class PasswordResetController extends Controller
             'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()->symbols()],
         ]);
 
+        $identifier = mb_strtolower($validated['identifier']);
+
         $user = User::query()
-            ->where('email', $validated['identifier'])
-            ->orWhere('phone', $validated['identifier'])
+            ->where('email', $identifier)
             ->first();
 
         if (! $user) {
@@ -101,6 +102,7 @@ class PasswordResetController extends Controller
 
         $user->update([
             'password' => Hash::make($validated['password']),
+            'email_verified_at' => $user->email_verified_at ?: now(),
         ]);
 
         $user->tokens()->delete();
@@ -122,13 +124,13 @@ class PasswordResetController extends Controller
         return response()->json([
             'success' => true,
             'data' => null,
-            'message' => 'If an account matches that email or phone, an OTP has been sent.',
+            'message' => 'If an account matches that email, a password reset code has been sent.',
             'errors' => null,
         ]);
     }
 
     private function passwordResetIdentifier(User $user): string
     {
-        return $user->email ?: $user->phone;
+        return mb_strtolower((string) $user->email);
     }
 }

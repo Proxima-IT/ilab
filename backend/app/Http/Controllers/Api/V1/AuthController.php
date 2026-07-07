@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Device;
 use App\Models\User;
+use App\Services\AuthEmailService;
+use Carbon\Carbon;
 use Google\Client as GoogleClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -20,14 +23,14 @@ class AuthController extends Controller
     #[OA\Post(
         path: '/api/v1/auth/register',
         summary: 'Register a new student',
-        description: 'Phone number is required. Email is optional. Registration creates an unverified account and sends phone OTP.',
+        description: 'Email is required and phone is optional. Manual registration creates an unverified account and sends an email verification code.',
         tags: ['Authentication'],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
                 required: [
                     'name',
-                    'phone',
+                    'email',
                     'password',
                     'password_confirmation',
                     'device_id',
@@ -42,13 +45,13 @@ class AuthController extends Controller
                     new OA\Property(
                         property: 'phone',
                         type: 'string',
+                        nullable: true,
                         example: '01700000000'
                     ),
                     new OA\Property(
                         property: 'email',
                         type: 'string',
                         format: 'email',
-                        nullable: true,
                         example: 'john@gmail.com'
                     ),
                     new OA\Property(
@@ -85,7 +88,7 @@ class AuthController extends Controller
         ),
         responses: [
             new OA\Response(response: 201, description: 'Registration successful'),
-            new OA\Response(response: 409, description: 'Account exists but phone verification is pending'),
+            new OA\Response(response: 409, description: 'Account exists but email verification is pending'),
             new OA\Response(response: 422, description: 'Validation error')
         ]
     )]
@@ -97,50 +100,82 @@ class AuthController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'phone' => ['required', 'string', 'max:20'],
-            'email' => ['nullable', 'string', 'max:255', 'regex:/^[^\r\n]+$/', 'email:rfc,dns',],
+            'phone' => ['nullable', 'string', 'max:20'],
+            'email' => ['required', 'string', 'max:255', 'regex:/^[^\r\n]+$/', 'email:rfc,dns'],
             'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()->symbols()],
             'device_id' => ['required', 'string', 'max:255'],
             'platform' => ['required', 'string', 'in:web,android,ios'],
             'fcm_token' => ['nullable', 'string', 'max:500'],
         ]);
 
+        $validated['email'] = mb_strtolower($validated['email']);
+
         $existingUser = User::query()
-            ->where('phone', $validated['phone'])
-            ->when(!empty($validated['email']), function ($query) use ($validated) {
-                $query->orWhere('email', $validated['email']);
+            ->where('email', $validated['email'])
+            ->when(!empty($validated['phone']), function ($query) use ($validated) {
+                $query->orWhere('phone', $validated['phone']);
             })
             ->first();
 
         if ($existingUser) {
-            if (is_null($existingUser->phone_verified_at)) {
-                $this->sendPhoneVerificationCode($existingUser);
-
+            if ($existingUser->email !== $validated['email']) {
                 return response()->json([
                     'success' => false,
+                    'data' => null,
+                    'message' => 'This phone number is already connected with another account.',
+                    'errors' => [
+                        'phone' => ['This phone number is already connected with another account.'],
+                    ],
+                ], 422);
+            }
+
+            if ($existingUser->provider === 'google') {
+                return response()->json([
+                    'success' => false,
+                    'data' => null,
+                    'message' => 'This email is already connected with Google login. Please continue with Google.',
+                    'errors' => [
+                        'email' => ['This email is already connected with Google login.'],
+                    ],
+                ], 422);
+            }
+
+            if ($existingUser->role === 'student' && is_null($existingUser->email_verified_at)) {
+                $existingUser->update([
+                    'name' => $validated['name'],
+                    'phone' => $validated['phone'] ?? $existingUser->phone,
+                    'password' => Hash::make($validated['password']),
+                    'status' => true,
+                ]);
+
+                $this->registerDevice($existingUser, $validated);
+                app(AuthEmailService::class)->sendEmailVerification($existingUser->fresh());
+
+                return response()->json([
+                    'success' => true,
                     'data' => [
                         'verification_required' => true,
-                        'phone' => $existingUser->phone,
+                        'email' => $existingUser->email,
                     ],
-                    'message' => 'Account already exists but phone verification is pending. A new verification code has been sent.',
+                    'message' => 'A new verification code has been sent to your email.',
                     'errors' => null,
-                ], 409);
+                ], 200);
             }
 
             return response()->json([
                 'success' => false,
                 'data' => null,
-                'message' => 'An account already exists with this phone number or email.',
+                'message' => 'An account already exists with this email or phone number.',
                 'errors' => [
-                    'phone_or_email' => ['An account already exists with this phone number or email.'],
+                    'email_or_phone' => ['An account already exists with this email or phone number.'],
                 ],
             ], 422);
         }
 
         $user = User::create([
             'name' => $validated['name'],
-            'phone' => $validated['phone'],
-            'email' => $validated['email'] ?? null,
+            'phone' => $validated['phone'] ?? null,
+            'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => 'student',
             'status' => true,
@@ -151,7 +186,7 @@ class AuthController extends Controller
         ]);
 
         $this->registerDevice($user, $validated);
-        $this->sendPhoneVerificationCode($user);
+        app(AuthEmailService::class)->sendEmailVerification($user);
 
         return response()->json([
             'success' => true,
@@ -159,9 +194,9 @@ class AuthController extends Controller
                 'user' => $this->safeUser($user),
                 'verification_required' => true,
                 'profile_completed' => false,
-                'phone_verification_required' => true,
+                'email_verification_required' => true,
             ],
-            'message' => 'Registration successful. A verification code has been sent to your phone number.',
+            'message' => 'Registration successful. A verification code has been sent to your email.',
             'errors' => null,
         ], 201);
     }
@@ -169,7 +204,7 @@ class AuthController extends Controller
     #[OA\Post(
         path: '/api/v1/auth/login',
         summary: 'Login with phone/email and password',
-        description: 'User can login with phone or email. Phone-first accounts must verify phone before token is issued.',
+        description: 'User can login with phone or email. Manual student accounts must verify email before token is issued.',
         tags: ['Authentication'],
         requestBody: new OA\RequestBody(
             required: true,
@@ -187,7 +222,7 @@ class AuthController extends Controller
         ),
         responses: [
             new OA\Response(response: 200, description: 'Login successful'),
-            new OA\Response(response: 403, description: 'Phone verification required or unauthorized portal access'),
+            new OA\Response(response: 403, description: 'Email verification required or unauthorized portal access'),
             new OA\Response(response: 422, description: 'Validation error')
         ]
     )]
@@ -221,16 +256,17 @@ class AuthController extends Controller
             ]);
         }
 
-        if ($this->requiresPhoneVerificationBeforePasswordLogin($user)) {
-            $this->sendPhoneVerificationCode($user);
+        if ($this->requiresEmailVerificationBeforePasswordLogin($user)) {
+            app(AuthEmailService::class)->sendEmailVerification($user);
 
             return response()->json([
                 'success' => false,
                 'data' => [
                     'verification_required' => true,
-                    'phone' => $user->phone,
+                    'email_verification_required' => true,
+                    'email' => $user->email,
                 ],
-                'message' => 'Your phone number is not verified. A new verification code has been sent.',
+                'message' => 'Your email is not verified. A new verification code has been sent.',
                 'errors' => null,
             ], 403);
         }
@@ -242,6 +278,85 @@ class AuthController extends Controller
         }
 
         return $this->issueLoginToken($user, $validated, 'Login successful.');
+    }
+
+    public function verifyEmail(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'string', 'max:255', 'regex:/^[^\r\n]+$/', 'email:rfc,dns'],
+            'otp' => ['required', 'numeric', 'digits:6'],
+            'device_id' => ['required', 'string', 'max:255'],
+            'platform' => ['required', 'string', 'in:web,android,ios'],
+            'fcm_token' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $email = mb_strtolower($validated['email']);
+
+        $record = DB::table('email_verification_tokens')
+            ->where('email', $email)
+            ->first();
+
+        if (
+            ! $record ||
+            ! Hash::check((string) $validated['otp'], $record->token) ||
+            Carbon::parse($record->created_at)->addMinutes(15)->isPast()
+        ) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Invalid or expired verification code.',
+                'errors' => null,
+            ], 400);
+        }
+
+        $user = User::query()
+            ->where('email', $email)
+            ->where('role', 'student')
+            ->first();
+
+        if (! $user) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'No student account was found for this email.',
+                'errors' => null,
+            ], 404);
+        }
+
+        $user->update([
+            'email_verified_at' => $user->email_verified_at ?: now(),
+        ]);
+
+        DB::table('email_verification_tokens')
+            ->where('email', $email)
+            ->delete();
+
+        return $this->issueLoginToken($user->fresh(), $validated, 'Email verified successfully.');
+    }
+
+    public function resendEmailVerification(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'string', 'max:255', 'regex:/^[^\r\n]+$/', 'email:rfc,dns'],
+        ]);
+
+        $email = mb_strtolower($validated['email']);
+
+        $user = User::query()
+            ->where('email', $email)
+            ->where('role', 'student')
+            ->first();
+
+        if ($user && is_null($user->email_verified_at) && $user->provider !== 'google') {
+            app(AuthEmailService::class)->sendEmailVerification($user);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => null,
+            'message' => 'If this email needs verification, a new code has been sent.',
+            'errors' => null,
+        ]);
     }
 
     #[OA\Post(
@@ -419,11 +534,11 @@ class AuthController extends Controller
         ]);
     }
 
-    private function requiresPhoneVerificationBeforePasswordLogin(User $user): bool
+    private function requiresEmailVerificationBeforePasswordLogin(User $user): bool
     {
         return $user->role === 'student'
             && $user->provider !== 'google'
-            && is_null($user->phone_verified_at);
+            && is_null($user->email_verified_at);
     }
 
     private function validatePortalAccess(User $user, string $portal): ?JsonResponse
@@ -493,6 +608,9 @@ class AuthController extends Controller
                 'token_type' => 'Bearer',
                 'profile_completed' => $profileCompleted,
                 'phone_verification_required' => !$profileCompleted,
+                'email_verification_required' => $user->role === 'student'
+                    && $user->provider !== 'google'
+                    && is_null($user->email_verified_at),
             ],
             'message' => $message,
             'errors' => null,
@@ -514,15 +632,6 @@ class AuthController extends Controller
                 'last_active_at' => now(),
             ]
         );
-    }
-
-    private function sendPhoneVerificationCode(User $user): void
-    {
-        /*
-        TODO:
-        Generate OTP, hash it, save it with expiry, throttle resend attempts,
-        then send SMS using queued job.
-        */
     }
 
     private function verifyGoogleIdToken(string $idToken): ?array

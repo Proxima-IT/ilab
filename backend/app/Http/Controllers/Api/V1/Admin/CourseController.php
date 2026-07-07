@@ -92,7 +92,7 @@ class CourseController extends Controller
 
         $instructors = User::query()
             ->select('id', 'name', 'email', 'role')
-            ->whereIn('role', ['admin', 'instructor'])
+            ->where('role', 'instructor')
             ->orderBy('name')
             ->get();
 
@@ -204,9 +204,20 @@ class CourseController extends Controller
             'instructor_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->whereIn('role', ['admin', 'instructor']),
+                Rule::exists('users', 'id')->where('role', 'instructor'),
             ],
         ]);
+
+        if ($request->user()->role !== 'instructor' && empty($validated['instructor_id'])) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Please assign an instructor before creating the course.',
+                'errors' => [
+                    'instructor_id' => ['Please assign an instructor before creating the course.'],
+                ],
+            ], 422);
+        }
 
         if (! $this->isDiscountValid($validated)) {
             return response()->json([
@@ -293,9 +304,20 @@ class CourseController extends Controller
             'instructor_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->whereIn('role', ['admin', 'instructor']),
+                Rule::exists('users', 'id')->where('role', 'instructor'),
             ],
         ]);
+
+        if ($this->canManageInstructor($request->user()) && empty($validated['instructor_id'])) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Please assign an instructor before updating the course.',
+                'errors' => [
+                    'instructor_id' => ['Please assign an instructor before updating the course.'],
+                ],
+            ], 422);
+        }
 
         if (! $this->isDiscountValid($validated)) {
             return response()->json([
@@ -310,7 +332,7 @@ class CourseController extends Controller
 
         $instructorId = $course->instructor_id;
 
-        if ($request->user()->role !== 'instructor') {
+        if ($this->canManageInstructor($request->user())) {
             $instructorId = $validated['instructor_id'] ?? $course->instructor_id;
         }
 
@@ -387,7 +409,7 @@ class CourseController extends Controller
 
     private function canCreateOrUpdate($user): bool
     {
-        return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor', 'content_manager'], true);
+        return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor'], true);
     }
 
     private function canDelete($user): bool
@@ -402,6 +424,11 @@ class CourseController extends Controller
         }
 
         return in_array($user->role, ['super_admin', 'admin', 'manager', 'content_manager'], true);
+    }
+
+    private function canManageInstructor($user): bool
+    {
+        return in_array($user->role, ['super_admin', 'admin', 'manager'], true);
     }
 
     private function resolveInstructorId(Request $request, array $validated): int

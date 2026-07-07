@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Enrollment;
 use App\Models\Lesson;
 use App\Models\Section;
+use App\Models\StudentNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -100,9 +102,12 @@ class LessonController extends Controller
             'order' => $order,
         ]);
 
+        $lesson->load('section.course:id,title,slug');
+        $this->notifyEnrolledStudentsAboutNewLesson($lesson);
+
         return response()->json([
             'success' => true,
-            'data' => $lesson->load('section.course:id,title,slug'),
+            'data' => $lesson,
             'message' => 'Lesson created successfully.',
             'errors' => null,
         ], 201);
@@ -209,5 +214,43 @@ class LessonController extends Controller
             'message' => $message,
             'errors' => null,
         ], 403);
+    }
+
+    private function notifyEnrolledStudentsAboutNewLesson(Lesson $lesson): void
+    {
+        $course = $lesson->section?->course;
+
+        if (! $course) {
+            return;
+        }
+
+        Enrollment::query()
+            ->where('course_id', $course->id)
+            ->where('status', 'active')
+            ->where(function ($query) {
+                $query->whereNull('expires_at')
+                    ->orWhere('expires_at', '>', now());
+            })
+            ->select('user_id')
+            ->distinct()
+            ->chunkById(200, function ($enrollments) use ($course, $lesson) {
+                foreach ($enrollments as $enrollment) {
+                    StudentNotification::createForStudent(
+                        (int) $enrollment->user_id,
+                        'new_lecture',
+                        'New class added',
+                        sprintf('A new class "%s" has been added to %s.', $lesson->title, $course->title),
+                        sprintf('/dashboard/player/%s/%d', $course->slug, $lesson->id),
+                        [
+                            'course_id' => $course->id,
+                            'course_title' => $course->title,
+                            'course_slug' => $course->slug,
+                            'lesson_id' => $lesson->id,
+                            'lesson_title' => $lesson->title,
+                            'section_id' => $lesson->section_id,
+                        ]
+                    );
+                }
+            }, 'user_id', 'user_id');
     }
 }
