@@ -115,6 +115,16 @@ type ThumbnailUploadResponse = ApiResponse<{
   thumbnail: string;
 }>;
 
+function uploadedThumbnailPath(response: ThumbnailUploadResponse): string {
+  const thumbnail = response.data?.thumbnail?.trim();
+
+  if (!thumbnail || thumbnail.replace(/^\/+|\/+$/g, "") === "storage") {
+    throw new Error("Thumbnail uploaded, but the server did not return the image path.");
+  }
+
+  return thumbnail;
+}
+
 export const adminCourseBuilderService = {
   async options() {
     const response = await get<ApiResponse<{ categories: AdminCourseOption[]; instructors: AdminCourseOption[] }>>(
@@ -158,7 +168,7 @@ export const adminCourseBuilderService = {
     }
 
     const response = await upload<ThumbnailUploadResponse>("/admin/courses/thumbnail", formData);
-    return response.data.thumbnail;
+    return uploadedThumbnailPath(response);
   },
 
   async createSection(payload: { course_id: number; title: string; order?: number; unlock_at?: string | null }) {

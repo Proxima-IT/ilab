@@ -153,14 +153,40 @@ export function backendSiteUrl(): string {
   return apiBase.replace(/\/api\/v\d+\/?$/, "").replace(/\/+$/, "");
 }
 
+export function storageSiteUrl(): string {
+  const explicit = import.meta.env.VITE_STORAGE_URL as string | undefined;
+
+  if (explicit) {
+    return explicit.replace(/\/+$/, "");
+  }
+
+  return `${backendSiteUrl()}/storage`;
+}
+
 export function imageUrl(path?: string | null): string {
   if (!path) return FALLBACK_COVER;
 
   if (/^https?:\/\//i.test(path)) {
+    const storagePath = path.match(/\/storage\/(.+)$/i)?.[1];
+
+    if (storagePath) {
+      return `${storageSiteUrl()}/${storagePath.replace(/^\/+/, "")}`;
+    }
+
     return path;
   }
 
-  return `${backendSiteUrl()}/${path.replace(/^\/+/, "")}`;
+  const cleanPath = path.replace(/^\/+|\/+$/g, "");
+
+  if (!cleanPath || cleanPath === "storage") {
+    return FALLBACK_COVER;
+  }
+
+  if (cleanPath.startsWith("storage/")) {
+    return `${storageSiteUrl()}/${cleanPath.replace(/^storage\/+/, "")}`;
+  }
+
+  return `${backendSiteUrl()}/${cleanPath}`;
 }
 
 export function toNumber(value: string | number | null | undefined): number {
