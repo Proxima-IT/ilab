@@ -155,6 +155,15 @@ class CourseController extends Controller
 
         $path = $validated['thumbnail']->store('courses', 'public');
 
+        if (! $path) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Course thumbnail could not be saved. Please check server storage permission.',
+                'errors' => null,
+            ], 500);
+        }
+
         if (
             ! empty($validated['old_thumbnail'])
             && str_starts_with($validated['old_thumbnail'], 'storage/courses/')
@@ -478,5 +487,4 @@ class CourseController extends Controller
         ], 403);
     }
 }
-
 
