@@ -345,6 +345,9 @@ Route::prefix('v1')->group(function () {
                 */
                 Route::get('/coupons/options', [CouponController::class, 'options']);
                 Route::apiResource('coupons', CouponController::class)->except(['show']);
+                Route::get('/pending-payments', [AdminEnrollmentController::class, 'pendingPayments']);
+                Route::put('/pending-payments/{payment}/approve', [AdminEnrollmentController::class, 'approvePendingPayment']);
+                Route::put('/pending-payments/{payment}/reject', [AdminEnrollmentController::class, 'rejectPendingPayment']);
                 Route::get('/enrollments/options', [AdminEnrollmentController::class, 'options']);
                 Route::apiResource('enrollments', AdminEnrollmentController::class)->except(['show']);
                 Route::prefix('qna')
@@ -373,5 +376,4 @@ Route::prefix('v1')->group(function () {
             });
     });
 });
-
 

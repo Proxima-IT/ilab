@@ -35,6 +35,7 @@ return [
     'uddoktapay' => [
         'api_key' => env('UDDOKTAPAY_API_KEY'),
         'payment_domain' => env('UDDOKTAPAY_PAYMENT_DOMAIN', 'https://sandbox.uddoktapay.com'),
+        'currency' => env('UDDOKTAPAY_CURRENCY', 'BDT'),
         'pending_payment_expires_minutes' => env('UDDOKTAPAY_PENDING_PAYMENT_EXPIRES_MINUTES', 30),
         'checkout_endpoint' => '/api/checkout-v2',
         'verify_endpoint' => '/api/verify-payment',

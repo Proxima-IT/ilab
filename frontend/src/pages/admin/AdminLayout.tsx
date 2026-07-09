@@ -24,6 +24,7 @@ import {
   Ticket,
   CalendarRange,
   ShoppingBag,
+  Landmark,
   LogOut,
   Loader2,
   Mail,
@@ -113,6 +114,13 @@ const NAV: { group: string; items: NavItem[] }[] = [
         description: "Student course access",
         icon: ShoppingBag,
         superOnly: true,
+      },
+      {
+        to: "/admin/pending-payments",
+        label: "Pending Payments",
+        description: "Approve bank payments",
+        icon: Landmark,
+        allowedRoles: ["super_admin", "admin"],
       },
       {
         to: "/admin/certificates",

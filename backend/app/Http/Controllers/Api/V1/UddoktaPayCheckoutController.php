@@ -265,6 +265,7 @@ class UddoktaPayCheckoutController extends Controller
             'full_name' => $user->name,
             'email' => $user->email ?? 'student@domainname.com',
             'amount' => number_format($payableAmount, 2, '.', ''),
+            'currency' => config('services.uddoktapay.currency', 'BDT'),
             'metadata' => [
                 'payment_id' => $payment->id,
                 'user_id' => $user->id,

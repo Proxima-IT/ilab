@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api\V1\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Payment;
+use App\Models\StudentNotification;
 use App\Support\AdminNotificationDispatcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -293,6 +295,163 @@ class EnrollmentController extends Controller
         ]);
     }
 
+    public function pendingPayments(Request $request): JsonResponse
+    {
+        if (! $this->canModifyEnrollment($request->user())) {
+            return $this->forbiddenResponse('Access denied. Only Super Admin and Admin can review pending payments.');
+        }
+
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100', 'regex:/^[^\r\n]+$/'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $payments = Payment::query()
+            ->with(['user:id,name,email,phone,avatar', 'course:id,title,slug,thumbnail'])
+            ->where('method', 'uddoktapay')
+            ->where('status', 'pending')
+            ->when(! empty($validated['search']), function ($query) use ($validated) {
+                $query->where(function ($subQuery) use ($validated) {
+                    $subQuery
+                        ->where('transaction_id', 'like', '%' . $validated['search'] . '%')
+                        ->orWhereHas('user', function ($userQuery) use ($validated) {
+                            $userQuery
+                                ->where('name', 'like', '%' . $validated['search'] . '%')
+                                ->orWhere('email', 'like', '%' . $validated['search'] . '%')
+                                ->orWhere('phone', 'like', '%' . $validated['search'] . '%');
+                        })
+                        ->orWhereHas('course', function ($courseQuery) use ($validated) {
+                            $courseQuery->where('title', 'like', '%' . $validated['search'] . '%');
+                        });
+                });
+            })
+            ->orderByDesc('created_at')
+            ->paginate($validated['per_page'] ?? 20)
+            ->through(fn (Payment $payment) => $this->pendingPaymentPayload($payment));
+
+        return response()->json([
+            'success' => true,
+            'data' => $payments,
+            'message' => 'Pending payments retrieved successfully.',
+            'errors' => null,
+        ]);
+    }
+
+    public function approvePendingPayment(Request $request, Payment $payment): JsonResponse
+    {
+        if (! $this->canModifyEnrollment($request->user())) {
+            return $this->forbiddenResponse('Access denied. Only Super Admin and Admin can approve pending payments.');
+        }
+
+        if ($payment->method !== 'uddoktapay' || $payment->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Only pending UddoktaPay payments can be approved.',
+                'errors' => null,
+            ], 422);
+        }
+
+        $approved = DB::transaction(function () use ($payment, $request) {
+            $lockedPayment = Payment::query()
+                ->whereKey($payment->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedPayment->status !== 'pending') {
+                return $lockedPayment;
+            }
+
+            DB::table('enrollments')->updateOrInsert(
+                [
+                    'user_id' => $lockedPayment->user_id,
+                    'course_id' => $lockedPayment->course_id,
+                ],
+                [
+                    'enrolled_price' => $lockedPayment->amount,
+                    'status' => 'active',
+                    'progress_percentage' => 0,
+                    'enrolled_at' => now(),
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
+            );
+
+            $lockedPayment->update([
+                'status' => 'completed',
+                'gateway_response' => array_merge($lockedPayment->gateway_response ?? [], [
+                    'admin_approval' => [
+                        'approved_by' => $request->user()->id,
+                        'approved_at' => now()->toISOString(),
+                    ],
+                ]),
+            ]);
+
+            AdminNotificationDispatcher::newEnrollment(
+                (int) $lockedPayment->user_id,
+                (int) $lockedPayment->course_id,
+                (float) $lockedPayment->amount
+            );
+
+            $this->notifyStudentEnrollment((int) $lockedPayment->user_id, (int) $lockedPayment->course_id);
+
+            return $lockedPayment->fresh(['user:id,name,email,phone,avatar', 'course:id,title,slug,thumbnail']);
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->pendingPaymentPayload($approved),
+            'message' => 'Payment approved and student enrolled successfully.',
+            'errors' => null,
+        ]);
+    }
+
+    public function rejectPendingPayment(Request $request, Payment $payment): JsonResponse
+    {
+        if (! $this->canModifyEnrollment($request->user())) {
+            return $this->forbiddenResponse('Access denied. Only Super Admin and Admin can reject pending payments.');
+        }
+
+        if ($payment->method !== 'uddoktapay' || $payment->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'Only pending UddoktaPay payments can be rejected.',
+                'errors' => null,
+            ], 422);
+        }
+
+        $rejected = DB::transaction(function () use ($payment, $request) {
+            $lockedPayment = Payment::query()
+                ->whereKey($payment->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedPayment->status !== 'pending') {
+                return $lockedPayment;
+            }
+
+            $lockedPayment->update([
+                'status' => 'failed',
+                'gateway_response' => array_merge($lockedPayment->gateway_response ?? [], [
+                    'admin_rejection' => [
+                        'rejected_by' => $request->user()->id,
+                        'rejected_at' => now()->toISOString(),
+                    ],
+                ]),
+            ]);
+
+            return $lockedPayment->fresh(['user:id,name,email,phone,avatar', 'course:id,title,slug,thumbnail']);
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->pendingPaymentPayload($rejected),
+            'message' => 'Pending payment rejected successfully.',
+            'errors' => null,
+        ]);
+    }
+
     private function canView($user): bool
     {
         return in_array($user->role, ['super_admin', 'admin', 'manager', 'instructor'], true);
@@ -311,6 +470,78 @@ class EnrollmentController extends Controller
     private function canDeleteEnrollment($user): bool
     {
         return in_array($user->role, ['super_admin', 'admin'], true);
+    }
+
+    private function pendingPaymentPayload(Payment $payment): array
+    {
+        $gatewayResponse = $payment->gateway_response ?? [];
+        $verifiedResponse = $gatewayResponse['verified_response'] ?? [];
+        $initResponse = $gatewayResponse['init_response'] ?? [];
+
+        return [
+            'id' => $payment->id,
+            'user_id' => $payment->user_id,
+            'course_id' => $payment->course_id,
+            'amount' => (float) $payment->amount,
+            'status' => $payment->status,
+            'transaction_id' => $payment->transaction_id,
+            'gateway_invoice_id' => $verifiedResponse['invoice_id']
+                ?? $initResponse['invoice_id']
+                ?? $payment->transaction_id,
+            'gateway_status' => $verifiedResponse['status'] ?? null,
+            'payment_method' => $verifiedResponse['payment_method']
+                ?? $verifiedResponse['gateway']
+                ?? $verifiedResponse['gateway_name']
+                ?? null,
+            'sender_number' => $verifiedResponse['sender_number'] ?? null,
+            'created_at' => $payment->created_at,
+            'updated_at' => $payment->updated_at,
+            'student' => $payment->user ? [
+                'id' => $payment->user->id,
+                'name' => $payment->user->name,
+                'email' => $payment->user->email,
+                'phone' => $payment->user->phone,
+                'avatar' => $payment->user->avatar,
+            ] : null,
+            'course' => $payment->course ? [
+                'id' => $payment->course->id,
+                'title' => $payment->course->title,
+                'slug' => $payment->course->slug,
+                'thumbnail' => $payment->course->thumbnail,
+            ] : null,
+        ];
+    }
+
+    private function notifyStudentEnrollment(int $userId, int $courseId): void
+    {
+        $course = DB::table('courses')
+            ->select('id', 'title', 'slug')
+            ->where('id', $courseId)
+            ->first();
+
+        if (! $course) {
+            return;
+        }
+
+        $firstLessonId = DB::table('lessons')
+            ->join('sections', 'sections.id', '=', 'lessons.section_id')
+            ->where('sections.course_id', $course->id)
+            ->orderBy('sections.order')
+            ->orderBy('lessons.order')
+            ->value('lessons.id');
+
+        StudentNotification::createForStudent(
+            $userId,
+            'admin_message',
+            'Enrollment confirmed',
+            'Your bank payment was approved. You are now enrolled in ' . $course->title . '.',
+            $firstLessonId ? '/dashboard/player/' . $course->slug . '/' . $firstLessonId : '/dashboard/my-courses',
+            [
+                'course_id' => $course->id,
+                'course_slug' => $course->slug,
+                'first_lesson_id' => $firstLessonId,
+            ]
+        );
     }
 
     private function forbiddenResponse(string $message): JsonResponse

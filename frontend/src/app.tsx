@@ -40,6 +40,7 @@ import AdminCategories from "@/pages/admin/AdminCategories";
 import AdminInstructors from "@/pages/admin/AdminInstructors";
 import AdminPromoCodes from "@/pages/admin/AdminPromoCodes";
 import AdminEnrollments from "@/pages/admin/AdminEnrollments";
+import AdminPendingPayments from "@/pages/admin/AdminPendingPayments";
 import AdminBlog from "@/pages/admin/AdminBlog";
 import AdminEvents from "@/pages/admin/AdminEvents";
 import AdminReviews from "@/pages/admin/AdminReviews";
@@ -158,6 +159,7 @@ export default function App() {
             <Route path="instructors" element={<AdminInstructors />} />
             <Route path="promo-codes" element={<AdminPromoCodes />} />
             <Route path="enrollments" element={<AdminEnrollments />} />
+            <Route path="pending-payments" element={<AdminPendingPayments />} />
             <Route path="blog" element={<AdminBlog />} />
             <Route path="events" element={<AdminEvents />} />
             <Route path="reviews" element={<AdminReviews />} />
