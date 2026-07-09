@@ -11,6 +11,15 @@ export type AdminPendingPayment = {
   gateway_status?: string | null;
   payment_method?: string | null;
   sender_number?: string | null;
+  bank_details?: {
+    bank_name?: string | null;
+    account_name?: string | null;
+    account_number?: string | null;
+    branch_name?: string | null;
+    routing_number?: string | null;
+    swift_code?: string | null;
+    reference?: string | null;
+  } | null;
   created_at: string;
   updated_at?: string | null;
   student?: {

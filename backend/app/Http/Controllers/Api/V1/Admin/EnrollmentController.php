@@ -311,6 +311,15 @@ class EnrollmentController extends Controller
             ->where('method', 'uddoktapay')
             ->where('status', 'pending')
             ->whereNotNull('gateway_response->verified_response')
+            ->where(function ($query) {
+                $query
+                    ->where('gateway_response->pending_type', 'bank')
+                    ->orWhereNotNull('gateway_response->bank_details->account_number')
+                    ->orWhereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(gateway_response, '$.payment_method'))) LIKE '%bank%'")
+                    ->orWhereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(gateway_response, '$.verified_response.payment_method'))) LIKE '%bank%'")
+                    ->orWhereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(gateway_response, '$.verified_response.gateway'))) LIKE '%bank%'")
+                    ->orWhereRaw("LOWER(JSON_UNQUOTE(JSON_EXTRACT(gateway_response, '$.verified_response.gateway_name'))) LIKE '%bank%'");
+            })
             ->when(! empty($validated['search']), function ($query) use ($validated) {
                 $query->where(function ($subQuery) use ($validated) {
                     $subQuery
@@ -478,6 +487,7 @@ class EnrollmentController extends Controller
         $gatewayResponse = $payment->gateway_response ?? [];
         $verifiedResponse = $gatewayResponse['verified_response'] ?? [];
         $initResponse = $gatewayResponse['init_response'] ?? [];
+        $bankDetails = $gatewayResponse['bank_details'] ?? $this->bankDetailsFromPayload($verifiedResponse);
 
         return [
             'id' => $payment->id,
@@ -493,8 +503,10 @@ class EnrollmentController extends Controller
             'payment_method' => $verifiedResponse['payment_method']
                 ?? $verifiedResponse['gateway']
                 ?? $verifiedResponse['gateway_name']
+                ?? $gatewayResponse['payment_method']
                 ?? null,
             'sender_number' => $verifiedResponse['sender_number'] ?? null,
+            'bank_details' => $bankDetails,
             'created_at' => $payment->created_at,
             'updated_at' => $payment->updated_at,
             'student' => $payment->user ? [
@@ -511,6 +523,38 @@ class EnrollmentController extends Controller
                 'thumbnail' => $payment->course->thumbnail,
             ] : null,
         ];
+    }
+
+    private function bankDetailsFromPayload(array $payload): array
+    {
+        return array_filter([
+            'bank_name' => $this->firstPayloadValue($payload, ['bank_name', 'bank']),
+            'account_name' => $this->firstPayloadValue($payload, ['account_name', 'account_holder', 'holder_name']),
+            'account_number' => $this->firstPayloadValue($payload, ['account_number', 'bank_account', 'account_no']),
+            'branch_name' => $this->firstPayloadValue($payload, ['branch_name', 'branch']),
+            'routing_number' => $this->firstPayloadValue($payload, ['routing_number', 'routing']),
+            'swift_code' => $this->firstPayloadValue($payload, ['swift_code', 'swift']),
+            'reference' => $this->firstPayloadValue($payload, ['transaction_id', 'trx_id', 'reference', 'invoice_id']),
+        ], fn ($value) => filled($value));
+    }
+
+    private function firstPayloadValue(array $payload, array $keys): ?string
+    {
+        foreach ($payload as $key => $value) {
+            if (in_array(strtolower((string) $key), $keys, true) && (is_string($value) || is_numeric($value))) {
+                return (string) $value;
+            }
+
+            if (is_array($value)) {
+                $nested = $this->firstPayloadValue($value, $keys);
+
+                if ($nested !== null) {
+                    return $nested;
+                }
+            }
+        }
+
+        return null;
     }
 
     private function notifyStudentEnrollment(int $userId, int $courseId): void

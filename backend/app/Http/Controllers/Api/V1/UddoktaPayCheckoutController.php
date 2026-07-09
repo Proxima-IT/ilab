@@ -379,7 +379,10 @@ class UddoktaPayCheckoutController extends Controller
             $this->completeVerifiedPayment($verified, $request->all());
         } elseif (($verified['status'] ?? null) === 'ERROR') {
             $this->failVerifiedPayment($verified, $request->all());
-        } elseif ($this->isGatewayPendingStatus($verified['status'] ?? null)) {
+        } elseif (
+            $this->isGatewayPendingStatus($verified['status'] ?? null)
+            && $this->isBankPaymentPayload($verified)
+        ) {
             $this->recordPendingVerifiedPayment($verified, $request->all());
         }
 
@@ -409,7 +412,13 @@ class UddoktaPayCheckoutController extends Controller
         }
 
         if ($this->isGatewayPendingStatus($verified['status'] ?? null)) {
-            $this->recordPendingVerifiedPayment($verified, $request->query());
+            if ($this->isBankPaymentPayload($verified)) {
+                $payment = $this->recordPendingVerifiedPayment($verified, $request->query());
+
+                return redirect($this->frontendUrl('/enroll/success?invoice_id=' . urlencode($payment?->id ?? $invoiceId) . '&payment=pending'));
+            }
+
+            return redirect($this->frontendUrl('/courses?payment=pending'));
         }
 
         return redirect($this->frontendUrl('/dashboard/my-courses?payment=pending'));
@@ -554,6 +563,10 @@ class UddoktaPayCheckoutController extends Controller
 
     private function recordPendingVerifiedPayment(array $verified, array $sourcePayload = []): ?Payment
     {
+        if (! $this->isBankPaymentPayload($verified)) {
+            return $this->findPaymentFromGatewayPayload($verified);
+        }
+
         return DB::transaction(function () use ($verified, $sourcePayload) {
             $payment = $this->findPaymentFromGatewayPayload($verified, true);
 
@@ -576,6 +589,8 @@ class UddoktaPayCheckoutController extends Controller
                     'verified_response' => $verified,
                     'pending_source' => $sourcePayload,
                     'pending_recorded_at' => now()->toISOString(),
+                    'pending_type' => 'bank',
+                    'bank_details' => $this->bankDetailsFromGatewayPayload($verified),
                     'payment_method' => $verified['payment_method'] ?? $verified['gateway'] ?? $verified['gateway_name'] ?? null,
                     'sender_number' => $verified['sender_number'] ?? null,
                     'gateway_transaction_id' => $verified['transaction_id'] ?? null,
@@ -794,6 +809,76 @@ class UddoktaPayCheckoutController extends Controller
     private function isGatewayPendingStatus(?string $status): bool
     {
         return in_array(strtoupper((string) $status), ['PENDING', 'PROCESSING', 'WAITING', 'UNDER_REVIEW'], true);
+    }
+
+    private function isBankPaymentPayload(array $payload): bool
+    {
+        foreach ($this->flattenPayloadStrings($payload) as $value) {
+            $normalized = strtolower($value);
+
+            if (
+                str_contains($normalized, 'bank')
+                || str_contains($normalized, 'account_number')
+                || str_contains($normalized, 'routing_number')
+                || str_contains($normalized, 'swift')
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function bankDetailsFromGatewayPayload(array $payload): array
+    {
+        return array_filter([
+            'bank_name' => $this->firstPayloadValue($payload, ['bank_name', 'bank']),
+            'account_name' => $this->firstPayloadValue($payload, ['account_name', 'account_holder', 'holder_name']),
+            'account_number' => $this->firstPayloadValue($payload, ['account_number', 'bank_account', 'account_no']),
+            'branch_name' => $this->firstPayloadValue($payload, ['branch_name', 'branch']),
+            'routing_number' => $this->firstPayloadValue($payload, ['routing_number', 'routing']),
+            'swift_code' => $this->firstPayloadValue($payload, ['swift_code', 'swift']),
+            'reference' => $this->firstPayloadValue($payload, ['transaction_id', 'trx_id', 'reference', 'invoice_id']),
+        ], fn ($value) => filled($value));
+    }
+
+    private function firstPayloadValue(array $payload, array $keys): ?string
+    {
+        foreach ($payload as $key => $value) {
+            if (in_array(strtolower((string) $key), $keys, true) && (is_string($value) || is_numeric($value))) {
+                return (string) $value;
+            }
+
+            if (is_array($value)) {
+                $nested = $this->firstPayloadValue($value, $keys);
+
+                if ($nested !== null) {
+                    return $nested;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function flattenPayloadStrings($value): array
+    {
+        if (is_string($value) || is_numeric($value)) {
+            return [(string) $value];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $strings = [];
+
+        foreach ($value as $key => $item) {
+            $strings[] = (string) $key;
+            $strings = array_merge($strings, $this->flattenPayloadStrings($item));
+        }
+
+        return $strings;
     }
 
     private function createEnrollment($userId, $courseId, $price): void

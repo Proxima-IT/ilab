@@ -185,6 +185,16 @@ export default function AdminPendingPayments() {
                       {payment.sender_number && (
                         <p className="mt-0.5 text-xs text-zinc-500">Sender: {payment.sender_number}</p>
                       )}
+                      {payment.bank_details && (
+                        <div className="mt-2 space-y-0.5 rounded-lg border border-zinc-800 bg-zinc-950/80 p-2 text-xs text-zinc-400">
+                          {payment.bank_details.bank_name && <p>Bank: {payment.bank_details.bank_name}</p>}
+                          {payment.bank_details.account_name && <p>Account name: {payment.bank_details.account_name}</p>}
+                          {payment.bank_details.account_number && <p>Account no: {payment.bank_details.account_number}</p>}
+                          {payment.bank_details.branch_name && <p>Branch: {payment.bank_details.branch_name}</p>}
+                          {payment.bank_details.routing_number && <p>Routing: {payment.bank_details.routing_number}</p>}
+                          {payment.bank_details.reference && <p>Reference: {payment.bank_details.reference}</p>}
+                        </div>
+                      )}
                     </td>
                     <td className="px-4 py-4 text-xs text-zinc-500">{dateTime(payment.created_at)}</td>
                     <td className="px-4 py-4">
