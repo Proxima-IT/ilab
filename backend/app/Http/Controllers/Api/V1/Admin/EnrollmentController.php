@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\StudentNotification;
+use App\Services\PaymentInvoiceEmailService;
 use App\Support\AdminNotificationDispatcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -407,6 +408,8 @@ class EnrollmentController extends Controller
 
             return $lockedPayment->fresh(['user:id,name,email,phone,avatar', 'course:id,title,slug,thumbnail']);
         });
+
+        app(PaymentInvoiceEmailService::class)->sendIfNeeded($approved);
 
         return response()->json([
             'success' => true,
