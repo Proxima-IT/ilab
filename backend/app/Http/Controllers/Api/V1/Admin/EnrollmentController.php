@@ -310,6 +310,7 @@ class EnrollmentController extends Controller
             ->with(['user:id,name,email,phone,avatar', 'course:id,title,slug,thumbnail'])
             ->where('method', 'uddoktapay')
             ->where('status', 'pending')
+            ->whereNotNull('gateway_response->verified_response')
             ->when(! empty($validated['search']), function ($query) use ($validated) {
                 $query->where(function ($subQuery) use ($validated) {
                     $subQuery

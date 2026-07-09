@@ -379,6 +379,8 @@ class UddoktaPayCheckoutController extends Controller
             $this->completeVerifiedPayment($verified, $request->all());
         } elseif (($verified['status'] ?? null) === 'ERROR') {
             $this->failVerifiedPayment($verified, $request->all());
+        } elseif ($this->isGatewayPendingStatus($verified['status'] ?? null)) {
+            $this->recordPendingVerifiedPayment($verified, $request->all());
         }
 
         return response()->json(['message' => 'Processed']);
@@ -404,6 +406,10 @@ class UddoktaPayCheckoutController extends Controller
             $this->failVerifiedPayment($verified, $request->query());
 
             return redirect($this->frontendUrl('/courses?payment=failed'));
+        }
+
+        if ($this->isGatewayPendingStatus($verified['status'] ?? null)) {
+            $this->recordPendingVerifiedPayment($verified, $request->query());
         }
 
         return redirect($this->frontendUrl('/dashboard/my-courses?payment=pending'));
@@ -544,6 +550,40 @@ class UddoktaPayCheckoutController extends Controller
         ], 'failed');
 
         return $payment->fresh();
+    }
+
+    private function recordPendingVerifiedPayment(array $verified, array $sourcePayload = []): ?Payment
+    {
+        return DB::transaction(function () use ($verified, $sourcePayload) {
+            $payment = $this->findPaymentFromGatewayPayload($verified, true);
+
+            if (! $payment || $payment->status !== 'pending') {
+                return $payment;
+            }
+
+            if (! $this->metadataMatchesPayment($verified['metadata'] ?? [], $payment)) {
+                Log::warning('UddoktaPay pending metadata mismatch.', [
+                    'payment_id' => $payment->id,
+                    'metadata' => $verified['metadata'] ?? [],
+                ]);
+
+                return $payment;
+            }
+
+            $payment->update([
+                'transaction_id' => $verified['invoice_id'] ?? $verified['transaction_id'] ?? $payment->transaction_id,
+                'gateway_response' => array_merge($payment->gateway_response ?? [], [
+                    'verified_response' => $verified,
+                    'pending_source' => $sourcePayload,
+                    'pending_recorded_at' => now()->toISOString(),
+                    'payment_method' => $verified['payment_method'] ?? $verified['gateway'] ?? $verified['gateway_name'] ?? null,
+                    'sender_number' => $verified['sender_number'] ?? null,
+                    'gateway_transaction_id' => $verified['transaction_id'] ?? null,
+                ]),
+            ]);
+
+            return $payment->fresh();
+        }, 5);
     }
 
     private function verifyGatewayPayment(string $invoiceId): array
@@ -701,6 +741,7 @@ class UddoktaPayCheckoutController extends Controller
         Payment::query()
             ->where('status', 'pending')
             ->where('method', 'uddoktapay')
+            ->whereNull('gateway_response->verified_response')
             ->where('created_at', '<', now()->subMinutes($minutes))
             ->orderBy('created_at')
             ->limit(100)
@@ -748,6 +789,11 @@ class UddoktaPayCheckoutController extends Controller
     private function moneyValue($value): float
     {
         return (float) str_replace(',', '', (string) ($value ?? 0));
+    }
+
+    private function isGatewayPendingStatus(?string $status): bool
+    {
+        return in_array(strtoupper((string) $status), ['PENDING', 'PROCESSING', 'WAITING', 'UNDER_REVIEW'], true);
     }
 
     private function createEnrollment($userId, $courseId, $price): void
