@@ -36,9 +36,8 @@ class BlogPostController extends Controller
         $posts = BlogPost::query()
             ->with(['category:id,name,slug', 'author:id,name,avatar'])
             ->where('is_published', true)
-            ->whereNotNull('published_at')
-            ->where('published_at', '<=', now())
             ->latest('published_at')
+            ->latest('created_at')
             ->paginate($validated['per_page'] ?? 12);
 
         return response()->json([
@@ -80,8 +79,6 @@ class BlogPostController extends Controller
             ->with(['category:id,name,slug', 'author:id,name,avatar'])
             ->where('slug', $slug)
             ->where('is_published', true)
-            ->whereNotNull('published_at')
-            ->where('published_at', '<=', now())
             ->firstOrFail();
 
         return response()->json([
