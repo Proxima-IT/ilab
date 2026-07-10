@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Calendar } from "lucide-react";
+import { ArrowLeft, Calendar, UserRound } from "lucide-react";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { fetchPostBySlug, fetchPosts, type BlogPost } from "@/services/blog";
 import { applyJsonLd, applySeo, breadcrumbSchema, siteUrl } from "@/lib/seo";
+import { renderBlogContent } from "@/lib/blog-bbcode";
 
 function applyPostSeo(post: BlogPost) {
   applySeo({
@@ -115,8 +116,8 @@ export default function BlogPostPage() {
       <Header />
 
       <article className="pt-28 pb-16">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-          <Link to="/blog" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+          <Link to="/blog" className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" /> All posts
           </Link>
 
@@ -126,36 +127,45 @@ export default function BlogPostPage() {
             transition={{ duration: 0.4 }}
             className="mt-6"
           >
-            <span className="rounded-full bg-primary/10 text-primary-dark px-2.5 py-1 text-xs font-semibold">
-              {post.category}
-            </span>
-            <h1 className="mt-4 text-3xl md:text-5xl font-extrabold tracking-tight text-foreground leading-tight">
-              {post.title}
-            </h1>
-            <p className="mt-4 text-lg text-muted-foreground">{post.excerpt}</p>
-
-            <div className="mt-6 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-              <img src={post.author.avatar} alt={post.author.name} className="h-9 w-9 rounded-full object-cover" />
-              <span className="font-semibold text-foreground">{post.author.name}</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-full bg-primary/10 text-primary-dark px-3 py-1.5 text-xs font-bold">
+                {post.category}
+              </span>
               {post.date && (
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4" /> {post.date}
                 </span>
               )}
             </div>
+            <h1 className="mt-5 text-3xl md:text-5xl font-extrabold tracking-tight text-foreground leading-tight">
+              {post.title}
+            </h1>
+            <p className="mt-5 max-w-3xl text-lg md:text-xl leading-relaxed text-muted-foreground">{post.excerpt}</p>
+
+            <div className="mt-7 inline-flex items-center gap-3 rounded-full border border-border bg-card px-3 py-2 shadow-sm">
+              {post.author.avatar ? (
+                <img src={post.author.avatar} alt={post.author.name} className="h-10 w-10 rounded-full object-cover" />
+              ) : (
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary">
+                  <UserRound className="h-5 w-5" />
+                </span>
+              )}
+              <div>
+                <p className="text-xs text-muted-foreground">Written by</p>
+                <p className="text-sm font-bold text-foreground">{post.author.name}</p>
+              </div>
+            </div>
           </motion.header>
         </div>
 
-        <div className="mt-10 mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <img src={post.cover} alt={post.title} className="rounded-3xl aspect-[16/8] w-full object-cover shadow-card" />
+        <div className="mt-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+          <img src={post.cover} alt={post.title} className="aspect-[16/9] w-full rounded-2xl object-cover shadow-card md:rounded-3xl" />
         </div>
 
-        <div className="mt-12 mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 space-y-6">
-          {post.content.map((paragraph, index) => (
-            <p key={index} className="text-lg leading-relaxed text-foreground/90">
-              {paragraph}
-            </p>
-          ))}
+        <div className="mt-12 mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+          <div className="space-y-6">
+            {renderBlogContent(post.content)}
+          </div>
         </div>
       </article>
 

@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ImagePlus, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Bold, Heading1, Heading2, ImagePlus, Italic, Link as LinkIcon, List, Loader2, Pencil, Plus, Quote, Table2, Trash2, Type, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { AdminDeleteModal } from "@/components/admin/AdminDeleteModal";
 import { imageUrl } from "@/services/course-catalog.service";
+import { renderBlogContent } from "@/lib/blog-bbcode";
 
 type AdminBlogPost = {
   id: number;
@@ -119,6 +120,54 @@ function toPayload(form: BlogForm) {
     is_published: form.is_published,
   };
 }
+
+const contentSnippets = [
+  {
+    label: "Heading",
+    icon: Heading1,
+    value: "[h1]Main section heading[/h1]",
+  },
+  {
+    label: "Sub heading",
+    icon: Heading2,
+    value: "[h2]Sub heading[/h2]",
+  },
+  {
+    label: "Big text",
+    icon: Type,
+    value: "[big]Important sentence or introduction text.[/big]",
+  },
+  {
+    label: "List",
+    icon: List,
+    value: "[ul]\n[li]First point[/li]\n[li]Second point[/li]\n[li]Third point[/li]\n[/ul]",
+  },
+  {
+    label: "Table",
+    icon: Table2,
+    value: "[table]\n[tr][th]Topic[/th][th]Details[/th][/tr]\n[tr][td]Example[/td][td]Write details here[/td][/tr]\n[/table]",
+  },
+  {
+    label: "Quote",
+    icon: Quote,
+    value: "[quote]Write an important quote or note here.[/quote]",
+  },
+  {
+    label: "Bold",
+    icon: Bold,
+    value: "[b]bold text[/b]",
+  },
+  {
+    label: "Italic",
+    icon: Italic,
+    value: "[i]italic text[/i]",
+  },
+  {
+    label: "Link",
+    icon: LinkIcon,
+    value: "[link=https://example.com]Link text[/link]",
+  },
+];
 
 export default function AdminBlog() {
   const [posts, setPosts] = useState<AdminBlogPost[]>([]);
@@ -255,6 +304,15 @@ export default function AdminBlog() {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
+  const insertContentSnippet = (snippet: string) => {
+    setForm((current) => ({
+      ...current,
+      content: current.content.trim()
+        ? `${current.content.trim()}\n\n${snippet}`
+        : snippet,
+    }));
+  };
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
@@ -384,7 +442,51 @@ export default function AdminBlog() {
                 </label>
               </div>
               <Textarea placeholder="Excerpt" value={form.excerpt} onChange={(event) => updateField("excerpt", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
-              <Textarea placeholder="Content. Use blank lines between paragraphs." value={form.content} onChange={(event) => updateField("content", event.target.value)} className="min-h-44 border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
+              <div className="md:col-span-2">
+                <div className="rounded-xl border border-zinc-800 bg-zinc-900/80 p-3">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    {contentSnippets.map((snippet) => {
+                      const Icon = snippet.icon;
+
+                      return (
+                        <button
+                          key={snippet.label}
+                          type="button"
+                          onClick={() => insertContentSnippet(snippet.value)}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-950 px-2.5 py-1.5 text-xs font-semibold text-zinc-200 transition hover:border-primary hover:text-white"
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                          {snippet.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <Textarea
+                    placeholder={"Content. Use blank lines between paragraphs.\n\nExample:\n[h1]Heading[/h1]\n\n[big]Important text[/big]\n\n[ul]\n[li]Point one[/li]\n[li]Point two[/li]\n[/ul]"}
+                    value={form.content}
+                    onChange={(event) => updateField("content", event.target.value)}
+                    className="min-h-64 border-zinc-700 bg-zinc-950 font-mono text-sm text-white"
+                  />
+                  <div className="mt-3 grid gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3 text-xs text-zinc-400 sm:grid-cols-2">
+                    <div>
+                      <p className="font-semibold text-zinc-200">Simple format</p>
+                      <p className="mt-1">Use buttons above. Keep one blank line between each block.</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-zinc-200">Inline format</p>
+                      <p className="mt-1">Use [b]bold[/b], [i]italic[/i], or [link=https://example.com]link[/link].</p>
+                    </div>
+                  </div>
+                </div>
+                {form.content.trim() && (
+                  <div className="mt-4 rounded-xl border border-zinc-800 bg-white p-5 text-slate-900">
+                    <p className="mb-4 text-xs font-bold uppercase tracking-wide text-slate-500">Preview</p>
+                    <div className="space-y-5">
+                      {renderBlogContent(form.content)}
+                    </div>
+                  </div>
+                )}
+              </div>
               <Input placeholder="SEO title" value={form.meta_title} onChange={(event) => updateField("meta_title", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
               <Textarea placeholder="SEO description" value={form.meta_description} onChange={(event) => updateField("meta_description", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
               <label className="flex items-center gap-2 text-sm text-zinc-200">

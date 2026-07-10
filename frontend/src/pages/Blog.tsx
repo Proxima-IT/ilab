@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowUpRight, AlertCircle } from "lucide-react";
+import { ArrowUpRight, AlertCircle, Calendar, Newspaper } from "lucide-react";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { fetchPosts, type BlogPost } from "@/services/blog";
@@ -66,22 +66,30 @@ export default function BlogIndex() {
     };
   }, []);
 
+  const featuredPost = posts[0];
+  const remainingPosts = posts.slice(1);
+
   return (
     <main className="min-h-screen bg-background">
       <Header />
-      <section className="relative overflow-hidden pt-32 pb-20 bg-gradient-to-b from-surface to-background">
-        <div className="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-primary-dark">iLab Blog</p>
-          <h1 className="mt-3 text-4xl md:text-5xl font-extrabold text-foreground tracking-tight">
-            Mobile repairing tips and career guides
-          </h1>
-          <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-            Practical articles from iLab for learners, technicians, and future entrepreneurs.
-          </p>
+      <section className="relative overflow-hidden border-b border-border bg-surface pt-32 pb-14 md:pb-18">
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-primary-dark">
+              <Newspaper className="h-4 w-4" />
+              iLab Blog
+            </div>
+            <h1 className="mt-5 text-4xl font-extrabold tracking-tight text-foreground md:text-6xl">
+              Mobile repairing tips and career guides
+            </h1>
+            <p className="mt-5 text-lg leading-relaxed text-muted-foreground md:text-xl">
+              Practical articles from iLab for learners, technicians, and future entrepreneurs.
+            </p>
+          </div>
         </div>
       </section>
 
-      <section className="pb-24">
+      <section className="py-12 md:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {loading ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -99,47 +107,92 @@ export default function BlogIndex() {
               No published blog posts are available right now.
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {posts.map((post, index) => (
+            <div className="space-y-10">
+              {featuredPost && (
                 <motion.article
-                  key={post.slug}
                   initial={{ opacity: 0, y: 16 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-60px" }}
-                  transition={{ duration: 0.35, delay: Math.min(index, 8) * 0.04 }}
-                  className="group rounded-2xl overflow-hidden bg-card border border-border hover:shadow-card hover:-translate-y-1 transition-all"
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35 }}
+                  className="grid overflow-hidden rounded-2xl border border-border bg-card shadow-card lg:grid-cols-[1.1fr_0.9fr]"
                 >
-                  <Link to={`/blog/${post.slug}`} className="block aspect-[16/10] overflow-hidden">
+                  <Link to={`/blog/${featuredPost.slug}`} className="block min-h-[260px] overflow-hidden sm:min-h-[360px] lg:min-h-full">
                     <img
-                      src={post.cover}
-                      alt={post.title}
+                      src={featuredPost.cover}
+                      alt={featuredPost.title}
                       loading="lazy"
-                      className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      className="h-full w-full object-cover transition-transform duration-500 hover:scale-105"
                     />
                   </Link>
-                  <div className="p-6">
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="px-2.5 py-1 rounded-full bg-primary/10 text-primary-dark font-semibold">
-                        {post.category}
+                  <div className="flex flex-col justify-center p-6 md:p-9">
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <span className="rounded-full bg-primary/10 px-3 py-1.5 font-bold text-primary-dark">
+                        {featuredPost.category}
                       </span>
-                      {post.date && <span>{post.date}</span>}
+                      {featuredPost.date && (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Calendar className="h-4 w-4" /> {featuredPost.date}
+                        </span>
+                      )}
                     </div>
                     <Link
-                      to={`/blog/${post.slug}`}
-                      className="mt-3 block text-lg font-bold text-foreground group-hover:text-primary-dark transition-colors"
+                      to={`/blog/${featuredPost.slug}`}
+                      className="mt-4 block text-2xl font-extrabold leading-tight text-foreground transition-colors hover:text-primary-dark md:text-4xl"
                     >
-                      {post.title}
+                      {featuredPost.title}
                     </Link>
-                    <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{post.excerpt}</p>
+                    <p className="mt-4 text-base leading-relaxed text-muted-foreground md:text-lg">{featuredPost.excerpt}</p>
                     <Link
-                      to={`/blog/${post.slug}`}
-                      className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent hover:gap-2 transition-all"
+                      to={`/blog/${featuredPost.slug}`}
+                      className="mt-6 inline-flex w-fit items-center gap-1.5 rounded-full bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary-dark"
                     >
                       Read article <ArrowUpRight className="h-4 w-4" />
                     </Link>
                   </div>
                 </motion.article>
-              ))}
+              )}
+
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {remainingPosts.map((post, index) => (
+                  <motion.article
+                    key={post.slug}
+                    initial={{ opacity: 0, y: 16 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-60px" }}
+                    transition={{ duration: 0.35, delay: Math.min(index, 8) * 0.04 }}
+                    className="group overflow-hidden rounded-2xl border border-border bg-card transition-all hover:-translate-y-1 hover:shadow-card"
+                  >
+                    <Link to={`/blog/${post.slug}`} className="block aspect-[16/10] overflow-hidden">
+                      <img
+                        src={post.cover}
+                        alt={post.title}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </Link>
+                    <div className="p-6">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary-dark">
+                          {post.category}
+                        </span>
+                        {post.date && <span>{post.date}</span>}
+                      </div>
+                      <Link
+                        to={`/blog/${post.slug}`}
+                        className="mt-3 block text-lg font-bold text-foreground transition-colors group-hover:text-primary-dark"
+                      >
+                        {post.title}
+                      </Link>
+                      <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{post.excerpt}</p>
+                      <Link
+                        to={`/blog/${post.slug}`}
+                        className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent transition-all hover:gap-2"
+                      >
+                        Read article <ArrowUpRight className="h-4 w-4" />
+                      </Link>
+                    </div>
+                  </motion.article>
+                ))}
+              </div>
             </div>
           )}
         </div>
