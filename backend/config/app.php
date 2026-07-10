@@ -56,6 +56,8 @@ return [
 
     'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
 
+    'frontend_index_path' => env('FRONTEND_INDEX_PATH'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

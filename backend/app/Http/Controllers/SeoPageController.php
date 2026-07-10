@@ -129,8 +129,20 @@ class SeoPageController extends Controller
 
     private function indexPath(): string
     {
-        return env('FRONTEND_INDEX_PATH')
-            ?: base_path('../frontend/dist/index.html');
+        $paths = array_filter([
+            config('app.frontend_index_path'),
+            base_path('../frontend/index.html'),
+            base_path('../frontend/dist/index.html'),
+            '/var/www/ilab/frontend/index.html',
+        ]);
+
+        foreach ($paths as $path) {
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        return (string) (config('app.frontend_index_path') ?: base_path('../frontend/index.html'));
     }
 
     private function cleanTitle(string $title): string
