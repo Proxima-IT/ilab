@@ -67,14 +67,16 @@ function toForm(review: AdminReview): ReviewForm {
 }
 
 function toPayload(form: ReviewForm): ReviewPayload {
+  const youtubeUrl = form.media_url.trim();
+
   return {
     student_name: form.student_name.trim(),
     student_role: form.student_role.trim() || null,
     avatar: form.avatar.trim() || null,
     rating: Math.max(1, Math.min(5, Number(form.rating || 5))),
     review_text: form.review_text.trim() || null,
-    media_type: "text",
-    media_url: null,
+    media_type: youtubeUrl ? "video" : "text",
+    media_url: youtubeUrl || null,
     thumbnail: null,
     is_published: form.is_published,
     sort_order: Math.max(0, Number(form.sort_order || 0)),
@@ -336,6 +338,24 @@ export default function AdminReviews() {
               />
             </div>
 
+            <Field label="YouTube review URL (optional)">
+              <Input
+                value={form.media_url}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    media_url: event.target.value,
+                    media_type: event.target.value.trim() ? "video" : "text",
+                  }))
+                }
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="border-zinc-700 bg-zinc-950 text-white"
+              />
+              <p className="mt-1 text-[11px] text-zinc-500">
+                Add a YouTube URL to show this review as a video on the homepage.
+              </p>
+            </Field>
+
             <div className="flex items-center gap-2 lg:col-span-2">
               <input
                 id="review-published"
@@ -398,10 +418,16 @@ export default function AdminReviews() {
                 <p className="mt-4 line-clamp-4 text-sm leading-6 text-zinc-300">{review.review_text}</p>
               )}
 
-              {review.media_type !== "text" && review.media_url && (
+              {review.media_type === "video" && review.media_url && (
+                <div className="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                  YouTube video review: {review.media_url}
+                </div>
+              )}
+
+              {review.media_type === "image" && review.media_url && (
                 <div className="mt-4 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
                   <img
-                    src={resolveImage(review.media_type === "video" ? review.thumbnail || review.media_url : review.media_url)}
+                    src={resolveImage(review.media_url)}
                     alt=""
                     className="aspect-video w-full object-cover"
                   />

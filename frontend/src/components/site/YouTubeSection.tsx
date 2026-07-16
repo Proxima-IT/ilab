@@ -1,8 +1,36 @@
 import { motion } from "framer-motion";
 import { Lightbulb, Play, User } from "lucide-react";
 import { SiteLogo } from "@/components/site/SiteLogo";
+import type { WebsiteSettings } from "@/services/home.service";
 
-export function YouTubeSection() {
+type SocialMediaItem = NonNullable<NonNullable<WebsiteSettings["system"]>["social_media"]>[number];
+
+function findYoutubeUrl(socialMedia?: SocialMediaItem[]): string | null {
+  const item = socialMedia?.find((social) => {
+    const name = `${social.name} ${social.icon} ${social.url}`.toLowerCase();
+    return name.includes("youtube") || name.includes("youtu.be");
+  });
+
+  return item?.url || null;
+}
+
+export function YouTubeSection({
+  socialMedia,
+}: {
+  socialMedia?: SocialMediaItem[];
+}) {
+  const youtubeUrl = findYoutubeUrl(socialMedia);
+  const channelCard = (
+    <>
+      <SiteLogo size="sm" />
+      <div className="flex items-center gap-1.5 rounded-md bg-[#FF0000] px-2.5 py-1.5 text-white">
+        <Play className="h-3 w-3 fill-white" />
+        <span className="text-xs font-semibold">YouTube</span>
+      </div>
+      <span className="text-xs font-medium text-muted-foreground">2K+</span>
+    </>
+  );
+
   return (
     <section id="youtube" className="py-4 sm:py-6 md:py-8 bg-gradient-to-b from-background via-background to-surface/30">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -26,14 +54,20 @@ export function YouTubeSection() {
               </p>
 
               {/* YouTube channel card */}
-              <div className="mx-auto mt-5 inline-flex w-fit items-center gap-3 rounded-xl bg-background px-4 py-3 shadow-lg shadow-black/10 sm:mx-0">
-                <SiteLogo size="sm" />
-                <div className="flex items-center gap-1.5 rounded-md bg-[#FF0000] px-2.5 py-1.5 text-white">
-                  <Play className="h-3 w-3 fill-white" />
-                  <span className="text-xs font-semibold">YouTube</span>
+              {youtubeUrl ? (
+                <a
+                  href={youtubeUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mx-auto mt-5 inline-flex w-fit items-center gap-3 rounded-xl bg-background px-4 py-3 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:shadow-xl sm:mx-0"
+                >
+                  {channelCard}
+                </a>
+              ) : (
+                <div className="mx-auto mt-5 inline-flex w-fit items-center gap-3 rounded-xl bg-background px-4 py-3 shadow-lg shadow-black/10 sm:mx-0">
+                  {channelCard}
                 </div>
-                <span className="text-xs font-medium text-muted-foreground">2K+</span>
-              </div>
+              )}
             </div>
 
             {/* Right: illustration */}

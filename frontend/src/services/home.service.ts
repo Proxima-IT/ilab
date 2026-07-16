@@ -33,6 +33,7 @@ export type WebsiteSettings = {
   next_batch: {
     eyebrow: string;
     title: string;
+    course_info?: string;
     image: string | null;
     youtube_url: string;
   };
@@ -147,13 +148,8 @@ export async function fetchPublicReviews(limit = 6): Promise<HomeReview[]> {
       rating: Math.max(1, Math.min(5, Number(review.rating || 5))),
       text: review.review_text || "",
       image: mediaType === "image" && review.media_url ? imageUrl(review.media_url) : undefined,
-      thumbnail:
-        mediaType === "video" && review.thumbnail
-          ? imageUrl(review.thumbnail)
-          : mediaType === "video" && review.media_url
-            ? imageUrl(review.media_url)
-            : undefined,
-      video: mediaType === "video" && review.media_url ? imageUrl(review.media_url) : undefined,
+      thumbnail: mediaType === "video" && review.thumbnail ? imageUrl(review.thumbnail) : undefined,
+      video: mediaType === "video" && review.media_url ? review.media_url : undefined,
     };
   });
 }

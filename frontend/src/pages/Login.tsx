@@ -175,11 +175,12 @@ export default function LoginPage() {
       }
     >
       <form onSubmit={onSubmit} className="space-y-5">
-        <div className="rounded-xl border border-border bg-card p-2">
+        <div className="flex justify-center [&>div]:mx-auto [&_iframe]:mx-auto">
           <GoogleLogin
             onSuccess={onGoogleSuccess}
             onError={() => setError("Google login failed. Please try again.")}
-            width="100%"
+            width="320"
+            logo_alignment="center"
           />
         </div>
 

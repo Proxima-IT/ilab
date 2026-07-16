@@ -13,6 +13,7 @@ import {
   toNumber,
   type Course,
 } from "@/services/course-catalog.service";
+import { avatarUrl } from "@/lib/avatar";
 import {
   studentProfileService,
   type StudentProfileUser,
@@ -99,20 +100,8 @@ type LaravelLessonProgress = {
 
 export const StudentDataContext = createContext<StudentContextType | null>(null);
 
-function buildAvatar(name: string): string {
-  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(
-    name
-  )}`;
-}
-
 function resolveAvatar(avatar: string | null | undefined, name: string): string {
-  if (!avatar) return buildAvatar(name);
-
-  if (/^https?:\/\//i.test(avatar)) {
-    return avatar;
-  }
-
-  return imageUrl(avatar);
+  return avatarUrl(avatar, name);
 }
 
 function saveProgress(email: string, courseId: string, progress: number) {

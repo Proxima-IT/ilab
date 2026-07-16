@@ -10,6 +10,8 @@ export type PublicEvent = {
   endsAt: string | null;
   date: string;
   time: string;
+  startDateTime: string;
+  finishDateTime: string | null;
   location: string;
   seats: number | null;
   description: string;
@@ -95,6 +97,18 @@ function formatTimeRange(startsAt: string, endsAt?: string | null): string {
   return end ? `${start} - ${end}` : start;
 }
 
+function formatDateTime(value?: string | null): string | null {
+  if (!value) return null;
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 function mapEvent(event: LaravelEvent): PublicEvent {
   const fallbackDescription = "";
 
@@ -107,6 +121,8 @@ function mapEvent(event: LaravelEvent): PublicEvent {
     endsAt: event.ends_at || null,
     date: formatDate(event.starts_at),
     time: formatTimeRange(event.starts_at, event.ends_at),
+    startDateTime: formatDateTime(event.starts_at) || formatDate(event.starts_at),
+    finishDateTime: formatDateTime(event.ends_at),
     location: event.location || "Online",
     seats: event.seats ?? null,
     description: event.description || fallbackDescription,

@@ -36,6 +36,7 @@ class WebsiteSetting extends Model
             'next_batch' => [
                 'eyebrow' => 'Watch Preview',
                 'title' => 'A glimpse of our next batch',
+                'course_info' => 'Join the next practical batch with expert guidance and hands-on learning.',
                 'image' => 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1600&q=80',
                 'youtube_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
             ],

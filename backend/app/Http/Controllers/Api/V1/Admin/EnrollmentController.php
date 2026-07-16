@@ -409,12 +409,14 @@ class EnrollmentController extends Controller
             return $lockedPayment->fresh(['user:id,name,email,phone,avatar', 'course:id,title,slug,thumbnail']);
         });
 
-        app(PaymentInvoiceEmailService::class)->sendIfNeeded($approved);
+        $invoiceEmailSent = app(PaymentInvoiceEmailService::class)->sendIfNeeded($approved);
 
         return response()->json([
             'success' => true,
             'data' => $this->pendingPaymentPayload($approved),
-            'message' => 'Payment approved and student enrolled successfully.',
+            'message' => $invoiceEmailSent
+                ? 'Payment approved, student enrolled, and invoice email sent successfully.'
+                : 'Payment approved and student enrolled, but the invoice email could not be sent. Please check mail settings.',
             'errors' => null,
         ]);
     }

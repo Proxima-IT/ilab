@@ -249,12 +249,18 @@ export default function EventDetailPage() {
             <ul className="mt-6 flex flex-wrap gap-3 text-sm text-foreground">
               <li className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-border">
                 <Calendar className="h-4 w-4 text-primary-dark" />
-                {event.date}
+                <span>
+                  <span className="font-semibold">Start:</span> {event.startDateTime}
+                </span>
               </li>
-              <li className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-border">
-                <Clock className="h-4 w-4 text-primary-dark" />
-                {event.time}
-              </li>
+              {event.finishDateTime && (
+                <li className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-border">
+                  <Clock className="h-4 w-4 text-primary-dark" />
+                  <span>
+                    <span className="font-semibold">Finish:</span> {event.finishDateTime}
+                  </span>
+                </li>
+              )}
               <li className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-border">
                 <MapPin className="h-4 w-4 text-primary-dark" />
                 {event.location}

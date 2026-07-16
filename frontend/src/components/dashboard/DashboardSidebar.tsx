@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Home, BookOpen, BarChart3, Award, Trophy, FolderOpen, Settings } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useStudent } from '@/hooks/useStudentData';
+import { applyFallbackAvatar } from '@/lib/avatar';
 
 const navItems = [
   { path: '/dashboard', icon: Home, labelKey: 'overview' },
@@ -51,7 +52,12 @@ export default function DashboardSidebar({ onClose }: { onClose?: () => void }) 
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-primary/50 animate-pulse-glow">
-              <img src={student.avatar} alt="" className="w-full h-full object-cover" />
+              <img
+                src={student.avatar}
+                alt={student.name}
+                className="w-full h-full object-cover"
+                onError={(event) => applyFallbackAvatar(event, student.name)}
+              />
             </div>
           </div>
           <div className="flex-1 min-w-0">

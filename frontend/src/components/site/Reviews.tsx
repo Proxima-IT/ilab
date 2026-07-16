@@ -1,33 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Play, Quote, Star, X } from "lucide-react";
+import { Quote, Star } from "lucide-react";
 import {
   fetchPublicReviews,
   type HomeReview,
   type WebsiteSettings,
 } from "@/services/home.service";
 
-function VideoModal({ src, onClose }: { src: string; onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm grid place-items-center p-4 animate-fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <button
-          onClick={onClose}
-          aria-label="Close"
-          className="absolute top-3 right-3 z-10 grid place-items-center h-9 w-9 rounded-full bg-white/95 text-foreground hover:scale-110 transition"
-        >
-          <X className="h-4 w-4" />
-        </button>
-        <video src={src} autoPlay controls className="h-full w-full object-cover" />
-      </div>
-    </div>
-  );
+function youtubeEmbedUrl(value?: string | null): string | null {
+  if (!value) return null;
+
+  const trimmed = value.trim();
+  const embedMatch = trimmed.match(/youtube\.com\/embed\/([^?&]+)/);
+  if (embedMatch?.[1]) return `https://www.youtube.com/embed/${embedMatch[1]}?rel=0`;
+
+  const shortsMatch = trimmed.match(/youtube\.com\/shorts\/([^?&]+)/);
+  if (shortsMatch?.[1]) return `https://www.youtube.com/embed/${shortsMatch[1]}?rel=0`;
+
+  const idMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  if (idMatch?.[1]) return `https://www.youtube.com/embed/${idMatch[1]}?rel=0`;
+
+  return null;
 }
 
 function ReviewHeader({ review }: { review: HomeReview }) {
@@ -54,7 +47,6 @@ function ReviewHeader({ review }: { review: HomeReview }) {
 }
 
 export function Reviews({ settings }: { settings?: WebsiteSettings["reviews"] }) {
-  const [video, setVideo] = useState<string | null>(null);
   const [reviews, setReviews] = useState<HomeReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -110,71 +102,76 @@ export function Reviews({ settings }: { settings?: WebsiteSettings["reviews"] })
         ) : (
           <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
             {reviews.map((review, index) => (
-              <motion.div
-                key={review.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }}
-                transition={{ duration: 0.5, delay: (index % 3) * 0.1 }}
-                className="relative flex h-full flex-col p-6 rounded-2xl bg-card border border-border hover:shadow-card transition-all"
-              >
-                <ReviewHeader review={review} />
-
-                {review.type === "text" && (
-                  <>
-                    <Quote className="absolute top-5 right-5 h-7 w-7 text-primary/10" />
-                    <p className="mt-5 text-foreground leading-relaxed line-clamp-6">
-                      "{review.text}"
-                    </p>
-                  </>
-                )}
-
-                {review.type === "image" && review.image && (
-                  <>
-                    <div className="mt-5 aspect-video rounded-xl overflow-hidden bg-surface">
-                      <img
-                        src={review.image}
-                        alt={`${review.name}'s review`}
-                        loading="lazy"
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                    {review.text && (
-                      <p className="mt-4 text-sm text-foreground leading-relaxed line-clamp-3">
-                        "{review.text}"
-                      </p>
-                    )}
-                  </>
-                )}
-
-                {review.type === "video" && review.video && review.thumbnail && (
-                  <button
-                    onClick={() => setVideo(review.video || null)}
-                    className="group/v mt-5 relative aspect-video rounded-xl overflow-hidden bg-surface"
-                    aria-label={`Play ${review.name}'s video review`}
-                  >
-                    <img
-                      src={review.thumbnail}
-                      alt={`${review.name}'s video review`}
-                      loading="lazy"
-                      className="h-full w-full object-cover group-hover/v:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute inset-0 bg-foreground/30" />
-                    <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 grid h-14 w-14 place-items-center rounded-full bg-white text-primary shadow-orange-glow group-hover/v:scale-110 transition-transform">
-                      <Play className="h-6 w-6 ml-0.5 fill-current" />
-                    </span>
-                    <span className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-bold bg-primary text-white">
-                      Video Review
-                    </span>
-                  </button>
-                )}
-              </motion.div>
+              <ReviewCard key={review.id} review={review} index={index} />
             ))}
           </div>
         )}
       </div>
-
-      {video && <VideoModal src={video} onClose={() => setVideo(null)} />}
     </section>
+  );
+}
+
+function ReviewCard({ review, index }: { review: HomeReview; index: number }) {
+  const embedUrl = useMemo(() => youtubeEmbedUrl(review.video), [review.video]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.5, delay: (index % 3) * 0.1 }}
+      className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-card"
+    >
+      <ReviewHeader review={review} />
+
+      {(review.type === "text" || (review.type === "video" && !embedUrl)) && (
+        <>
+          <Quote className="absolute right-5 top-5 h-7 w-7 text-primary/10" />
+          <p className="mt-5 leading-relaxed text-foreground line-clamp-6">
+            "{review.text}"
+          </p>
+        </>
+      )}
+
+      {review.type === "image" && review.image && (
+        <>
+          <div className="mt-5 aspect-video overflow-hidden rounded-xl bg-surface">
+            <img
+              src={review.image}
+              alt={`${review.name}'s review`}
+              loading="lazy"
+              className="h-full w-full object-cover"
+            />
+          </div>
+          {review.text && (
+            <p className="mt-4 text-sm leading-relaxed text-foreground line-clamp-3">
+              "{review.text}"
+            </p>
+          )}
+        </>
+      )}
+
+      {review.type === "video" && embedUrl && (
+        <>
+          <div className="mt-5 overflow-hidden rounded-xl border border-primary/10 bg-foreground shadow-soft">
+            <div className="aspect-video">
+              <iframe
+                src={embedUrl}
+                title={`${review.name}'s video review`}
+                className="h-full w-full"
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          </div>
+          {review.text && (
+            <p className="mt-4 text-sm leading-relaxed text-foreground line-clamp-3">
+              "{review.text}"
+            </p>
+          )}
+        </>
+      )}
+    </motion.div>
   );
 }

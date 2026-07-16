@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useStudent } from "@/hooks/useStudentData";
 import { useAuth } from "@/lib/auth";
-import { imageUrl } from "@/services/course-catalog.service";
+import { applyFallbackAvatar, avatarUrl } from "@/lib/avatar";
 import {
   studentProfileService,
   type StudentProfileUser,
@@ -66,13 +66,8 @@ const defaultNotifications: StudentNotificationSettings = {
   push: true,
 };
 
-function fallbackAvatar(name: string): string {
-  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name || "Student")}`;
-}
-
 function resolveAvatar(user?: StudentProfileUser | null): string {
-  if (!user?.avatar) return fallbackAvatar(user?.name || "Student");
-  return imageUrl(user.avatar);
+  return avatarUrl(user?.avatar, user?.name || "Student");
 }
 
 function unauthorized(status?: number): boolean {
@@ -329,7 +324,12 @@ export default function ProfilePage() {
         <motion.div variants={item} className="glass-card p-6 text-center">
           <div className="relative mb-4 inline-block">
             <div className="mx-auto h-24 w-24 overflow-hidden rounded-full ring-4 ring-primary/30">
-              <img src={avatar} alt={displayName} className="h-full w-full object-cover" />
+              <img
+                src={avatar}
+                alt={displayName}
+                className="h-full w-full object-cover"
+                onError={(event) => applyFallbackAvatar(event, displayName)}
+              />
             </div>
             <button
               type="button"

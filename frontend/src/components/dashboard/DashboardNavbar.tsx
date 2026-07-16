@@ -20,6 +20,7 @@ import {
   type StudentNotification,
   type StudentNotificationType,
 } from "@/services/student/notification.service";
+import { applyFallbackAvatar } from "@/lib/avatar";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "Overview",
@@ -336,8 +337,9 @@ export default function DashboardNavbar({
         <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-primary/40 primary-glow">
           <img
             src={student.avatar}
-            alt=""
+            alt={student.name}
             className="w-full h-full object-cover"
+            onError={(event) => applyFallbackAvatar(event, student.name)}
           />
         </div>
       </div>

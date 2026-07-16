@@ -130,9 +130,16 @@ function RegistrationModal({
         <h2 className="mt-2 pr-10 text-2xl font-extrabold text-foreground">
           {event.title}
         </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {event.date} at {event.time}
-        </p>
+        <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+          <p>
+            <span className="font-semibold text-foreground">Start:</span> {event.startDateTime}
+          </p>
+          {event.finishDateTime && (
+            <p>
+              <span className="font-semibold text-foreground">Finish:</span> {event.finishDateTime}
+            </p>
+          )}
+        </div>
 
         {submitted ? (
           <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center">
@@ -330,14 +337,22 @@ export default function EventsPage() {
                     <div className="my-4 border-t border-border" />
 
                     <div className="space-y-3 mb-5">
-                      <div className="flex items-center gap-3 text-muted-foreground">
+                      <div className="flex items-start gap-3 text-muted-foreground">
                         <Calendar className="h-5 w-5 text-primary-dark shrink-0" />
-                        <span className="text-base font-medium">{event.date}</span>
+                        <span className="text-sm font-medium leading-relaxed">
+                          <span className="block text-xs font-bold uppercase tracking-wide text-foreground">Start</span>
+                          {event.startDateTime}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-3 text-muted-foreground">
-                        <Clock className="h-5 w-5 text-primary-dark shrink-0" />
-                        <span className="text-base font-medium">{event.time}</span>
-                      </div>
+                      {event.finishDateTime && (
+                        <div className="flex items-start gap-3 text-muted-foreground">
+                          <Clock className="h-5 w-5 text-primary-dark shrink-0" />
+                          <span className="text-sm font-medium leading-relaxed">
+                            <span className="block text-xs font-bold uppercase tracking-wide text-foreground">Finish</span>
+                            {event.finishDateTime}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center gap-3 text-muted-foreground">
                         <MapPin className="h-5 w-5 text-primary-dark shrink-0" />
                         <span className="text-base font-medium">{event.location}</span>

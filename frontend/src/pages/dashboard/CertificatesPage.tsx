@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Award, Download, FileImage, FileText, Loader2, Lock } from "lucide-react";
+import { Award, FileImage, FileText, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useStudent } from "@/hooks/useStudentData";
+import ilabLogo from "@/assets/ilab_logo.jpeg";
 import {
   certificateService,
   type StudentCertificate,
@@ -13,6 +14,7 @@ const container = { hidden: {}, show: { transition: { staggerChildren: 0.1 } } }
 const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 const CERT_WIDTH = 1400;
 const CERT_HEIGHT = 990;
+const LOGO_TOKEN = "__ILAB_LOGO__";
 
 function escapeXml(value?: string | null): string {
   return String(value || "")
@@ -36,43 +38,81 @@ function certificateSvg(certificate: StudentCertificate): string {
   const courseName = escapeXml(certificate.course?.title || "Course");
   const issuedDate = escapeXml(formatDate(certificate.issued_at));
   const code = escapeXml(certificate.verification_code);
-  const signatoryName = escapeXml(certificate.authorized_signatory_name || "Authorized Signature");
-  const signatoryTitle = escapeXml(certificate.authorized_signatory_title || "iLab BD");
+  const signatoryName = escapeXml(certificate.authorized_signatory_name || "iLab Authorities");
+  const signatoryTitle = escapeXml(certificate.authorized_signatory_title || "iLab");
 
   return `
 <svg xmlns="http://www.w3.org/2000/svg" width="${CERT_WIDTH}" height="${CERT_HEIGHT}" viewBox="0 0 ${CERT_WIDTH} ${CERT_HEIGHT}">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="55%" stop-color="#f7fffc"/>
+      <stop offset="0%" stop-color="#fbfffd"/>
+      <stop offset="52%" stop-color="#ffffff"/>
       <stop offset="100%" stop-color="#eef8f5"/>
     </linearGradient>
     <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#b7791f"/>
-      <stop offset="50%" stop-color="#f6d365"/>
-      <stop offset="100%" stop-color="#b7791f"/>
+      <stop offset="0%" stop-color="#a16207"/>
+      <stop offset="50%" stop-color="#facc15"/>
+      <stop offset="100%" stop-color="#a16207"/>
     </linearGradient>
+    <radialGradient id="seal" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#14b8a6"/>
+      <stop offset="100%" stop-color="#0f766e"/>
+    </radialGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#0f766e" flood-opacity="0.12"/>
+    </filter>
   </defs>
   <rect width="1400" height="990" fill="url(#bg)"/>
-  <rect x="55" y="55" width="1290" height="880" rx="24" fill="none" stroke="#0d9488" stroke-width="5"/>
-  <rect x="78" y="78" width="1244" height="834" rx="18" fill="none" stroke="url(#gold)" stroke-width="3"/>
-  <circle cx="700" cy="170" r="58" fill="#0d9488"/>
-  <text x="700" y="188" text-anchor="middle" font-family="Georgia, serif" font-size="48" font-weight="700" fill="#ffffff">iL</text>
-  <text x="700" y="265" text-anchor="middle" font-family="Georgia, serif" font-size="62" font-weight="700" fill="#14332b">Certificate of Completion</text>
-  <text x="700" y="320" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" letter-spacing="5" fill="#0d9488">ILAB BD VERIFIED CREDENTIAL</text>
-  <text x="700" y="405" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#475569">This certificate is proudly presented to</text>
-  <text x="700" y="490" text-anchor="middle" font-family="Georgia, serif" font-size="66" font-weight="700" fill="#0f172a">${studentName}</text>
-  <line x1="360" y1="520" x2="1040" y2="520" stroke="#d4af37" stroke-width="2"/>
-  <text x="700" y="580" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" fill="#475569">for successfully completing at least 90% of</text>
-  <text x="700" y="650" text-anchor="middle" font-family="Georgia, serif" font-size="46" font-weight="700" fill="#0d9488">${courseName}</text>
-  <text x="700" y="710" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#475569">Issued on ${issuedDate}</text>
-  <text x="235" y="825" text-anchor="middle" font-family="Georgia, serif" font-size="34" fill="#0f172a">${signatoryName}</text>
-  <line x1="120" y1="850" x2="350" y2="850" stroke="#0f172a" stroke-width="2"/>
-  <text x="235" y="884" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#475569">${signatoryTitle}</text>
-  <text x="1165" y="825" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="#475569">Verification Code</text>
-  <text x="1165" y="865" text-anchor="middle" font-family="Courier New, monospace" font-size="25" font-weight="700" fill="#0f172a">${code}</text>
-  <text x="700" y="930" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#64748b">Verify this certificate using the credential code above.</text>
+  <path d="M0 0H1400V120C1110 70 940 168 700 118C460 68 230 40 0 112V0Z" fill="#0f766e" opacity="0.08"/>
+  <path d="M1400 990H0V848C235 930 445 810 700 874C955 938 1155 898 1400 822V990Z" fill="#0f766e" opacity="0.08"/>
+  <rect x="55" y="55" width="1290" height="880" rx="30" fill="#ffffff" opacity="0.88" filter="url(#softShadow)"/>
+  <rect x="55" y="55" width="1290" height="880" rx="30" fill="none" stroke="#0f766e" stroke-width="5"/>
+  <rect x="82" y="82" width="1236" height="826" rx="22" fill="none" stroke="url(#gold)" stroke-width="3"/>
+  <line x1="150" y1="136" x2="550" y2="136" stroke="#d6b45c" stroke-width="2"/>
+  <line x1="850" y1="136" x2="1250" y2="136" stroke="#d6b45c" stroke-width="2"/>
+  <image href="${LOGO_TOKEN}" x="620" y="102" width="160" height="86" preserveAspectRatio="xMidYMid meet"/>
+  <text x="700" y="258" text-anchor="middle" font-family="Georgia, serif" font-size="64" font-weight="700" fill="#0f172a">Certificate of Completion</text>
+  <text x="700" y="315" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" letter-spacing="5" fill="#0f766e">VERIFIED CREDENTIAL BY ILAB</text>
+  <text x="700" y="400" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" fill="#475569">This certificate is proudly awarded to</text>
+  <text x="700" y="492" text-anchor="middle" font-family="Georgia, serif" font-size="72" font-weight="700" fill="#111827">${studentName}</text>
+  <path d="M360 528C465 548 571 506 700 528C827 550 934 508 1040 528" fill="none" stroke="#d6b45c" stroke-width="3"/>
+  <text x="700" y="590" text-anchor="middle" font-family="Arial, sans-serif" font-size="27" fill="#475569">for successfully completing the course</text>
+  <text x="700" y="666" text-anchor="middle" font-family="Georgia, serif" font-size="48" font-weight="700" fill="#0f766e">${courseName}</text>
+  <text x="700" y="725" text-anchor="middle" font-family="Arial, sans-serif" font-size="22" fill="#475569">Issued on ${issuedDate}</text>
+  <g transform="translate(156 784)">
+    <text x="92" y="36" text-anchor="middle" font-family="'Brush Script MT', 'Segoe Script', 'Lucida Handwriting', cursive" font-size="38" fill="#0f172a">${signatoryName}</text>
+    <line x1="0" y1="58" x2="230" y2="58" stroke="#0f172a" stroke-width="2"/>
+    <text x="115" y="92" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#475569">${signatoryTitle}</text>
+  </g>
+  <g transform="translate(955 800)">
+    <text x="185" y="0" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#475569">Verification Code</text>
+    <text x="185" y="42" text-anchor="middle" font-family="Courier New, monospace" font-size="21" font-weight="700" fill="#0f172a">${code}</text>
+  </g>
+  <text x="700" y="932" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="#64748b">This credential can be verified using the certificate code above.</text>
 </svg>`;
+}
+
+function certificateSvgForPreview(certificate: StudentCertificate): string {
+  return certificateSvg(certificate).split(LOGO_TOKEN).join(ilabLogo);
+}
+
+async function imageUrlToDataUrl(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Logo load failed.");
+
+  const blob = await response.blob();
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(String(reader.result));
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function certificateSvgForDownload(certificate: StudentCertificate): Promise<string> {
+  const logoDataUrl = await imageUrlToDataUrl(ilabLogo);
+  return certificateSvg(certificate).split(LOGO_TOKEN).join(logoDataUrl);
 }
 
 async function svgToJpegDataUrl(svg: string): Promise<string> {
@@ -176,7 +216,6 @@ export default function CertificatesPage() {
   const { student, enrolledCoursesList, loading: studentLoading } = useStudent();
   const [loading, setLoading] = useState(true);
   const [certificates, setCertificates] = useState<StudentCertificate[]>([]);
-  const [eligibleProgress, setEligibleProgress] = useState(90);
 
   useEffect(() => {
     let mounted = true;
@@ -189,7 +228,6 @@ export default function CertificatesPage() {
 
         if (mounted) {
           setCertificates(data.certificates);
-          setEligibleProgress(data.eligible_progress);
         }
       } finally {
         if (mounted) setLoading(false);
@@ -213,7 +251,8 @@ export default function CertificatesPage() {
 
   const downloadJpg = async (certificate: StudentCertificate) => {
     try {
-      const jpeg = await svgToJpegDataUrl(certificateSvg(certificate));
+      const svg = await certificateSvgForDownload(certificate);
+      const jpeg = await svgToJpegDataUrl(svg);
       downloadDataUrl(jpeg, `${certificate.verification_code}.jpg`);
     } catch {
       toast.error("JPG download failed.");
@@ -222,7 +261,8 @@ export default function CertificatesPage() {
 
   const downloadPdf = async (certificate: StudentCertificate) => {
     try {
-      const jpeg = await svgToJpegDataUrl(certificateSvg(certificate));
+      const svg = await certificateSvgForDownload(certificate);
+      const jpeg = await svgToJpegDataUrl(svg);
       const pdf = jpegDataUrlToPdf(jpeg);
       downloadBlob(pdf, `${certificate.verification_code}.pdf`);
     } catch {
@@ -248,7 +288,7 @@ export default function CertificatesPage() {
       <div>
         <h1 className="font-display text-xl text-foreground">{t("myCertificates")}</h1>
         <p className="mt-1 text-xs text-muted-foreground">
-          Certificates are issued automatically when a course reaches {eligibleProgress}% completion.
+          Certificates are issued automatically when a course is completed.
         </p>
       </div>
 
@@ -257,7 +297,7 @@ export default function CertificatesPage() {
           <Award className="mx-auto h-10 w-10 text-muted-foreground" />
           <h2 className="mt-4 font-display text-lg text-foreground">No certificates yet</h2>
           <p className="mt-2 text-xs text-muted-foreground">
-            Finish at least {eligibleProgress}% of a course to unlock a certificate.
+            Complete a course to unlock your certificate.
           </p>
         </motion.div>
       ) : (
@@ -266,7 +306,7 @@ export default function CertificatesPage() {
             <motion.div key={certificate.id} variants={item} className="glass-card p-3">
               <div
                 className="max-h-52 overflow-hidden rounded-lg border border-primary/20 bg-white [&>svg]:h-auto [&>svg]:w-full"
-                dangerouslySetInnerHTML={{ __html: certificateSvg(certificate) }}
+                dangerouslySetInnerHTML={{ __html: certificateSvgForPreview(certificate) }}
               />
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
@@ -324,7 +364,7 @@ export default function CertificatesPage() {
                   />
                 </div>
                 <p className="mt-2 font-mono text-[10px] text-muted-foreground">
-                  {enrollment.progress}% complete · certificate at {eligibleProgress}%
+                  {enrollment.progress}% complete - certificate unlocks when completed
                 </p>
               </motion.div>
             ))}
@@ -334,3 +374,5 @@ export default function CertificatesPage() {
     </motion.div>
   );
 }
+
+

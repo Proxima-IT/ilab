@@ -10,13 +10,15 @@ use Illuminate\Support\Facades\Mail;
 
 class PaymentInvoiceEmailService
 {
-    public function sendIfNeeded(Payment $payment): void
+    public function sendIfNeeded(Payment $payment): bool
     {
         try {
             $reservedPayment = $this->reserveInvoiceEmail($payment);
 
             if (! $reservedPayment || empty($reservedPayment->user?->email)) {
-                return;
+                $freshPayment = Payment::query()->find($payment->id);
+
+                return (bool) ($freshPayment?->gateway_response['invoice_email_sent_at'] ?? false);
             }
 
             Mail::html(
@@ -37,12 +39,16 @@ class PaymentInvoiceEmailService
             );
 
             $this->markInvoiceEmailSent($reservedPayment);
+
+            return true;
         } catch (\Throwable $e) {
             Log::error('Payment invoice email failed: ' . $e->getMessage(), [
                 'payment_id' => $payment->id,
             ]);
 
             $this->markInvoiceEmailFailed($payment, $e->getMessage());
+
+            return false;
         }
     }
 

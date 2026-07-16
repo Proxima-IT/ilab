@@ -75,7 +75,7 @@ export default function HomePage() {
       ) : (
         <>
           <Hero settings={settings?.hero} />
-          <AdmissionTimeline />
+          <AdmissionTimeline settings={settings?.next_batch} />
           <BatchPreview settings={settings?.next_batch} />
           <WhatWeOffer settings={settings?.offers} />
           <FreeCourses />
@@ -83,7 +83,7 @@ export default function HomePage() {
           <Reviews settings={settings?.reviews} />
           <Blog />
           <DownloadApp settings={settings?.download_app} />
-          <YouTubeSection />
+          <YouTubeSection socialMedia={settings?.system?.social_media} />
         </>
       )}
       <Footer />

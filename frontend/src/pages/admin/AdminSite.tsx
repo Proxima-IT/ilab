@@ -26,6 +26,7 @@ const emptySettings: WebsiteSettings = {
   next_batch: {
     eyebrow: "",
     title: "",
+    course_info: "",
     image: null,
     youtube_url: "",
   },
@@ -219,6 +220,7 @@ export default function AdminSite() {
         <Section title="Next Batch Preview">
           <TextInput label="Eyebrow" value={settings.next_batch.eyebrow} onChange={(value) => updateSection("next_batch", { eyebrow: value })} />
           <TextInput label="Title" value={settings.next_batch.title} onChange={(value) => updateSection("next_batch", { title: value })} />
+          <TextArea label="Course info" value={settings.next_batch.course_info || ""} onChange={(value) => updateSection("next_batch", { course_info: value })} />
           <TextInput label="YouTube URL" value={settings.next_batch.youtube_url} onChange={(value) => updateSection("next_batch", { youtube_url: value })} />
           <ImageInput
             label="Next batch image"

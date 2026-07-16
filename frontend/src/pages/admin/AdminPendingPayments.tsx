@@ -80,8 +80,8 @@ export default function AdminPendingPayments() {
     setActionId(payment.id);
 
     try {
-      await adminPendingPaymentService.approve(payment.id);
-      toast.success("Payment approved. Student can access the course now.");
+      const response = await adminPendingPaymentService.approve(payment.id);
+      toast.success(response.message || "Payment approved. Student can access the course now.");
       await loadRows(page);
     } catch (error) {
       toast.error(firstError(error, "Payment approve kora jayni."));

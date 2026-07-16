@@ -130,7 +130,6 @@ export default function OverviewPage() {
       <motion.div variants={item} className="glass-card hud-card p-6 animated-mesh relative overflow-hidden">
         <motion.div initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}>
           <p className="text-lg font-ui text-foreground">{greeting}, {student.name}!</p>
-          <p className="text-sm text-muted-foreground mt-1 font-ui">{t('todayGoal')}</p>
           {mappedCourses.length > 0 && (
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <Link to={activeCourseLink}>

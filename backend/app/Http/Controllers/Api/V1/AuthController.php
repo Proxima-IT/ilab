@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
@@ -149,7 +150,9 @@ class AuthController extends Controller
                 ]);
 
                 $this->registerDevice($existingUser, $validated);
-                app(AuthEmailService::class)->sendEmailVerification($existingUser->fresh());
+                if (! $this->sendEmailVerificationSafely($existingUser->fresh())) {
+                    return $this->verificationEmailFailedResponse($existingUser->email);
+                }
 
                 return response()->json([
                     'success' => true,
@@ -186,7 +189,9 @@ class AuthController extends Controller
         ]);
 
         $this->registerDevice($user, $validated);
-        app(AuthEmailService::class)->sendEmailVerification($user);
+        if (! $this->sendEmailVerificationSafely($user)) {
+            return $this->verificationEmailFailedResponse($user->email);
+        }
 
         return response()->json([
             'success' => true,
@@ -257,7 +262,9 @@ class AuthController extends Controller
         }
 
         if ($this->requiresEmailVerificationBeforePasswordLogin($user)) {
-            app(AuthEmailService::class)->sendEmailVerification($user);
+            if (! $this->sendEmailVerificationSafely($user)) {
+                return $this->verificationEmailFailedResponse($user->email);
+            }
 
             return response()->json([
                 'success' => false,
@@ -348,7 +355,9 @@ class AuthController extends Controller
             ->first();
 
         if ($user && is_null($user->email_verified_at) && $user->provider !== 'google') {
-            app(AuthEmailService::class)->sendEmailVerification($user);
+            if (! $this->sendEmailVerificationSafely($user)) {
+                return $this->verificationEmailFailedResponse($user->email);
+            }
         }
 
         return response()->json([
@@ -476,11 +485,13 @@ class AuthController extends Controller
                 'provider_id' => $googleId,
             ]);
         } else {
+            $googleAvatar = $googleUser['picture'] ?? null;
+
             $user->update([
                 'provider' => $user->provider ?: 'google',
                 'provider_id' => $user->provider_id ?: $googleId,
                 'email_verified_at' => $user->email_verified_at ?: (!empty($googleUser['email_verified']) ? now() : null),
-                'avatar' => $user->avatar ?: ($googleUser['picture'] ?? null),
+                'avatar' => $this->googleAvatarValue($user->avatar, $googleAvatar),
             ]);
         }
 
@@ -539,6 +550,37 @@ class AuthController extends Controller
         return $user->role === 'student'
             && $user->provider !== 'google'
             && is_null($user->email_verified_at);
+    }
+
+    private function sendEmailVerificationSafely(User $user): bool
+    {
+        try {
+            app(AuthEmailService::class)->sendEmailVerification($user);
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('Email verification send failed.', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
+    private function verificationEmailFailedResponse(?string $email): JsonResponse
+    {
+        return response()->json([
+            'success' => false,
+            'data' => [
+                'verification_required' => true,
+                'email_verification_required' => true,
+                'email' => $email,
+            ],
+            'message' => 'Your account was saved, but the verification email could not be sent. Please try again in a moment or contact support.',
+            'errors' => null,
+        ], 503);
     }
 
     private function validatePortalAccess(User $user, string $portal): ?JsonResponse
@@ -669,6 +711,27 @@ class AuthController extends Controller
             'phone_verified_at' => $user->phone_verified_at ?? null,
             'email_verified_at' => $user->email_verified_at,
         ];
+    }
+
+    private function googleAvatarValue(?string $currentAvatar, ?string $googleAvatar): ?string
+    {
+        if (! $googleAvatar) {
+            return $currentAvatar;
+        }
+
+        if (! $currentAvatar) {
+            return $googleAvatar;
+        }
+
+        if (str_starts_with($currentAvatar, 'storage/avatars/')) {
+            return $currentAvatar;
+        }
+
+        if (str_contains($currentAvatar, 'googleusercontent.com')) {
+            return $googleAvatar;
+        }
+
+        return $currentAvatar;
     }
 
     private function isProfileCompleted(User $user): bool

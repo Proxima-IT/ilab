@@ -58,16 +58,22 @@ Route::prefix('v1')->group(function () {
     |--------------------------------------------------------------------------
     */
     Route::prefix('auth')
-        ->middleware('throttle:10,1')
         ->group(function () {
-            Route::post('/register', [AuthController::class, 'register']);
-            Route::post('/login', [AuthController::class, 'login']);
-            Route::post('/google', [AuthController::class, 'googleLogin']);
-            Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
-            Route::post('/resend-email-verification', [AuthController::class, 'resendEmailVerification']);
+            Route::post('/register', [AuthController::class, 'register'])
+                ->middleware('throttle:20,1');
+            Route::post('/login', [AuthController::class, 'login'])
+                ->middleware('throttle:30,1');
+            Route::post('/google', [AuthController::class, 'googleLogin'])
+                ->middleware('throttle:30,1');
+            Route::post('/verify-email', [AuthController::class, 'verifyEmail'])
+                ->middleware('throttle:20,1');
+            Route::post('/resend-email-verification', [AuthController::class, 'resendEmailVerification'])
+                ->middleware('throttle:5,1');
 
-            Route::post('/forgot-password', [PasswordResetController::class, 'forgotPassword']);
-            Route::post('/reset-password', [PasswordResetController::class, 'resetPassword']);
+            Route::post('/forgot-password', [PasswordResetController::class, 'forgotPassword'])
+                ->middleware('throttle:10,1');
+            Route::post('/reset-password', [PasswordResetController::class, 'resetPassword'])
+                ->middleware('throttle:10,1');
         });
 
     /*
@@ -376,4 +382,3 @@ Route::prefix('v1')->group(function () {
             });
     });
 });
-

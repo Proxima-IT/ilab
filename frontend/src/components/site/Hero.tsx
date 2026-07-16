@@ -45,9 +45,9 @@ function HeroCTA({
       </a>
       <button
         onClick={onWatch}
-        className="inline-flex items-center justify-center gap-3 px-8 py-4 rounded-md border-2 border-primary/30 bg-background text-foreground font-semibold text-base hover:border-primary-dark hover:bg-primary-dark hover:text-primary-foreground transition"
+        className="group inline-flex cursor-pointer items-center justify-center gap-3 px-8 py-4 rounded-md border-2 border-primary/30 bg-background text-foreground font-semibold text-base hover:border-primary hover:bg-primary hover:text-white active:scale-[0.98] transition"
       >
-        <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/10 text-primary-dark group-hover:bg-primary-foreground/20">
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/10 text-primary-dark transition group-hover:bg-white/20 group-hover:text-white">
           <Youtube className="h-4 w-4" />
         </span>
         {settings?.secondary_button_label || "Watch on YouTube"}
