@@ -33,9 +33,15 @@ export type WebsiteSettings = {
   next_batch: {
     eyebrow: string;
     title: string;
-    course_info?: string;
     image: string | null;
     youtube_url: string;
+  };
+  next_batch_schedule: {
+    eyebrow: string;
+    title: string;
+    course_info: string;
+    demo_button_label: string;
+    demo_url: string;
   };
   offers: {
     title: string;

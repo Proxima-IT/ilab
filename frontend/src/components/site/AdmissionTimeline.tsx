@@ -9,15 +9,17 @@ import type { WebsiteSettings } from "@/services/home.service";
 
 const FALLBACK_YOUTUBE_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
-export function AdmissionTimeline({ settings }: { settings?: WebsiteSettings["next_batch"] }) {
-  const title = settings?.title || "A glimpse of our next batch";
+export function AdmissionTimeline({ settings }: { settings?: WebsiteSettings["next_batch_schedule"] }) {
+  const eyebrow = settings?.eyebrow || "Next Batch";
+  const title = settings?.title || "Upcoming practical batch schedule";
   const courseInfo =
     settings?.course_info ||
     "Join the next practical batch with expert guidance and hands-on learning.";
-  const youtubeUrl = settings?.youtube_url || FALLBACK_YOUTUBE_URL;
+  const demoButtonLabel = settings?.demo_button_label || "View Demo Class";
+  const demoUrl = settings?.demo_url || FALLBACK_YOUTUBE_URL;
 
   const openDemoClass = () => {
-    window.open(youtubeUrl, "_blank", "noopener,noreferrer");
+    window.open(demoUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -34,7 +36,7 @@ export function AdmissionTimeline({ settings }: { settings?: WebsiteSettings["ne
             Next Batch Schedule
           </h2>
           <p className="mx-auto mt-3 max-w-md text-base text-muted-foreground md:text-lg">
-            Admin controlled batch information for upcoming learners.
+            {eyebrow}
           </p>
           <div className="mx-auto mt-5 h-1 w-14 rounded-full bg-gradient-to-r from-primary to-accent" />
         </motion.div>
@@ -96,7 +98,7 @@ export function AdmissionTimeline({ settings }: { settings?: WebsiteSettings["ne
                 className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl gradient-teal px-7 py-4 text-base font-bold text-primary-foreground shadow-glow transition-all hover:shadow-orange-glow"
               >
                 <PlayCircle className="h-5 w-5 shrink-0" />
-                View Demo Class
+                {demoButtonLabel}
                 <Sparkles className="h-4 w-4 shrink-0" />
               </motion.button>
             </div>

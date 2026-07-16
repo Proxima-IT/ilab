@@ -25,6 +25,7 @@ class WebsiteSettingController extends Controller
             'settings' => ['required', 'array'],
             'settings.hero' => ['nullable', 'array'],
             'settings.next_batch' => ['nullable', 'array'],
+            'settings.next_batch_schedule' => ['nullable', 'array'],
             'settings.offers' => ['nullable', 'array'],
             'settings.download_app' => ['nullable', 'array'],
             'settings.reviews' => ['nullable', 'array'],

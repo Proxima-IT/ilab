@@ -26,9 +26,15 @@ const emptySettings: WebsiteSettings = {
   next_batch: {
     eyebrow: "",
     title: "",
-    course_info: "",
     image: null,
     youtube_url: "",
+  },
+  next_batch_schedule: {
+    eyebrow: "",
+    title: "",
+    course_info: "",
+    demo_button_label: "",
+    demo_url: "",
   },
   offers: {
     title: "",
@@ -219,15 +225,22 @@ export default function AdminSite() {
 
         <Section title="Next Batch Preview">
           <TextInput label="Eyebrow" value={settings.next_batch.eyebrow} onChange={(value) => updateSection("next_batch", { eyebrow: value })} />
-          <TextInput label="Title" value={settings.next_batch.title} onChange={(value) => updateSection("next_batch", { title: value })} />
-          <TextArea label="Course info" value={settings.next_batch.course_info || ""} onChange={(value) => updateSection("next_batch", { course_info: value })} />
-          <TextInput label="YouTube URL" value={settings.next_batch.youtube_url} onChange={(value) => updateSection("next_batch", { youtube_url: value })} />
+          <TextInput label="Preview title" value={settings.next_batch.title} onChange={(value) => updateSection("next_batch", { title: value })} />
+          <TextInput label="Watch preview YouTube URL" value={settings.next_batch.youtube_url} onChange={(value) => updateSection("next_batch", { youtube_url: value })} />
           <ImageInput
             label="Next batch image"
             path={settings.next_batch.image}
             loading={uploading === "next_batch.image"}
             onChange={(event) => void uploadImage(event, "next_batch.image")}
           />
+        </Section>
+
+        <Section title="Next Batch Schedule">
+          <TextInput label="Eyebrow" value={settings.next_batch_schedule.eyebrow} onChange={(value) => updateSection("next_batch_schedule", { eyebrow: value })} />
+          <TextInput label="Batch title" value={settings.next_batch_schedule.title} onChange={(value) => updateSection("next_batch_schedule", { title: value })} />
+          <TextInput label="Demo button label" value={settings.next_batch_schedule.demo_button_label} onChange={(value) => updateSection("next_batch_schedule", { demo_button_label: value })} />
+          <TextInput label="Demo video or playlist URL" value={settings.next_batch_schedule.demo_url} onChange={(value) => updateSection("next_batch_schedule", { demo_url: value })} />
+          <TextArea label="Course info" value={settings.next_batch_schedule.course_info} onChange={(value) => updateSection("next_batch_schedule", { course_info: value })} />
         </Section>
 
         <Section title="Offers">
