@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useMemo, useState, useEffect } from "react";
 import {
@@ -41,10 +41,12 @@ function firstError(error: unknown, fallback: string) {
 export default function EnrollPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated, isStudent } = useAuth();
   const [course, setCourse] = useState<PublicCourseDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkingEnrollment, setCheckingEnrollment] = useState(false);
+  const [profileCompleted, setProfileCompleted] = useState<boolean | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
@@ -117,6 +119,8 @@ export default function EnrollPage() {
       .getProfile()
       .then((response) => {
         if (cancelled) return;
+        setProfileCompleted(Boolean(response.data.profile_completed));
+        setPhone((current) => current || response.data.user.phone || "");
 
         const enrollments = Array.isArray(response.data.user.enrollments)
           ? (response.data.user.enrollments as any[])
@@ -139,6 +143,9 @@ export default function EnrollPage() {
             : "/dashboard/my-courses",
           { replace: true }
         );
+      })
+      .catch(() => {
+        if (!cancelled) setProfileCompleted(null);
       })
       .finally(() => {
         if (!cancelled) setCheckingEnrollment(false);
@@ -234,6 +241,15 @@ export default function EnrollPage() {
 
       navigate(`/enroll/success?invoice_id=${encodeURIComponent(result.invoiceId)}`);
     } catch (error) {
+      const responseData = (error as { response?: { data?: { data?: { profile_required?: boolean } } } })
+        .response?.data;
+
+      if (responseData?.data?.profile_required) {
+        setProfileCompleted(false);
+        setErrors({});
+        return;
+      }
+
       setErrors((current) => ({
         ...current,
         submit: firstError(error, "Checkout could not be initialized. Please try again."),
@@ -245,6 +261,10 @@ export default function EnrollPage() {
 
   if (!isAuthenticated || !user || !isStudent) {
     return <LoginRequired course={course} isWrongRole={Boolean(user && !isStudent)} />;
+  }
+
+  if (course.price <= 0 && profileCompleted === false) {
+    return <FreeCourseProfileRequired course={course} redirectPath={location.pathname} />;
   }
 
   return (
@@ -631,6 +651,68 @@ function LoginRequired({ course, isWrongRole = false }: { course: PublicCourseDe
               className="mt-1 text-xs text-muted-foreground hover:text-foreground transition"
             >
               ← Back to course details
+            </Link>
+          </div>
+        </motion.div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+function FreeCourseProfileRequired({
+  course,
+  redirectPath,
+}: {
+  course: PublicCourseDetails;
+  redirectPath: string;
+}) {
+  const profileUrl = `/dashboard/profile?redirect=${encodeURIComponent(redirectPath)}&reason=free-course`;
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header />
+      <main className="flex-1 grid place-items-center px-4 pb-16 pt-32">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="w-full max-w-lg rounded-2xl border border-border bg-card p-7 text-center shadow-card"
+        >
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <UserIcon className="h-7 w-7" />
+          </div>
+          <h1 className="mt-5 text-2xl font-extrabold text-foreground">
+            Complete your profile first
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            Free courses need a completed student profile before enrollment. Add your phone,
+            district, and education level, then you will come back here automatically.
+          </p>
+
+          <div className="mt-5 rounded-xl border border-border bg-surface/60 p-3 text-left">
+            <div className="flex items-center gap-3">
+              <img src={course.cover} alt="" className="h-14 w-20 shrink-0 rounded-md object-cover" />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wider text-primary-dark">{course.category}</p>
+                <p className="text-sm font-bold text-foreground line-clamp-1">{course.title}</p>
+                <p className="text-xs font-semibold text-success">{TAKA_SIGN}0 Free course</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-2.5">
+            <Link
+              to={profileUrl}
+              className="inline-flex items-center justify-center gap-2 rounded-full gradient-orange py-3 text-sm font-bold text-white shadow-orange-glow transition-transform hover:scale-[1.02]"
+            >
+              <UserIcon className="h-4 w-4" /> Update profile
+            </Link>
+            <Link
+              to={`/courses/${course.slug}`}
+              className="text-xs text-muted-foreground transition hover:text-foreground"
+            >
+              Back to course details
             </Link>
           </div>
         </motion.div>

@@ -258,6 +258,18 @@ class DashboardController extends Controller
             'published_events' => Schema::hasTable('events')
                 ? (int) DB::table('events')->where('is_published', true)->count()
                 : 0,
+            'finished_events' => Schema::hasTable('events')
+                ? (int) DB::table('events')
+                    ->where('is_published', true)
+                    ->whereRaw('COALESCE(ends_at, starts_at) < NOW()')
+                    ->count()
+                : 0,
+            'running_events' => Schema::hasTable('events')
+                ? (int) DB::table('events')
+                    ->where('is_published', true)
+                    ->whereRaw('COALESCE(ends_at, starts_at) >= NOW()')
+                    ->count()
+                : 0,
             'published_blog_posts' => Schema::hasTable('blog_posts')
                 ? (int) DB::table('blog_posts')->where('is_published', true)->count()
                 : 0,

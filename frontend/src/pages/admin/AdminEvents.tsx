@@ -18,6 +18,7 @@ type AdminEvent = {
   location: string | null;
   seats: number | null;
   cover_url: string | null;
+  intro_video_url: string | null;
   description: string;
   meta_title: string | null;
   meta_description: string | null;
@@ -49,6 +50,7 @@ type EventForm = {
   location: string;
   seats: string;
   cover_url: string;
+  intro_video_url: string;
   description: string;
   meta_title: string;
   meta_description: string;
@@ -64,6 +66,7 @@ const emptyForm: EventForm = {
   location: "",
   seats: "",
   cover_url: "",
+  intro_video_url: "",
   description: "",
   meta_title: "",
   meta_description: "",
@@ -90,6 +93,7 @@ function eventToForm(event: AdminEvent): EventForm {
     location: event.location || "",
     seats: event.seats ? String(event.seats) : "",
     cover_url: event.cover_url || "",
+    intro_video_url: event.intro_video_url || "",
     description: event.description,
     meta_title: event.meta_title || "",
     meta_description: event.meta_description || "",
@@ -107,6 +111,7 @@ function toPayload(form: EventForm) {
     location: form.location || null,
     seats: form.seats ? Number(form.seats) : null,
     cover_url: form.cover_url || null,
+    intro_video_url: form.intro_video_url || null,
     description: form.description,
     meta_title: form.meta_title || null,
     meta_description: form.meta_description || null,
@@ -255,7 +260,8 @@ export default function AdminEvents() {
             <tr>
               <th className="px-4 py-3 font-medium">Title</th>
               <th className="px-4 py-3 font-medium">Type</th>
-              <th className="px-4 py-3 font-medium">Starts</th>
+              <th className="px-4 py-3 font-medium">Event Date</th>
+              <th className="px-4 py-3 font-medium">Registration Finish</th>
               <th className="px-4 py-3 font-medium">Registrations</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -264,13 +270,13 @@ export default function AdminEvents() {
           <tbody className="divide-y divide-zinc-800">
             {loading ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-zinc-500">
+                <td colSpan={7} className="px-4 py-10 text-center text-zinc-500">
                   <Loader2 className="mx-auto h-5 w-5 animate-spin" />
                 </td>
               </tr>
             ) : events.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-zinc-500">
+                <td colSpan={7} className="px-4 py-10 text-center text-zinc-500">
                   No events yet.
                 </td>
               </tr>
@@ -284,6 +290,9 @@ export default function AdminEvents() {
                   <td className="px-4 py-3 text-zinc-300">{event.event_type || "Event"}</td>
                   <td className="px-4 py-3 text-zinc-300">
                     {new Date(event.starts_at).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-zinc-300">
+                    {event.ends_at ? new Date(event.ends_at).toLocaleString() : "-"}
                   </td>
                   <td className="px-4 py-3 text-zinc-300">{event.registrations_count || 0}</td>
                   <td className="px-4 py-3">
@@ -325,9 +334,17 @@ export default function AdminEvents() {
               <Input placeholder="Slug (optional)" value={form.slug} onChange={(event) => updateField("slug", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
               <Input placeholder="Type" value={form.event_type} onChange={(event) => updateField("event_type", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
               <Input type="number" placeholder="Seats" value={form.seats} onChange={(event) => updateField("seats", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
-              <Input type="datetime-local" value={form.starts_at} onChange={(event) => updateField("starts_at", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
-              <Input type="datetime-local" value={form.ends_at} onChange={(event) => updateField("ends_at", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
+              <label className="space-y-1.5 text-sm font-medium text-zinc-200">
+                <span>Event Date</span>
+                <Input type="datetime-local" value={form.starts_at} onChange={(event) => updateField("starts_at", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
+              </label>
+              <label className="space-y-1.5 text-sm font-medium text-zinc-200">
+                <span>Registration Finish</span>
+                <Input type="datetime-local" value={form.ends_at} onChange={(event) => updateField("ends_at", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white" />
+                <span className="block text-xs font-normal text-zinc-500">Registration can finish before the event date.</span>
+              </label>
               <Input placeholder="Location" value={form.location} onChange={(event) => updateField("location", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
+              <Input placeholder="Intro video YouTube URL" value={form.intro_video_url} onChange={(event) => updateField("intro_video_url", event.target.value)} className="border-zinc-700 bg-zinc-900 text-white md:col-span-2" />
               <div className="md:col-span-2">
                 <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-900">
                   {form.cover_url ? (

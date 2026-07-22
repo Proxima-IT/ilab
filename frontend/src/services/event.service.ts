@@ -16,6 +16,7 @@ export type PublicEvent = {
   seats: number | null;
   description: string;
   coverUrl: string;
+  introVideoUrl: string | null;
   metaTitle: string;
   metaDescription: string;
   isFinished: boolean;
@@ -42,6 +43,7 @@ type LaravelEvent = {
   seats?: number | null;
   description?: string | null;
   cover_url?: string | null;
+  intro_video_url?: string | null;
   meta_title?: string | null;
   meta_description?: string | null;
   is_finished?: boolean;
@@ -127,6 +129,7 @@ function mapEvent(event: LaravelEvent): PublicEvent {
     seats: event.seats ?? null,
     description: event.description || fallbackDescription,
     coverUrl: imageUrl(event.cover_url),
+    introVideoUrl: event.intro_video_url || null,
     metaTitle: event.meta_title || `${event.title} | iLab BD`,
     metaDescription:
       event.meta_description ||

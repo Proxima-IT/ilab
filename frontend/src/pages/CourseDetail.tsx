@@ -36,6 +36,14 @@ import {
 import { applyJsonLd, applySeo, breadcrumbSchema, siteUrl } from "@/lib/seo";
 
 const TAKA_SIGN = "\u09F3";
+const tagStyles = [
+  "bg-teal-100 text-teal-700 ring-teal-200",
+  "bg-orange-100 text-orange-700 ring-orange-200",
+  "bg-sky-100 text-sky-700 ring-sky-200",
+  "bg-emerald-100 text-emerald-700 ring-emerald-200",
+  "bg-violet-100 text-violet-700 ring-violet-200",
+  "bg-rose-100 text-rose-700 ring-rose-200",
+];
 
 export default function CourseDetailsPage() {
   const { slug } = useParams();
@@ -306,12 +314,6 @@ function CourseHero({ course }: { course: PublicCourseDetails }) {
           </p>
 
           <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <Link
-              to={enrollPath}
-              className="inline-flex items-center justify-center gap-2 rounded-full gradient-orange px-7 py-3.5 text-sm font-bold shadow-orange-glow transition-transform hover:scale-[1.03] active:scale-[0.98]"
-            >
-              Enroll Now - {TAKA_SIGN}{course.price.toLocaleString()}
-            </Link>
             {embedUrl && (
               <button
                 onClick={() => setPlaying(true)}
@@ -320,6 +322,12 @@ function CourseHero({ course }: { course: PublicCourseDetails }) {
                 <PlayCircle className="h-5 w-5" /> Preview Course
               </button>
             )}
+            <Link
+              to={enrollPath}
+              className="inline-flex items-center justify-center gap-2 rounded-full gradient-orange px-7 py-3.5 text-sm font-bold shadow-orange-glow transition-transform hover:scale-[1.03] active:scale-[0.98]"
+            >
+              Enroll Now - {TAKA_SIGN}{course.price.toLocaleString()}
+            </Link>
           </div>
         </motion.div>
 
@@ -404,7 +412,7 @@ function EnrollmentCard({ course }: { course: PublicCourseDetails }) {
               <span className="text-base text-muted-foreground line-through">
                 {TAKA_SIGN}{course.originalPrice.toLocaleString()}
               </span>
-              <span className="ml-auto rounded-full gradient-orange px-2.5 py-1 text-xs font-bold text-white">
+              <span className="ml-auto rounded-full bg-[#00515C] px-2.5 py-1 text-xs font-bold text-white">
                 {discount}% OFF
               </span>
             </>
@@ -469,9 +477,9 @@ function CourseOverview({ course }: { course: PublicCourseDetails }) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-60px" }}
             transition={{ duration: 0.3, delay: index * 0.04 }}
-            className="flex items-start gap-3 rounded-2xl border border-border bg-card p-4 transition-all hover:border-primary/40 hover:shadow-card"
+            className="group flex items-start gap-3 rounded-2xl border border-border bg-card p-4 transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-[linear-gradient(135deg,rgba(20,184,166,0.10),rgba(255,255,255,0.96)_48%,rgba(249,115,22,0.10))] hover:shadow-card"
           >
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
               <Check className="h-4 w-4" />
             </span>
             <p className="text-sm leading-relaxed text-foreground">{outcome}</p>
@@ -481,8 +489,11 @@ function CourseOverview({ course }: { course: PublicCourseDetails }) {
 
       {course.tags.length > 0 && (
         <div className="mt-6 flex flex-wrap gap-2">
-          {course.tags.map((tag) => (
-            <span key={tag} className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary-dark">
+          {course.tags.map((tag, index) => (
+            <span
+              key={tag}
+              className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${tagStyles[index % tagStyles.length]}`}
+            >
               {tag}
             </span>
           ))}
@@ -513,14 +524,22 @@ function CurriculumAccordion({ course }: { course: PublicCourseDetails }) {
 
   return (
     <Section eyebrow="Curriculum" title="Course curriculum">
-      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm text-muted-foreground">
-        <span>{course.sections.length} sections</span>
-        <span>{totalLessons} lessons</span>
-        {course.hours > 0 && <span>{course.hours}h total</span>}
+      <div className="mb-4 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary-dark ring-1 ring-primary/15">
+          {course.sections.length} sections
+        </span>
+        <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-700 ring-1 ring-sky-200">
+          {totalLessons} lessons
+        </span>
+        {course.hours > 0 && (
+          <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-700 ring-1 ring-orange-200">
+            {course.hours}h total
+          </span>
+        )}
         {course.sections.length > 0 && (
           <button
             onClick={() => setOpenSections(new Set(course.sections.map((section) => section.id)))}
-            className="ml-auto font-semibold text-primary hover:text-primary-dark"
+            className="ml-auto rounded-full border border-primary/20 bg-white px-3 py-1 text-xs font-bold text-primary hover:bg-primary/5"
           >
             Expand all
           </button>
@@ -704,7 +723,10 @@ function RelatedCourses({ items }: { items: Course[] }) {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary-dark">More to explore</p>
           <h2 className="mt-2 text-2xl font-bold text-foreground md:text-3xl">Related courses</h2>
         </div>
-        <Link to="/courses" className="hidden text-sm font-semibold text-primary hover:text-primary-dark sm:inline-flex">
+        <Link
+          to="/courses"
+          className="hidden rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-xs font-bold text-primary-dark transition hover:bg-primary hover:text-white sm:inline-flex"
+        >
           View all
         </Link>
       </div>

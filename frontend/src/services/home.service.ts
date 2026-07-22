@@ -10,6 +10,7 @@ export type HomeReview = {
   type: "text" | "image" | "video";
   name: string;
   role: string;
+  learnerLevel?: "beginner" | "intermediate" | "expert";
   avatar: string;
   rating: number;
   text: string;
@@ -39,15 +40,18 @@ export type WebsiteSettings = {
   next_batch_schedule: {
     eyebrow: string;
     title: string;
+    enrollment_start_date: string;
+    enrollment_end_date: string;
     course_info: string;
     demo_button_label: string;
     demo_url: string;
+    course_url: string;
   };
   offers: {
     title: string;
     highlight: string;
     description: string;
-    items: { icon: string; title: string; description: string }[];
+    items: { icon: string; title: string; description: string; background_color?: string }[];
   };
   download_app: {
     title: string;
@@ -84,6 +88,7 @@ type LaravelReview = {
   id: number | string;
   student_name: string;
   student_role?: string | null;
+  learner_level?: "beginner" | "intermediate" | "expert" | null;
   avatar?: string | null;
   rating?: number | string | null;
   review_text?: string | null;
@@ -150,6 +155,7 @@ export async function fetchPublicReviews(limit = 6): Promise<HomeReview[]> {
       type: mediaType,
       name: review.student_name,
       role: review.student_role || "",
+      learnerLevel: review.learner_level || undefined,
       avatar: avatarUrl(review.avatar, review.student_name),
       rating: Math.max(1, Math.min(5, Number(review.rating || 5))),
       text: review.review_text || "",

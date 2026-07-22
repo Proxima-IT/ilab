@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Award,
@@ -79,6 +79,10 @@ function errorMessage(error: unknown, fallback: string): string {
   return response?.data?.message || fallback;
 }
 
+function safeRedirect(value: string | null): string | null {
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : null;
+}
+
 function Toggle({
   on,
   onToggle,
@@ -122,6 +126,9 @@ function ProfileSkeleton() {
 export default function ProfilePage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirect = safeRedirect(searchParams.get("redirect"));
+  const reason = searchParams.get("reason");
   const { user, token, clearSession } = useAuth();
   const {
     student,
@@ -240,6 +247,15 @@ export default function ProfilePage() {
       applyProfile(response.data.user);
       await refetch();
       toast.success("Profile updated successfully.");
+
+      if (redirect) {
+        if (response.data.profile_completed) {
+          navigate(redirect, { replace: true });
+          return;
+        }
+
+        toast.info("Please add your phone, district, and education level before continuing.");
+      }
     } catch (error) {
       if (!handleUnauthorizedError(error)) {
         toast.error(errorMessage(error, "Profile update hoyni."));
@@ -319,6 +335,18 @@ export default function ProfilePage() {
           Your account data is loaded from the iLab database.
         </p>
       </div>
+
+      {reason === "free-course" && (
+        <motion.div
+          variants={item}
+          className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-foreground"
+        >
+          <p className="font-semibold">Complete your profile to enroll in the free course.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Add your phone, district, and education level. After saving, you will return to the enroll page automatically.
+          </p>
+        </motion.div>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <motion.div variants={item} className="glass-card p-6 text-center">

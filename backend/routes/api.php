@@ -341,6 +341,7 @@ Route::prefix('v1')->group(function () {
                     });
                 Route::middleware('can:manage-reviews')->group(function () {
                     Route::post('/reviews/avatar', [AdminReviewController::class, 'uploadAvatar']);
+                    Route::post('/reviews/media', [AdminReviewController::class, 'uploadMedia']);
                     Route::apiResource('reviews', AdminReviewController::class);
                 });
 

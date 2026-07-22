@@ -111,11 +111,38 @@ class ReviewController extends Controller
         ], 201);
     }
 
+    public function uploadMedia(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'old_image' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $path = $validated['image']->store('reviews/media', 'public');
+
+        if (
+            ! empty($validated['old_image'])
+            && str_starts_with($validated['old_image'], 'storage/reviews/media/')
+        ) {
+            Storage::disk('public')->delete(str_replace('storage/', '', $validated['old_image']));
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'path' => 'storage/' . $path,
+            ],
+            'message' => 'Review image uploaded successfully.',
+            'errors' => null,
+        ], 201);
+    }
+
     private function validatedData(Request $request): array
     {
         return $request->validate([
             'student_name' => ['required', 'string', 'max:255'],
             'student_role' => ['nullable', 'string', 'max:255'],
+            'learner_level' => ['nullable', 'string', 'max:50', Rule::in(['beginner', 'intermediate', 'expert'])],
             'avatar' => ['nullable', 'string', 'max:500'],
             'rating' => ['required', 'integer', 'min:1', 'max:5'],
             'review_text' => ['nullable', 'string', 'max:5000'],

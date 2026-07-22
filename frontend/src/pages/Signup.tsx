@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useMemo, useState, useEffect } from "react";
 import { Eye, EyeOff, Mail, Lock, User, Loader2, Check, Smartphone } from "lucide-react";
 import { GoogleLogin, CredentialResponse } from "@react-oauth/google";
@@ -46,9 +46,15 @@ function getErrorMessage(error: any): string {
   );
 }
 
+function safeRedirect(value: string | null): string | null {
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : null;
+}
+
 export default function SignupPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isAuthenticated, isAdmin } = useAuth();
+  const redirect = safeRedirect(searchParams.get("redirect"));
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -72,8 +78,8 @@ export default function SignupPage() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
-  }, [isAuthenticated, isAdmin, navigate]);
+    navigate(isAdmin ? "/admin" : redirect || "/dashboard", { replace: true });
+  }, [isAuthenticated, isAdmin, navigate, redirect]);
 
   const strength = useMemo(() => scorePassword(password), [password]);
 
@@ -110,7 +116,9 @@ export default function SignupPage() {
         fcm_token: null,
       });
 
-      navigate(`/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}`);
+      navigate(
+        `/verify-email?email=${encodeURIComponent(email.trim().toLowerCase())}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`
+      );
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -138,7 +146,7 @@ export default function SignupPage() {
       });
 
       authStore.setSession(response.data.data.user, response.data.data.token);
-      navigate("/dashboard", { replace: true });
+      navigate(redirect || "/dashboard", { replace: true });
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -163,7 +171,10 @@ export default function SignupPage() {
       footer={
         <>
           Already have an account?{" "}
-          <Link to="/login" className="font-semibold text-primary hover:text-primary-dark">
+          <Link
+            to={redirect ? `/login?redirect=${encodeURIComponent(redirect)}` : "/login"}
+            className="font-semibold text-primary hover:text-primary-dark"
+          >
             Log in
           </Link>
         </>

@@ -61,19 +61,19 @@ export function CourseCard({
         )}
       </Link>
 
-      <div className="p-5 flex flex-col flex-1">
+      <div className="p-4 flex flex-col flex-1">
         <p className="text-xs font-semibold text-primary-dark uppercase tracking-wider">
           {course.category}
         </p>
 
         <Link
           to={detailsPath}
-          className="mt-2 text-base font-bold text-foreground line-clamp-2 group-hover:text-primary-dark transition-colors min-h-[3rem]"
+          className="mt-1.5 text-base font-bold text-foreground line-clamp-2 group-hover:text-primary-dark transition-colors"
         >
           {course.title}
         </Link>
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-1.5">
           <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${levelBadge}`}>
             {course.level}
           </span>
@@ -85,33 +85,33 @@ export function CourseCard({
           </span>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
           {course.rating > 0 && (
             <span className="inline-flex items-center gap-1.5">
-              <Star className="h-4 w-4 fill-accent text-accent" />
+              <Star className="h-3.5 w-3.5 fill-accent text-accent" />
               <strong className="text-foreground">{course.rating}</strong>
             </span>
           )}
           {course.students > 0 && (
             <span className="inline-flex items-center gap-1.5">
-              <Users className="h-4 w-4" /> {course.students.toLocaleString()}
+              <Users className="h-3.5 w-3.5" /> {course.students.toLocaleString()}
             </span>
           )}
           {course.hours > 0 && (
             <span className="inline-flex items-center gap-1.5">
-              <Clock className="h-4 w-4" /> {course.hours}h
+              <Clock className="h-3.5 w-3.5" /> {course.hours}h
             </span>
           )}
           {course.lessons > 0 && (
             <span className="inline-flex items-center gap-1.5">
-              <BookOpen className="h-4 w-4" /> {course.lessons}
+              <BookOpen className="h-3.5 w-3.5" /> {course.lessons}
             </span>
           )}
         </div>
 
-        <div className="mt-auto pt-5 flex items-end justify-between gap-3">
+        <div className="mt-auto pt-4 flex items-end justify-between gap-2">
           <div>
-            <p className="text-lg font-bold text-foreground">
+            <p className="text-base font-bold text-foreground">
               {TAKA_SIGN}{course.price.toLocaleString()}
             </p>
             {course.originalPrice && (
@@ -124,13 +124,13 @@ export function CourseCard({
           <div className="flex items-center gap-2">
             <Link
               to={detailsPath}
-              className="px-5 py-2.5 rounded-full text-sm font-bold border-2 border-primary/30 text-primary-dark hover:bg-primary/5 transition-colors"
+              className="px-3.5 py-2 rounded-full text-xs font-bold border-2 border-primary/30 text-primary-dark hover:bg-primary/5 transition-colors"
             >
               View
             </Link>
             <Link
               to={enrollPath}
-              className="px-5 py-2.5 rounded-full text-sm font-bold gradient-orange text-white shadow-orange-glow hover:scale-105 transition-transform"
+              className="px-3.5 py-2 rounded-full text-xs font-bold gradient-orange text-white shadow-orange-glow hover:scale-105 transition-transform"
             >
               Enroll
             </Link>

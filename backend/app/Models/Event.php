@@ -16,6 +16,7 @@ class Event extends Model
         'location',
         'seats',
         'cover_url',
+        'intro_video_url',
         'description',
         'meta_title',
         'meta_description',

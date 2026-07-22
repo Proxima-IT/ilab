@@ -72,24 +72,25 @@ export default function BlogIndex() {
   return (
     <main className="min-h-screen bg-background">
       <Header />
-      <section className="relative overflow-hidden border-b border-border bg-surface pt-32 pb-14 md:pb-18">
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-primary-dark">
+      <section className="relative isolate overflow-hidden border-b border-sky-200 bg-background pt-32 pb-14 md:pb-16">
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(135deg,rgba(14,165,233,0.20),rgba(240,249,255,0.95)_42%,rgba(168,85,247,0.16))]" />
+        <div className="relative mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/85 px-4 py-2 text-sm font-bold uppercase tracking-[0.12em] text-sky-700 shadow-sm ring-1 ring-sky-200 md:text-base">
               <Newspaper className="h-4 w-4" />
               iLab Blog
             </div>
-            <h1 className="mt-5 text-4xl font-extrabold tracking-tight text-foreground md:text-6xl">
+            <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-foreground md:text-5xl">
               Mobile repairing tips and career guides
             </h1>
-            <p className="mt-5 text-lg leading-relaxed text-muted-foreground md:text-xl">
+            <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-muted-foreground">
               Practical articles from iLab for learners, technicians, and future entrepreneurs.
             </p>
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      <section className="py-12 md:py-16">
+      <section className="bg-background py-12 md:py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           {loading ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

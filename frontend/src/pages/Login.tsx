@@ -48,11 +48,15 @@ function getVerificationEmail(error: any): string | null {
   return error?.response?.data?.data?.email || null;
 }
 
+function safeRedirect(value: string | null): string | null {
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : null;
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated, isAdmin } = useAuth();
-  const redirect = searchParams.get("redirect") || undefined;
+  const redirect = safeRedirect(searchParams.get("redirect"));
 
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
@@ -74,12 +78,12 @@ export default function LoginPage() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    navigate(isAdmin ? "/admin" : "/dashboard", { replace: true });
-  }, [isAuthenticated, isAdmin, navigate]);
+    navigate(isAdmin ? "/admin" : redirect || "/dashboard", { replace: true });
+  }, [isAuthenticated, isAdmin, navigate, redirect]);
 
   const afterLogin = () => {
     if (redirect) {
-      window.location.href = redirect;
+      navigate(redirect, { replace: true });
       return;
     }
 
@@ -114,7 +118,9 @@ export default function LoginPage() {
       const verificationEmail = getVerificationEmail(err);
 
       if (verificationEmail) {
-        navigate(`/verify-email?email=${encodeURIComponent(verificationEmail)}`);
+        navigate(
+          `/verify-email?email=${encodeURIComponent(verificationEmail)}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`
+        );
         return;
       }
 
@@ -168,7 +174,10 @@ export default function LoginPage() {
       footer={
         <>
           Don't have an account?{" "}
-          <Link to="/signup" className="font-semibold text-primary hover:text-primary-dark">
+          <Link
+            to={redirect ? `/signup?redirect=${encodeURIComponent(redirect)}` : "/signup"}
+            className="font-semibold text-primary hover:text-primary-dark"
+          >
             Sign up
           </Link>
         </>

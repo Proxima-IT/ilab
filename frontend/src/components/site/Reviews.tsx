@@ -24,6 +24,14 @@ function youtubeEmbedUrl(value?: string | null): string | null {
 }
 
 function ReviewHeader({ review }: { review: HomeReview }) {
+  const levelLabel = review.learnerLevel
+    ? {
+        beginner: "Beginner",
+        intermediate: "Intermediate",
+        expert: "Expert",
+      }[review.learnerLevel]
+    : "";
+
   return (
     <div className="flex items-center gap-3">
       <img
@@ -36,12 +44,17 @@ function ReviewHeader({ review }: { review: HomeReview }) {
         {review.role && (
           <p className="text-xs text-muted-foreground truncate">{review.role}</p>
         )}
+        <div className="mt-1 flex gap-0.5">
+          {Array.from({ length: review.rating }).map((_, index) => (
+            <Star key={index} className="h-3.5 w-3.5 fill-accent text-accent" />
+          ))}
+        </div>
       </div>
-      <div className="ml-auto flex gap-0.5 shrink-0">
-        {Array.from({ length: review.rating }).map((_, index) => (
-          <Star key={index} className="h-3.5 w-3.5 fill-accent text-accent" />
-        ))}
-      </div>
+      {levelLabel && (
+        <span className="ml-auto shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-bold text-primary-dark ring-1 ring-primary/15">
+          {levelLabel}
+        </span>
+      )}
     </div>
   );
 }
@@ -74,7 +87,7 @@ export function Reviews({ settings }: { settings?: WebsiteSettings["reviews"] })
     <section id="reviews" className="py-20 md:py-28 bg-gradient-to-b from-background via-background to-surface/30">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto">
-          <p className="text-sm font-semibold text-primary uppercase tracking-wider">
+          <p className="text-base font-semibold text-primary uppercase tracking-wider">
             {settings?.eyebrow || "Student Reviews"}
           </p>
           <h2 className="mt-3 text-3xl md:text-5xl font-bold text-foreground">
@@ -84,7 +97,7 @@ export function Reviews({ settings }: { settings?: WebsiteSettings["reviews"] })
               <span className="absolute left-0 -bottom-1 h-1 w-full rounded-full bg-primary/70" />
             </span>
           </h2>
-          <p className="mt-6 text-muted-foreground text-base md:text-lg">
+          <p className="mt-6 text-muted-foreground text-lg md:text-xl">
             {settings?.description || "Real stories from students building practical skills with iLab."}
           </p>
         </div>

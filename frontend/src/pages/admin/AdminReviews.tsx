@@ -17,6 +17,7 @@ type ReviewForm = {
   id?: number;
   student_name: string;
   student_role: string;
+  learner_level: "beginner" | "intermediate" | "expert" | "";
   avatar: string;
   rating: string;
   review_text: string;
@@ -30,6 +31,7 @@ type ReviewForm = {
 const emptyForm: ReviewForm = {
   student_name: "",
   student_role: "",
+  learner_level: "",
   avatar: "",
   rating: "5",
   review_text: "",
@@ -41,6 +43,11 @@ const emptyForm: ReviewForm = {
 };
 
 const allowedRoles = ["super_admin", "admin", "manager"];
+const levelLabels: Record<Exclude<ReviewForm["learner_level"], "">, string> = {
+  beginner: "Beginner",
+  intermediate: "Intermediate",
+  expert: "Expert",
+};
 
 function resolveImage(path?: string | null, name = "Student") {
   if (!path) {
@@ -55,6 +62,7 @@ function toForm(review: AdminReview): ReviewForm {
     id: review.id,
     student_name: review.student_name || "",
     student_role: review.student_role || "",
+    learner_level: review.learner_level || "",
     avatar: review.avatar || "",
     rating: String(review.rating || 5),
     review_text: review.review_text || "",
@@ -68,14 +76,16 @@ function toForm(review: AdminReview): ReviewForm {
 
 function toPayload(form: ReviewForm): ReviewPayload {
   const youtubeUrl = form.media_url.trim();
+  const hasUploadedImage = form.media_type === "image" && Boolean(form.media_url.trim());
 
   return {
     student_name: form.student_name.trim(),
     student_role: form.student_role.trim() || null,
+    learner_level: form.learner_level || null,
     avatar: form.avatar.trim() || null,
     rating: Math.max(1, Math.min(5, Number(form.rating || 5))),
     review_text: form.review_text.trim() || null,
-    media_type: youtubeUrl ? "video" : "text",
+    media_type: youtubeUrl ? (hasUploadedImage ? "image" : "video") : "text",
     media_url: youtubeUrl || null,
     thumbnail: null,
     is_published: form.is_published,
@@ -91,10 +101,12 @@ export default function AdminReviews() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminReview | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<ReviewForm>(emptyForm);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const mediaInputRef = useRef<HTMLInputElement | null>(null);
 
   const canManage = Boolean(auth.role && allowedRoles.includes(auth.role));
   const editing = Boolean(form.id);
@@ -184,6 +196,33 @@ export default function AdminReviews() {
       toast.error("Avatar upload hoyni.");
     } finally {
       setUploadingAvatar(false);
+    }
+  };
+
+  const handleMediaUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+
+    if (!file) return;
+
+    setUploadingMedia(true);
+
+    try {
+      const path = await adminReviewService.uploadMedia(
+        file,
+        form.media_type === "image" ? form.media_url : null
+      );
+      setForm((current) => ({
+        ...current,
+        media_type: "image",
+        media_url: path,
+        thumbnail: path,
+      }));
+      toast.success("Review image uploaded.");
+    } catch {
+      toast.error("Review image upload hoyni.");
+    } finally {
+      setUploadingMedia(false);
     }
   };
 
@@ -282,6 +321,19 @@ export default function AdminReviews() {
               <Input value={form.student_role} onChange={(event) => setForm((current) => ({ ...current, student_role: event.target.value }))} className="border-zinc-700 bg-zinc-950 text-white" />
             </Field>
 
+            <Field label="Learner level">
+              <select
+                value={form.learner_level}
+                onChange={(event) => setForm((current) => ({ ...current, learner_level: event.target.value as ReviewForm["learner_level"] }))}
+                className="h-10 w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 text-sm text-white"
+              >
+                <option value="">No label</option>
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="expert">Expert</option>
+              </select>
+            </Field>
+
             <Field label="Avatar URL or storage path">
               <div className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3">
                 <img
@@ -356,6 +408,32 @@ export default function AdminReviews() {
               </p>
             </Field>
 
+            <Field label="Review image (optional)">
+              <div className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
+                {form.media_type === "image" && form.media_url ? (
+                  <img src={resolveImage(form.media_url)} alt="" className="mb-3 aspect-video w-full rounded-md object-cover" />
+                ) : (
+                  <p className="mb-3 text-xs text-zinc-500">No review image uploaded.</p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => mediaInputRef.current?.click()}
+                  disabled={uploadingMedia}
+                  className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-800 disabled:opacity-60"
+                >
+                  {uploadingMedia ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Camera className="h-3.5 w-3.5" />}
+                  Upload review image
+                </button>
+                <input
+                  ref={mediaInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  className="hidden"
+                  onChange={handleMediaUpload}
+                />
+              </div>
+            </Field>
+
             <div className="flex items-center gap-2 lg:col-span-2">
               <input
                 id="review-published"
@@ -403,6 +481,11 @@ export default function AdminReviews() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-white">{review.student_name}</p>
                   <p className="truncate text-xs text-zinc-500">{review.student_role || "Student"}</p>
+                  {review.learner_level && (
+                    <span className="mt-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+                      {levelLabels[review.learner_level]}
+                    </span>
+                  )}
                   <div className="mt-1 flex gap-0.5">
                     {Array.from({ length: review.rating }).map((_, index) => (
                       <Star key={index} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />

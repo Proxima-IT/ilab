@@ -136,4 +136,13 @@ class User extends Authenticatable
             && ! empty($this->phone)
             && is_null($this->phone_verified_at);
     }
+
+    public function hasCompletedStudentProfile(): bool
+    {
+        return filled($this->name)
+            && filled($this->email)
+            && filled($this->phone)
+            && filled($this->district)
+            && filled($this->education_level);
+    }
 }

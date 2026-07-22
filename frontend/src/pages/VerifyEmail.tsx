@@ -25,10 +25,15 @@ function getErrorMessage(error: any): string {
   return error?.response?.data?.message || "Verification failed. Please try again.";
 }
 
+function safeRedirect(value: string | null): string | null {
+  return value && value.startsWith("/") && !value.startsWith("//") ? value : null;
+}
+
 export default function VerifyEmailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState(searchParams.get("email") || "");
+  const redirect = safeRedirect(searchParams.get("redirect"));
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -66,7 +71,7 @@ export default function VerifyEmailPage() {
       });
 
       authStore.setSession(response.data.user, response.data.token);
-      navigate("/dashboard", { replace: true });
+      navigate(redirect || "/dashboard", { replace: true });
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {

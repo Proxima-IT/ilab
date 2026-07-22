@@ -42,7 +42,7 @@ export function Courses() {
     <section id="courses" className="py-20 md:py-28 bg-gradient-to-b from-background via-background to-surface/30">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <p className="text-sm font-semibold text-primary uppercase tracking-wider">Featured Courses</p>
+          <p className="text-base font-semibold text-primary uppercase tracking-wider">Featured Courses</p>
           <h2 className="mt-3 text-3xl md:text-5xl font-bold text-foreground">
             Learn skills the{" "}
             <span className="relative inline-block text-primary">
@@ -51,11 +51,14 @@ export function Courses() {
             </span>{" "}
             is hiring for
           </h2>
+          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl">
+            Build practical skills with curated courses selected for career-focused learners.
+          </p>
           <Link
             to="/courses"
-            className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-primary-dark hover:gap-3 transition-all"
+            className="mt-6 inline-flex items-center gap-2.5 px-7 py-3 rounded-full text-sm font-bold gradient-orange text-white shadow-orange-glow hover:scale-105 hover:shadow-lg transition-all"
           >
-            Browse all courses <ArrowRight className="h-4 w-4" />
+            Browse all courses <ArrowRight className="h-5 w-5" />
           </Link>
         </div>
 

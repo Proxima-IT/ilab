@@ -21,7 +21,12 @@ const emptySettings: WebsiteSettings = {
     secondary_button_label: "",
     youtube_url: "",
     image: null,
-    counts: [],
+    counts: [
+      { label: "Total Students", value: "5,000+" },
+      { label: "Total Videos", value: "1,200+" },
+      { label: "Total Courses", value: "50+" },
+      { label: "Success Rate", value: "95%" },
+    ],
   },
   next_batch: {
     eyebrow: "",
@@ -32,9 +37,12 @@ const emptySettings: WebsiteSettings = {
   next_batch_schedule: {
     eyebrow: "",
     title: "",
+    enrollment_start_date: "",
+    enrollment_end_date: "",
     course_info: "",
     demo_button_label: "",
     demo_url: "",
+    course_url: "",
   },
   offers: {
     title: "",
@@ -59,7 +67,21 @@ const emptySettings: WebsiteSettings = {
   },
 };
 
-const offerIcons = ["briefcase", "users", "headphones"];
+const offerIcons = [
+  "briefcase",
+  "users",
+  "headphones",
+  "book",
+  "award",
+  "shield",
+  "wrench",
+  "phone",
+  "monitor",
+  "lightbulb",
+  "message",
+  "clock",
+  "rocket",
+];
 
 export default function AdminSite() {
   const auth = useAdminAuth();
@@ -193,10 +215,45 @@ export default function AdminSite() {
             onChange={(event) => void uploadImage(event, "hero.image")}
           />
           <div className="lg:col-span-2">
-            <Label className="text-zinc-300">Hero Counts</Label>
-            <div className="mt-2 grid gap-3 md:grid-cols-3">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <Label className="text-zinc-300">Hero Counts</Label>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  updateSection("hero", {
+                    counts: [...settings.hero.counts, { label: "", value: "" }],
+                  })
+                }
+                className="border-zinc-700 bg-transparent text-zinc-200 hover:bg-zinc-800"
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Add Count
+              </Button>
+            </div>
+            <div className="mt-2 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               {settings.hero.counts.map((count, index) => (
                 <div key={index} className="rounded-lg border border-zinc-800 bg-zinc-950 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      Count {index + 1}
+                    </span>
+                    {settings.hero.counts.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateSection("hero", {
+                            counts: settings.hero.counts.filter((_, countIndex) => countIndex !== index),
+                          })
+                        }
+                        className="grid h-7 w-7 place-items-center rounded-md text-rose-300 hover:bg-rose-500/10"
+                        aria-label="Remove count"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                   <Input
                     value={count.value}
                     onChange={(event) => {
@@ -238,8 +295,11 @@ export default function AdminSite() {
         <Section title="Next Batch Schedule">
           <TextInput label="Eyebrow" value={settings.next_batch_schedule.eyebrow} onChange={(value) => updateSection("next_batch_schedule", { eyebrow: value })} />
           <TextInput label="Batch title" value={settings.next_batch_schedule.title} onChange={(value) => updateSection("next_batch_schedule", { title: value })} />
+          <TextInput label="Enrollment start date" value={settings.next_batch_schedule.enrollment_start_date} onChange={(value) => updateSection("next_batch_schedule", { enrollment_start_date: value })} />
+          <TextInput label="Enrollment end date" value={settings.next_batch_schedule.enrollment_end_date} onChange={(value) => updateSection("next_batch_schedule", { enrollment_end_date: value })} />
           <TextInput label="Demo button label" value={settings.next_batch_schedule.demo_button_label} onChange={(value) => updateSection("next_batch_schedule", { demo_button_label: value })} />
           <TextInput label="Demo video or playlist URL" value={settings.next_batch_schedule.demo_url} onChange={(value) => updateSection("next_batch_schedule", { demo_url: value })} />
+          <TextInput label="Course URL" value={settings.next_batch_schedule.course_url} onChange={(value) => updateSection("next_batch_schedule", { course_url: value })} />
           <TextArea label="Course info" value={settings.next_batch_schedule.course_info} onChange={(value) => updateSection("next_batch_schedule", { course_info: value })} />
         </Section>
 
@@ -258,7 +318,7 @@ export default function AdminSite() {
                   updateSection("offers", {
                     items: [
                       ...settings.offers.items,
-                      { icon: "briefcase", title: "", description: "" },
+                      { icon: "briefcase", title: "", description: "", background_color: "#fff4ed" },
                     ],
                   })
                 }
@@ -306,6 +366,31 @@ export default function AdminSite() {
                       placeholder="Offer description"
                       className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-white"
                     />
+                    <div className="grid gap-2 sm:grid-cols-[90px_1fr] sm:items-center">
+                      <label className="flex h-10 cursor-pointer items-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-2 text-xs font-semibold text-zinc-300">
+                        <input
+                          type="color"
+                          value={item.background_color || "#fff4ed"}
+                          onChange={(event) => {
+                            const items = [...settings.offers.items];
+                            items[index] = { ...items[index], background_color: event.target.value };
+                            updateSection("offers", { items });
+                          }}
+                          className="h-6 w-8 cursor-pointer rounded border-0 bg-transparent p-0"
+                        />
+                        Color
+                      </label>
+                      <Input
+                        value={item.background_color || ""}
+                        onChange={(event) => {
+                          const items = [...settings.offers.items];
+                          items[index] = { ...items[index], background_color: event.target.value };
+                          updateSection("offers", { items });
+                        }}
+                        placeholder="#fff4ed"
+                        className="border-zinc-700 bg-zinc-900 text-white"
+                      />
+                    </div>
                   </div>
                   <button
                     type="button"

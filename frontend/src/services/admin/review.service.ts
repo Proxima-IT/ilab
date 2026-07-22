@@ -4,6 +4,7 @@ export type AdminReview = {
   id: number;
   student_name: string;
   student_role: string | null;
+  learner_level: "beginner" | "intermediate" | "expert" | null;
   avatar: string | null;
   rating: number;
   review_text: string | null;
@@ -19,6 +20,7 @@ export type AdminReview = {
 export type ReviewPayload = {
   student_name: string;
   student_role?: string | null;
+  learner_level?: "beginner" | "intermediate" | "expert" | null;
   avatar?: string | null;
   rating: number;
   review_text?: string | null;
@@ -103,6 +105,22 @@ export const adminReviewService = {
 
     const response = await upload<UploadAvatarResponse>(
       "/admin/reviews/avatar",
+      formData
+    );
+
+    return response.data.path;
+  },
+
+  async uploadMedia(file: File, oldImage?: string | null): Promise<string> {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    if (oldImage) {
+      formData.append("old_image", oldImage);
+    }
+
+    const response = await upload<UploadAvatarResponse>(
+      "/admin/reviews/media",
       formData
     );
 

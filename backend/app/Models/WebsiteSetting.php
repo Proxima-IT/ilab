@@ -31,6 +31,7 @@ class WebsiteSetting extends Model
                     ['label' => 'Total Students', 'value' => '5,000+'],
                     ['label' => 'Total Videos', 'value' => '1,200+'],
                     ['label' => 'Total Courses', 'value' => '50+'],
+                    ['label' => 'Success Rate', 'value' => '95%'],
                 ],
             ],
             'next_batch' => [
@@ -41,10 +42,13 @@ class WebsiteSetting extends Model
             ],
             'next_batch_schedule' => [
                 'eyebrow' => 'Next Batch',
-                'title' => 'Upcoming practical batch schedule',
+                'title' => 'Next Batch Schedule',
+                'enrollment_start_date' => 'September 10, 2026',
+                'enrollment_end_date' => 'September 24, 2026',
                 'course_info' => 'Join the next practical batch with expert guidance and hands-on learning.',
                 'demo_button_label' => 'View Demo Class',
                 'demo_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                'course_url' => '/courses',
             ],
             'offers' => [
                 'title' => 'What we',
@@ -55,16 +59,19 @@ class WebsiteSetting extends Model
                         'icon' => 'briefcase',
                         'title' => 'Job Interview Training',
                         'description' => 'Special job interview training for learners who finish practical tracks with strong projects.',
+                        'background_color' => '#fff4ed',
                     ],
                     [
                         'icon' => 'users',
                         'title' => '1:1 Mentorship',
                         'description' => 'Expert mentors help plan your roadmap, solve problems, and guide you to your goal.',
+                        'background_color' => '#ecfdf5',
                     ],
                     [
                         'icon' => 'headphones',
                         'title' => 'Support Session',
                         'description' => 'Ask questions, share your screen, and get direct support when you need it.',
+                        'background_color' => '#eff6ff',
                     ],
                 ],
             ],

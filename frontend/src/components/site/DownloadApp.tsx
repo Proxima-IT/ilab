@@ -67,13 +67,13 @@ export function DownloadApp({ settings }: { settings?: WebsiteSettings["download
 
             {/* Right: compact phone mockup */}
             <div className="flex justify-center sm:justify-end">
-              <div className="relative w-full max-w-[120px] sm:max-w-[140px] md:max-w-[160px]">
+              <div className="relative w-full max-w-[120px] sm:max-w-[140px] sm:-translate-x-8 md:max-w-[160px] md:-translate-x-12 lg:-translate-x-16">
                 <div className="relative overflow-hidden rounded-[1.5rem] border-[3px] border-background/20 bg-background/5">
                   <div className="absolute top-0 left-1/2 z-10 mt-1.5 h-[14px] w-16 -translate-x-1/2 rounded-full bg-foreground" />
                   <img
                     src={appImage}
                     alt="iLab mobile app preview"
-                    className="aspect-[9/16] w-full object-cover"
+                    className="aspect-[9/16] w-full -translate-x-1.5 scale-[1.04] object-cover object-center"
                   />
                 </div>
               </div>

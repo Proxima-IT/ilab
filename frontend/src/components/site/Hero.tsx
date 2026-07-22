@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Users, Video, GraduationCap, Download, Youtube, X } from "lucide-react";
+import { BadgeCheck, Users, Video, GraduationCap, Download, Youtube, X } from "lucide-react";
 
 import { Link } from "react-router-dom";
 import { useState } from "react";
@@ -60,18 +60,19 @@ const FALLBACK_STATS = [
   { icon: Users, value: "5,000+", label: "Total Students" },
   { icon: Video, value: "1,200+", label: "Total Videos" },
   { icon: GraduationCap, value: "50+", label: "Total Courses" },
+  { icon: BadgeCheck, value: "95%", label: "Success Rate" },
 ];
 
 
 function TrustStats({ settings }: { settings?: WebsiteSettings["hero"] }) {
-  const stats = (settings?.counts?.length ? settings.counts : FALLBACK_STATS).slice(0, 3);
+  const stats = (settings?.counts?.length ? settings.counts : FALLBACK_STATS).slice(0, 4);
 
   return (
     <motion.ul
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6, delay: 0.45 }}
-      className="mt-14 flex flex-wrap gap-x-12 gap-y-6"
+      className="mt-14 grid gap-6 sm:grid-cols-2 xl:grid-cols-4"
     >
       {stats.map((s, i) => {
         const Icon = FALLBACK_STATS[i]?.icon || Users;
@@ -136,7 +137,13 @@ export function Hero({ settings }: { settings?: WebsiteSettings["hero"] }) {
   const heroImageSrc = settings?.image ? imageUrl(settings.image) : heroTechnician;
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-background via-background to-surface/30 pt-20 md:pt-24">
+    <section
+      className="relative overflow-hidden pt-20 md:pt-24"
+      style={{
+        background:
+          "radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 34%), radial-gradient(circle at 72% 14%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 32%), linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, var(--background)) 0%, var(--background) 45%, color-mix(in srgb, var(--surface) 82%, var(--primary) 18%) 100%)",
+      }}
+    >
       <div className="lg:grid lg:grid-cols-2 lg:min-h-[680px]">
         {/* Left content */}
         <div className="px-4 sm:px-6 lg:px-8 xl:px-16 py-12 md:py-16 lg:py-20 flex items-center">

@@ -142,6 +142,22 @@ class UddoktaPayCheckoutController extends Controller
                 $discountAmount = 0;
                 $coupon = null;
 
+                if ($basePrice <= 0 && ! $user->hasCompletedStudentProfile()) {
+                    return [
+                        'error' => response()->json([
+                            'success' => false,
+                            'data' => [
+                                'profile_required' => true,
+                                'profile_url' => '/dashboard/profile?redirect=' . urlencode('/enroll/' . $course->slug) . '&reason=free-course',
+                            ],
+                            'message' => 'Please complete your profile before enrolling in this free course.',
+                            'errors' => [
+                                'profile' => ['Complete your phone, district, and education level to enroll in free courses.'],
+                            ],
+                        ], 422),
+                    ];
+                }
+
                 if (! empty($validated['coupon_code'])) {
                     $coupon = $this->findApplicableCoupon($validated['coupon_code'], $course, true);
 

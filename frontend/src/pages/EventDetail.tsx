@@ -31,6 +31,24 @@ const emptyForm: EventRegistrationPayload = {
   why_want_to_learn: "",
 };
 
+function youtubeEmbedUrl(value?: string | null): string | null {
+  if (!value) return null;
+
+  const trimmed = value.trim();
+  const embedMatch = trimmed.match(/youtube\.com\/embed\/([^?&]+)/);
+  if (embedMatch?.[1]) return `https://www.youtube.com/embed/${embedMatch[1]}?rel=0`;
+
+  const shortsMatch = trimmed.match(/youtube\.com\/shorts\/([^?&]+)/);
+  if (shortsMatch?.[1]) return `https://www.youtube.com/embed/${shortsMatch[1]}?rel=0`;
+
+  const idMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  if (idMatch?.[1]) return `https://www.youtube.com/embed/${idMatch[1]}?rel=0`;
+
+  if (/^[A-Za-z0-9_-]{11}$/.test(trimmed)) return `https://www.youtube.com/embed/${trimmed}?rel=0`;
+
+  return null;
+}
+
 function applyEventSeo(event: PublicEvent) {
   applySeo({
     title: event.metaTitle,
@@ -164,6 +182,9 @@ function RegistrationForm({
   );
 }
 
+const eventInfoCardClass =
+  "inline-flex w-fit items-start gap-3 rounded-2xl border border-border bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:bg-[linear-gradient(135deg,rgba(20,184,166,0.10),rgba(255,255,255,0.96)_48%,rgba(249,115,22,0.10))] hover:shadow-card";
+
 export default function EventDetailPage() {
   const { eventId } = useParams();
   const [event, setEvent] = useState<PublicEvent | null>(null);
@@ -225,6 +246,8 @@ export default function EventDetailPage() {
     );
   }
 
+  const introEmbedUrl = youtubeEmbedUrl(event.introVideoUrl);
+
   return (
     <main className="min-h-screen bg-background">
       <Header />
@@ -244,40 +267,69 @@ export default function EventDetailPage() {
             <h1 className="mt-4 text-3xl md:text-5xl font-extrabold tracking-tight text-foreground">
               {event.title}
             </h1>
-            <p className="mt-4 text-muted-foreground text-lg">{event.description}</p>
 
-            <ul className="mt-6 flex flex-wrap gap-3 text-sm text-foreground">
-              <li className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-border">
-                <Calendar className="h-4 w-4 text-primary-dark" />
-                <span>
-                  <span className="font-semibold">Start:</span> {event.startDateTime}
-                </span>
-              </li>
-              {event.finishDateTime && (
-                <li className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-border">
-                  <Clock className="h-4 w-4 text-primary-dark" />
-                  <span>
-                    <span className="font-semibold">Finish:</span> {event.finishDateTime}
-                  </span>
-                </li>
-              )}
-              <li className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-border">
-                <MapPin className="h-4 w-4 text-primary-dark" />
-                {event.location}
-              </li>
-              {event.seats !== null && (
-                <li className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-border">
-                  <Users className="h-4 w-4 text-primary-dark" />
-                  {event.seats} seats
-                </li>
-              )}
-            </ul>
+            <div className="mt-6 space-y-3 text-sm text-foreground">
+              <div className="flex flex-wrap items-stretch gap-3">
+                <div className={eventInfoCardClass}>
+                  <Calendar className="mt-0.5 h-5 w-5 text-primary-dark" />
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Event Date</p>
+                    <p className="mt-1 font-semibold">{event.startDateTime}</p>
+                  </div>
+                </div>
+                {event.finishDateTime && (
+                  <div className={eventInfoCardClass}>
+                    <Clock className="mt-0.5 h-5 w-5 text-primary-dark" />
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Registration Finish</p>
+                      <p className="mt-1 font-semibold">{event.finishDateTime}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-stretch gap-3">
+                <div className={eventInfoCardClass}>
+                  <MapPin className="mt-0.5 h-5 w-5 text-primary-dark" />
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Location</p>
+                    <p className="mt-1 font-semibold">{event.location}</p>
+                  </div>
+                </div>
+                {event.seats !== null && (
+                  <div className={eventInfoCardClass}>
+                    <Users className="mt-0.5 h-5 w-5 text-primary-dark" />
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Seats</p>
+                      <p className="mt-1 font-semibold">{event.seats} seats</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </motion.div>
 
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
             <img src={event.coverUrl} alt={event.title} className="aspect-video h-full w-full object-cover" />
           </div>
         </div>
+
+        {introEmbedUrl && (
+          <div className="mx-auto mt-10 max-w-4xl px-4 sm:px-6 lg:px-8">
+            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+              <div className="aspect-video">
+                <iframe
+                  src={introEmbedUrl}
+                  title={`${event.title} intro video`}
+                  className="h-full w-full"
+                  loading="lazy"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="py-12 md:py-20">

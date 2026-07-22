@@ -227,7 +227,10 @@ export default function AdminDashboard() {
         <OwnerCard icon={AlertTriangle} label="Pending payments" value={money(data?.payment_overview.pending_amount)} />
         <OwnerCard icon={Award} label="Certificates issued" value={number(data?.content_overview.certificates)} />
         <OwnerCard icon={MessageCircle} label="Open Q&A" value={number(data?.content_overview.open_questions)} />
-        <OwnerCard icon={CalendarDays} label="Event registrations" value={number(data?.content_overview.event_registrations)} />
+        <OwnerCard icon={CalendarDays} label="Published events" value={number(data?.content_overview.published_events)} />
+        <OwnerCard icon={CheckCircle2} label="Finished events" value={number(data?.content_overview.finished_events)} />
+        <OwnerCard icon={CalendarDays} label="Running events" value={number(data?.content_overview.running_events)} />
+        <OwnerCard icon={Users} label="Event registrations" value={number(data?.content_overview.event_registrations)} />
         <OwnerCard icon={Newspaper} label="Published blogs" value={number(data?.content_overview.published_blog_posts)} />
         <OwnerCard icon={Star} label="Published reviews" value={number(data?.content_overview.published_reviews)} />
         <OwnerCard icon={Mail} label="Newsletter subscribers" value={number(data?.content_overview.newsletter_subscribers)} />
@@ -368,84 +371,6 @@ export default function AdminDashboard() {
         </section>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <section className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50">
-          <PanelHeader title="Recent Enrollments" subtitle="Latest course access" icon={<ShoppingBag className="h-4 w-4" />} />
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
-              <thead className="bg-zinc-900 text-left text-xs uppercase tracking-wide text-zinc-500">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Student</th>
-                  <th className="px-4 py-3 font-medium">Course</th>
-                  <th className="px-4 py-3 font-medium">Amount</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {!data?.recent_enrollments.length ? (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-10">
-                      <EmptyState label="No enrollments yet." />
-                    </td>
-                  </tr>
-                ) : (
-                  data.recent_enrollments.map((row) => (
-                    <tr key={row.id}>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-zinc-100">{row.student_name}</div>
-                        <div className="text-xs text-zinc-500">{row.student_email || row.student_phone || "-"}</div>
-                      </td>
-                      <td className="px-4 py-3 text-zinc-300">{row.course_title}</td>
-                      <td className="px-4 py-3 text-zinc-300">{money(row.enrolled_price)}</td>
-                      <td className="px-4 py-3">
-                        <span className={`rounded-full px-2 py-1 text-[11px] capitalize ${statusClass(row.status)}`}>
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-zinc-500">{formatDate(row.created_at)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50">
-          <PanelHeader
-            title="Needs Attention"
-            subtitle="Active students with 20% or lower progress"
-            icon={<AlertTriangle className="h-4 w-4" />}
-          />
-          <div className="divide-y divide-zinc-800">
-            {!data?.low_progress_students.length ? (
-              <EmptyState label="No low-progress students found." />
-            ) : (
-              data.low_progress_students.map((row, index) => (
-                <div key={`${row.student_email}-${row.course_title}-${index}`} className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-white">{row.student_name}</p>
-                      <p className="mt-1 truncate text-xs text-zinc-500">{row.student_email || "-"}</p>
-                      <p className="mt-1 truncate text-xs text-zinc-400">{row.course_title}</p>
-                    </div>
-                    <span className="rounded-full bg-amber-500/10 px-2 py-1 text-[11px] text-amber-300">
-                      {percent(row.progress_percentage)}
-                    </span>
-                  </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-800">
-                    <div
-                      className="h-full rounded-full bg-amber-400"
-                      style={{ width: `${Math.max(0, Math.min(100, Number(row.progress_percentage || 0)))}%` }}
-                    />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-      </div>
     </div>
   );
 }

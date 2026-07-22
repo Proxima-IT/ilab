@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Lightbulb, Play, User } from "lucide-react";
+import { Play, Sparkles } from "lucide-react";
 import { SiteLogo } from "@/components/site/SiteLogo";
 import type { WebsiteSettings } from "@/services/home.service";
 
@@ -20,6 +20,8 @@ export function YouTubeSection({
   socialMedia?: SocialMediaItem[];
 }) {
   const youtubeUrl = findYoutubeUrl(socialMedia);
+  const tipsImage =
+    "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=720&q=85";
   const channelCard = (
     <>
       <SiteLogo size="sm" />
@@ -70,30 +72,52 @@ export function YouTubeSection({
               )}
             </div>
 
-            {/* Right: illustration */}
+            {/* Right: animated visual */}
             <div className="flex justify-center sm:justify-end">
-              <div className="relative w-full max-w-[180px] sm:max-w-[200px] md:max-w-[220px]">
-                {/* Main circle */}
-                <div className="aspect-square rounded-full bg-primary/20 flex items-center justify-center">
-                  <div className="flex flex-col items-center">
-                    <div className="grid h-16 w-16 place-items-center rounded-full bg-primary shadow-glow">
-                      <User className="h-8 w-8 text-primary-foreground" />
+              <motion.div
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="relative w-full max-w-[210px] sm:max-w-[235px] md:max-w-[260px]"
+              >
+                <div className="overflow-hidden rounded-2xl border border-background/10 bg-background/10 p-2 shadow-2xl shadow-black/25">
+                  <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-background">
+                    <img
+                      src={tipsImage}
+                      alt="Learning quick tips on YouTube"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+                    <motion.div
+                      animate={{ opacity: [0.35, 0.75, 0.35], x: ["-35%", "35%", "-35%"] }}
+                      transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+                      className="absolute inset-y-0 left-0 w-1/2 rotate-12 bg-white/20 blur-2xl"
+                    />
+                    <div className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[#FF0000] px-2.5 py-1 text-[10px] font-bold text-white shadow-lg">
+                      <Play className="h-3 w-3 fill-white" />
+                      Tips
                     </div>
-                    <div className="mt-1 h-12 w-10 rounded-b-2xl bg-primary/80" />
+                    <motion.div
+                      animate={{ scale: [1, 1.03, 1] }}
+                      transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                      className="absolute bottom-3 left-3 right-3 rounded-xl bg-white/95 p-3 shadow-lg shadow-black/20"
+                    >
+                      <p className="text-[10px] font-bold uppercase text-accent">Quick Tips</p>
+                      <p className="mt-1 text-sm font-extrabold leading-tight text-foreground">
+                        Weekly learning shorts
+                      </p>
+                    </motion.div>
                   </div>
                 </div>
 
-                {/* Floating lightbulb */}
-                <div className="absolute -top-1 right-2 grid h-9 w-9 place-items-center rounded-full bg-accent shadow-orange-glow">
-                  <Lightbulb className="h-4 w-4 text-accent-foreground" />
-                </div>
-
-                {/* Quick Tips badge */}
-                <div className="absolute bottom-2 -right-2 rounded-lg bg-white px-3 py-1.5 shadow-lg shadow-black/10">
-                  <p className="text-[10px] font-bold leading-none text-accent">Quick!</p>
-                  <p className="text-[10px] font-bold leading-none text-foreground">Tips!</p>
-                </div>
-              </div>
+                <motion.div
+                  animate={{ rotate: [0, 8, -6, 0], scale: [1, 1.08, 1] }}
+                  transition={{ duration: 3.6, repeat: Infinity, ease: "easeInOut" }}
+                  className="absolute -right-3 top-8 grid h-10 w-10 place-items-center rounded-full bg-accent text-accent-foreground shadow-orange-glow"
+                >
+                  <Sparkles className="h-4 w-4" />
+                </motion.div>
+              </motion.div>
             </div>
           </div>
         </motion.div>

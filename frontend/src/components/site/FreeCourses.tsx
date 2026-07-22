@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { ArrowRight } from "lucide-react";
 import Autoplay from "embla-carousel-autoplay";
 import { CourseCard } from "@/components/site/CourseCard";
 import { fetchFreeCourses } from "@/services/home.service";
@@ -47,20 +49,23 @@ export function FreeCourses() {
           transition={{ duration: 0.5 }}
           className="text-center max-w-3xl mx-auto"
         >
-          <p className="text-sm font-semibold text-primary uppercase tracking-wider">
-            100% Free
-          </p>
           <h2 className="mt-3 text-3xl md:text-5xl font-bold text-foreground">
-            Free{" "}
             <span className="relative inline-block text-primary">
-              Courses
+              100%
               <span className="absolute left-0 -bottom-1 h-1 w-full rounded-full bg-primary/70" />
-            </span>
+            </span>{" "}
+            Free Courses
           </h2>
-          <p className="mt-6 text-muted-foreground text-base md:text-lg leading-relaxed">
+          <p className="mt-6 text-muted-foreground text-lg md:text-xl leading-relaxed">
             Start learning today with our free, beginner-friendly courses — no
             payment, no commitments, just pure value.
           </p>
+          <Link
+            to="/courses?free=true"
+            className="mt-6 inline-flex items-center gap-2.5 px-7 py-3 rounded-full text-sm font-bold gradient-orange text-white shadow-orange-glow hover:scale-105 hover:shadow-lg transition-all"
+          >
+            Browse free courses <ArrowRight className="h-5 w-5" />
+          </Link>
         </motion.div>
 
         <div className="mt-14">

@@ -27,7 +27,7 @@ export function Blog() {
     <section id="blog" className="py-20 md:py-28 bg-surface">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <p className="text-sm font-semibold text-primary uppercase tracking-wider">From the Blog</p>
+          <p className="text-base font-semibold text-primary uppercase tracking-wider">From the Blog</p>
           <h2 className="mt-3 text-3xl md:text-5xl font-bold text-foreground">
             Insights to keep you{" "}
             <span className="relative inline-block text-primary">

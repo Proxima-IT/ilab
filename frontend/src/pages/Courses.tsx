@@ -154,7 +154,7 @@ export default function CourseListingPage() {
           mode,
           sort,
           page,
-          perPage: 9,
+          perPage: 12,
           free,
         });
 
@@ -208,13 +208,14 @@ export default function CourseListingPage() {
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-surface/30">
       <Header />
 
-      <section className="relative pt-32 pb-24 overflow-hidden">
+      <section className="relative isolate overflow-hidden border-b border-teal-200 bg-background pt-24 pb-10 md:pt-28 md:pb-12">
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(135deg,rgba(20,184,166,0.22),rgba(240,253,250,0.95)_45%,rgba(249,115,22,0.18))]" />
         <div className="container relative px-4 mx-auto">
-          <div className="max-w-2xl mx-auto text-center mb-16">
+          <div className="max-w-2xl mx-auto text-center">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary-dark text-xs font-semibold mb-4"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white/80 text-primary-dark text-sm font-bold shadow-sm ring-1 ring-primary/10 md:text-base"
             >
               Explore {free ? "Free" : "All"} Programs
             </motion.div>
@@ -223,7 +224,7 @@ export default function CourseListingPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="font-display text-4xl sm:text-5xl font-bold tracking-tight text-foreground mb-4"
+              className="mt-5 font-display text-4xl sm:text-5xl font-bold tracking-tight text-foreground mb-3"
             >
               Master Your Skills.
             </motion.h1>
@@ -238,8 +239,12 @@ export default function CourseListingPage() {
               future-ready career.
             </motion.p>
           </div>
+        </div>
+      </section>
 
-          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between mb-8 max-w-6xl mx-auto">
+      <section className="bg-background py-10 md:py-12">
+        <div className="container relative px-4 mx-auto">
+          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between mb-7 max-w-6xl mx-auto">
             <div className="relative w-full lg:max-w-md">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
 
@@ -355,7 +360,7 @@ export default function CourseListingPage() {
           ) : result && result.items.length > 0 ? (
             <>
               <div
-                className={`grid sm:grid-cols-2 xl:grid-cols-3 gap-6 transition-opacity ${
+                className={`grid sm:grid-cols-2 xl:grid-cols-4 gap-5 transition-opacity ${
                   loading ? "opacity-60" : "opacity-100"
                 }`}
               >
@@ -383,7 +388,7 @@ export default function CourseListingPage() {
 
 function CourseSkeleton() {
   return (
-    <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
+    <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-5">
       {Array.from({ length: 6 }).map((_, index) => (
         <div
           key={index}

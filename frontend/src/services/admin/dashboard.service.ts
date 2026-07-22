@@ -87,6 +87,8 @@ export type AdminDashboardData = {
     open_questions: number;
     answered_questions: number;
     published_events: number;
+    finished_events: number;
+    running_events: number;
     published_blog_posts: number;
     published_reviews: number;
     newsletter_subscribers: number;

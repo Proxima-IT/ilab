@@ -132,11 +132,11 @@ function RegistrationModal({
         </h2>
         <div className="mt-2 space-y-1 text-sm text-muted-foreground">
           <p>
-            <span className="font-semibold text-foreground">Start:</span> {event.startDateTime}
+            <span className="font-semibold text-foreground">Event Date:</span> {event.startDateTime}
           </p>
           {event.finishDateTime && (
             <p>
-              <span className="font-semibold text-foreground">Finish:</span> {event.finishDateTime}
+              <span className="font-semibold text-foreground">Registration Finish:</span> {event.finishDateTime}
             </p>
           )}
         </div>
@@ -266,10 +266,11 @@ export default function EventsPage() {
     <main className="min-h-screen bg-background">
       <Header />
 
-      <section className="relative overflow-hidden gradient-hero pt-28 md:pt-36 pb-12 md:pb-20 border-b border-border">
+      <section className="relative isolate overflow-hidden border-b border-emerald-200 bg-background pt-28 pb-12 md:pt-36 md:pb-16">
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(135deg,rgba(16,185,129,0.24),rgba(236,253,245,0.96)_45%,rgba(20,184,166,0.18))]" />
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <p className="text-sm font-semibold text-primary-dark uppercase tracking-wider">
+            <p className="inline-flex rounded-full bg-white/85 px-4 py-2 text-sm font-bold text-emerald-700 shadow-sm ring-1 ring-emerald-200 md:text-base">
               Upcoming Events
             </p>
             <h1 className="mt-3 text-3xl md:text-5xl font-extrabold tracking-tight text-foreground">
@@ -340,7 +341,7 @@ export default function EventsPage() {
                       <div className="flex items-start gap-3 text-muted-foreground">
                         <Calendar className="h-5 w-5 text-primary-dark shrink-0" />
                         <span className="text-sm font-medium leading-relaxed">
-                          <span className="block text-xs font-bold uppercase tracking-wide text-foreground">Start</span>
+                            <span className="block text-xs font-bold uppercase tracking-wide text-foreground">Event Date</span>
                           {event.startDateTime}
                         </span>
                       </div>
@@ -348,7 +349,7 @@ export default function EventsPage() {
                         <div className="flex items-start gap-3 text-muted-foreground">
                           <Clock className="h-5 w-5 text-primary-dark shrink-0" />
                           <span className="text-sm font-medium leading-relaxed">
-                            <span className="block text-xs font-bold uppercase tracking-wide text-foreground">Finish</span>
+                            <span className="block text-xs font-bold uppercase tracking-wide text-foreground">Registration Finish</span>
                             {event.finishDateTime}
                           </span>
                         </div>
@@ -399,7 +400,7 @@ export default function EventsPage() {
             Explore practical iLab courses and build your mobile repairing foundation.
           </p>
           <Link
-            to="/courses"
+            to="/courses?free=true"
             className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-full gradient-orange text-white font-bold shadow-orange-glow hover:scale-[1.03] active:scale-[0.98] transition-transform"
           >
             Browse courses

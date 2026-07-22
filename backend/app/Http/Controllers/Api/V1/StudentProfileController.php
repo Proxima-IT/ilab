@@ -261,6 +261,6 @@ class StudentProfileController extends Controller
 
     private function isProfileCompleted($user): bool
     {
-        return !empty($user->phone) && !is_null($user->phone_verified_at);
+        return $user->hasCompletedStudentProfile();
     }
 }
