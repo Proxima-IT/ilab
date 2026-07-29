@@ -20,14 +20,31 @@ class MainShell extends ConsumerStatefulWidget {
   ConsumerState<MainShell> createState() => MainShellState();
 }
 
+class _TabItem {
+  final IconData icon;
+  final String label;
+  final int index;
+
+  const _TabItem({
+    required this.icon,
+    required this.label,
+    required this.index,
+  });
+}
+
 class MainShellState extends ConsumerState<MainShell> {
   int _currentIndex = 0;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  static const double _tabWidth = 56;
+  static const double _inactiveTabWidth = 56;
   static const double _tabGap = 16;
-  static const double _containerPadding = 8;
-  static const List<int> _navTabIndices = [0, 1, 2, 4];
+  static const double _labelGap = 6;
+  static const List<_TabItem> _tabs = [
+    _TabItem(icon: Icons.home_outlined, label: 'Home', index: 0),
+    _TabItem(icon: Icons.menu_book_outlined, label: 'Courses', index: 1),
+    _TabItem(icon: Icons.article_outlined, label: 'Blog', index: 2),
+    _TabItem(icon: Icons.person_outlined, label: 'Profile', index: 4),
+  ];
 
   @override
   void initState() {
@@ -41,10 +58,41 @@ class MainShellState extends ConsumerState<MainShell> {
     });
   }
 
-  double _getOffsetForIndex(int index) {
-    final navIndex = _navTabIndices.indexOf(index);
-    if (navIndex == -1) return _containerPadding;
-    return navIndex * (_tabWidth + _tabGap);
+  int? _navIndexForScreen(int screenIndex) {
+    for (int i = 0; i < _tabs.length; i++) {
+      if (_tabs[i].index == screenIndex) return i;
+    }
+    return null;
+  }
+
+  double _getLabelWidth(String label) {
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: GoogleFonts.outfit(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFF1A1A1A),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    return textPainter.width.ceilToDouble();
+  }
+
+  double _getTabWidth(int navIndex) {
+    if (_tabs[navIndex].index == _currentIndex) {
+      return _inactiveTabWidth + _labelGap + _getLabelWidth(_tabs[navIndex].label);
+    }
+    return _inactiveTabWidth;
+  }
+
+  double _getOffsetForIndex(int navIndex) {
+    double offset = 0;
+    for (int i = 0; i < navIndex; i++) {
+      offset += _getTabWidth(i) + _tabGap;
+    }
+    return offset;
   }
 
   void openDrawer() {
@@ -284,45 +332,33 @@ class MainShellState extends ConsumerState<MainShell> {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    if (_navTabIndices.contains(_currentIndex))
+                    if (_tabs.any((t) => t.index == _currentIndex))
                       AnimatedPositioned(
                         duration: const Duration(milliseconds: 300),
                         curve: Curves.easeInOut,
-                        left: _getOffsetForIndex(_currentIndex),
+                        left: _getOffsetForIndex(_navIndexForScreen(_currentIndex)!),
                         top: 8,
-                        child: const SizedBox(
-                          width: 56,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                          width: _getTabWidth(_navIndexForScreen(_currentIndex)!),
                           height: 56,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: Color(0xFFE7E5ED),
-                              shape: BoxShape.circle,
-                            ),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFE7E5ED),
+                            borderRadius: BorderRadius.all(Radius.circular(28)),
                           ),
                         ),
                       ),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildNavItem(
-                          icon: Icons.home_outlined,
-                          onTap: () => switchToTab(0),
-                        ),
+                        _buildNavItem(navIndex: 0),
                         const SizedBox(width: 16),
-                        _buildNavItem(
-                          icon: Icons.menu_book_outlined,
-                          onTap: () => switchToTab(1),
-                        ),
+                        _buildNavItem(navIndex: 1),
                         const SizedBox(width: 16),
-                        _buildNavItem(
-                          icon: Icons.article_outlined,
-                          onTap: () => switchToTab(2),
-                        ),
+                        _buildNavItem(navIndex: 2),
                         const SizedBox(width: 16),
-                        _buildNavItem(
-                          icon: Icons.person_outlined,
-                          onTap: () => switchToTab(4),
-                        ),
+                        _buildNavItem(navIndex: 3),
                       ],
                     ),
                   ],
@@ -335,17 +371,44 @@ class MainShellState extends ConsumerState<MainShell> {
     );
   }
 
-  Widget _buildNavItem({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
+  Widget _buildNavItem({required int navIndex}) {
+    final tab = _tabs[navIndex];
+    final isActive = tab.index == _currentIndex;
     const iconColor = Color(0xFF1A1A1A);
     return GestureDetector(
-      onTap: onTap,
-      child: SizedBox(
-        width: 56,
+      onTap: () => switchToTab(tab.index),
+      child: Container(
+        width: _getTabWidth(navIndex),
         height: 56,
-        child: Icon(icon, size: 28, color: iconColor),
+        alignment: Alignment.center,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(tab.icon, size: 28, color: iconColor),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              alignment: Alignment.centerLeft,
+              child: isActive
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(width: 6),
+                        Text(
+                          tab.label,
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: iconColor,
+                          ),
+                        ),
+                      ],
+                    )
+                  : const SizedBox(width: 0),
+            ),
+          ],
+        ),
       ),
     );
   }
