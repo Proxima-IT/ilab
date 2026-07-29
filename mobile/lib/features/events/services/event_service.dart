@@ -1,24 +1,19 @@
 import '../../../config/api_config.dart';
 import '../../../shared/models/event_model.dart';
+import '../../../shared/models/pagination_meta.dart';
 import '../../../shared/services/api_client.dart';
 
 class EventService {
   final ApiClient _api = ApiClient();
 
-  Future<List<EventModel>> fetchEvents({int? perPage}) async {
-    final params = <String, dynamic>{};
-    if (perPage != null) params['per_page'] = perPage;
-    final response = await _api.get(ApiConfig.events, queryParams: params.isNotEmpty ? params : null);
-    final data = response.data;
-    final List<dynamic> items;
-    if (data is Map<String, dynamic>) {
-      items = (data['data'] as List<dynamic>?) ?? (data['items'] as List<dynamic>?) ?? [];
-    } else if (data is List) {
-      items = data;
-    } else {
-      items = [];
-    }
-    return items.map((e) => EventModel.fromJson(e as Map<String, dynamic>)).toList();
+  Future<({List<EventModel> items, PaginationMeta meta})> fetchEvents({int page = 1, int perPage = 12}) async {
+    final params = <String, dynamic>{'page': page, 'per_page': perPage};
+    final response = await _api.get(ApiConfig.events, queryParams: params);
+    final data = response.data as Map<String, dynamic>;
+    final List<dynamic> itemsList = (data['data'] as List<dynamic>?) ?? [];
+    final items = itemsList.map((e) => EventModel.fromJson(e as Map<String, dynamic>)).toList();
+    final meta = PaginationMeta.fromJson((data['meta'] as Map<String, dynamic>?) ?? {});
+    return (items: items, meta: meta);
   }
 
   Future<EventModel> fetchEventDetail(String slug) async {

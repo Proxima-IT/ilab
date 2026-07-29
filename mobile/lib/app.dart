@@ -6,6 +6,7 @@ import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/auth/screens/forgot_password_screen.dart';
 import 'features/courses/screens/course_detail_screen.dart';
+import 'features/courses/screens/free_courses_screen.dart';
 import 'features/courses/screens/lesson_player_screen.dart';
 import 'features/courses/screens/my_courses_screen.dart';
 import 'features/blog/screens/blog_detail_screen.dart';
@@ -45,6 +46,7 @@ class ILabApp extends StatelessWidget {
         '/forgot-password': (context) => const ForgotPasswordScreen(),
         '/home': (context) => MainShell(key: mainShellKey),
         '/my-courses': (context) => const MyCoursesScreen(),
+        '/free-courses': (context) => const FreeCoursesScreen(),
         '/course-detail': (context) => const CourseDetailScreen(),
         '/lesson-player': (context) => const LessonPlayerScreen(),
         '/blog-detail': (context) => const BlogDetailScreen(),

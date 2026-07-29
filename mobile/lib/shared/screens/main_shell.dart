@@ -135,6 +135,15 @@ class MainShellState extends ConsumerState<MainShell> {
                       },
                     ),
                     _buildDrawerItem(
+                      icon: Icons.local_offer,
+                      label: 'Free Courses',
+                      isActive: false,
+                      onTap: () {
+                        Navigator.pop(context);
+                        Navigator.pushNamed(context, '/free-courses');
+                      },
+                    ),
+                    _buildDrawerItem(
                       icon: Icons.article,
                       label: 'Blog',
                       isActive: _currentIndex == 2,

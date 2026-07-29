@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/models/enrolled_course_model.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_text_styles.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
+import '../../home/providers/home_dashboard_provider.dart';
 import '../providers/certificate_provider.dart';
 
 class CertificateListScreen extends ConsumerStatefulWidget {
@@ -23,14 +25,26 @@ class _CertificateListScreenState extends ConsumerState<CertificateListScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(certificateProvider);
+    final dashboardState = ref.watch(homeDashboardProvider);
+
+    final certificateCourseIds = state.certificates
+        .map((c) => c.courseName)
+        .whereType<String>()
+        .toSet();
+    final inProgress = dashboardState.enrolledCourses
+        .where((c) => c.progress < 100 && !certificateCourseIds.contains(c.course.title))
+        .toList();
 
     return RefreshIndicator(
-      onRefresh: () => ref.read(certificateProvider.notifier).fetchCertificates(),
-      child: _buildBody(state),
+      onRefresh: () async {
+        await ref.read(certificateProvider.notifier).fetchCertificates();
+        await ref.read(homeDashboardProvider.notifier).fetchDashboard();
+      },
+      child: _buildBody(state, inProgress),
     );
   }
 
-  Widget _buildBody(CertificateListState state) {
+  Widget _buildBody(CertificateListState state, List<EnrolledCourseModel> inProgress) {
     if (state.isLoading && state.certificates.isEmpty) {
       return const LoadingWidget();
     }
@@ -41,10 +55,10 @@ class _CertificateListScreenState extends ConsumerState<CertificateListScreen> {
       );
     }
     if (state.certificates.isEmpty) {
-      return const _EmptyCertificates();
+      return _EmptyCertificates(inProgressCourses: inProgress);
     }
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 16, top: 12, bottom: 8),
       children: [
         _buildHeader(),
         const SizedBox(height: 16),
@@ -52,6 +66,10 @@ class _CertificateListScreenState extends ConsumerState<CertificateListScreen> {
           padding: const EdgeInsets.only(bottom: 16),
           child: _buildCertificateCard(cert),
         )),
+        if (inProgress.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _buildInProgressSection(inProgress),
+        ],
       ],
     );
   }
@@ -118,17 +136,98 @@ class _CertificateListScreenState extends ConsumerState<CertificateListScreen> {
       ),
     );
   }
+
+  Widget _buildInProgressSection(List<EnrolledCourseModel> courses) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'In Progress',
+          style: AppTextStyles.titleMedium,
+        ),
+        const SizedBox(height: 12),
+        ...courses.map((course) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _buildInProgressCard(course),
+        )),
+      ],
+    );
+  }
+
+  Widget _buildInProgressCard(EnrolledCourseModel course) {
+    final isEligible = course.progress >= 90;
+    final remaining = 100 - course.progress;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: (isEligible ? AppColors.accent : AppColors.primary).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    isEligible ? Icons.verified_outlined : Icons.lock_outline,
+                    color: isEligible ? AppColors.accent : AppColors.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    course.course.title,
+                    style: AppTextStyles.titleSmall,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: course.progress / 100,
+                minHeight: 6,
+                backgroundColor: AppColors.muted,
+                valueColor: AlwaysStoppedAnimation(
+                  isEligible ? AppColors.accent : AppColors.primary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isEligible
+                  ? '${course.progress.toInt()}% complete - certificate eligible'
+                  : '${course.progress.toInt()}% complete - ${remaining.toInt()}% more to earn certificate',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: isEligible ? AppColors.accent : AppColors.mutedForeground,
+                fontWeight: isEligible ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _EmptyCertificates extends StatelessWidget {
-  const _EmptyCertificates();
+  final List<EnrolledCourseModel> inProgressCourses;
+
+  const _EmptyCertificates({this.inProgressCourses = const []});
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const SizedBox(height: 32),
         _buildHeaderSection(),
         const SizedBox(height: 48),
         Center(
@@ -145,6 +244,10 @@ class _EmptyCertificates extends StatelessWidget {
             ],
           ),
         ),
+        if (inProgressCourses.isNotEmpty) ...[
+          const SizedBox(height: 32),
+          _buildInProgressSection(),
+        ],
       ],
     );
   }
@@ -163,6 +266,93 @@ class _EmptyCertificates extends StatelessWidget {
           style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedForeground),
         ),
       ],
+    );
+  }
+
+  Widget _buildInProgressSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'In Progress',
+          style: AppTextStyles.titleMedium,
+        ),
+        const SizedBox(height: 12),
+        ...inProgressCourses.map((course) => Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _InProgressCard(course: course),
+        )),
+      ],
+    );
+  }
+}
+
+class _InProgressCard extends StatelessWidget {
+  final EnrolledCourseModel course;
+
+  const _InProgressCard({required this.course});
+
+  @override
+  Widget build(BuildContext context) {
+    final isEligible = course.progress >= 90;
+    final remaining = 100 - course.progress;
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: (isEligible ? AppColors.accent : AppColors.primary).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    isEligible ? Icons.verified_outlined : Icons.lock_outline,
+                    color: isEligible ? AppColors.accent : AppColors.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    course.course.title,
+                    style: AppTextStyles.titleSmall,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: course.progress / 100,
+                minHeight: 6,
+                backgroundColor: AppColors.muted,
+                valueColor: AlwaysStoppedAnimation(
+                  isEligible ? AppColors.accent : AppColors.primary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isEligible
+                  ? '${course.progress.toInt()}% complete - certificate eligible'
+                  : '${course.progress.toInt()}% complete - ${remaining.toInt()}% more to earn certificate',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: isEligible ? AppColors.accent : AppColors.mutedForeground,
+                fontWeight: isEligible ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
