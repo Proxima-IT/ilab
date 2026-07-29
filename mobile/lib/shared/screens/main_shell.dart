@@ -284,22 +284,23 @@ class MainShellState extends ConsumerState<MainShell> {
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
-                    AnimatedPositioned(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                      left: _getOffsetForIndex(_currentIndex),
-                      top: 8,
-                      child: const SizedBox(
-                        width: 56,
-                        height: 56,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Color(0xFFE7E5ED),
-                            shape: BoxShape.circle,
+                    if (_navTabIndices.contains(_currentIndex))
+                      AnimatedPositioned(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        left: _getOffsetForIndex(_currentIndex),
+                        top: 8,
+                        child: const SizedBox(
+                          width: 56,
+                          height: 56,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Color(0xFFE7E5ED),
+                              shape: BoxShape.circle,
+                            ),
                           ),
                         ),
                       ),
-                    ),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

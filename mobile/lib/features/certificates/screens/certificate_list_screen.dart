@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../shared/models/enrolled_course_model.dart';
 import '../../../shared/theme/app_colors.dart';
-import '../../../shared/theme/app_text_styles.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
+import '../../../shared/screens/main_shell.dart';
 import '../../home/providers/home_dashboard_provider.dart';
 import '../providers/certificate_provider.dart';
 
@@ -54,161 +55,267 @@ class _CertificateListScreenState extends ConsumerState<CertificateListScreen> {
         onRetry: () => ref.read(certificateProvider.notifier).fetchCertificates(),
       );
     }
-    if (state.certificates.isEmpty) {
-      return _EmptyCertificates(inProgressCourses: inProgress);
-    }
-    return ListView(
-      padding: const EdgeInsets.only(left: 16, top: 12, bottom: 8),
-      children: [
-        _buildHeader(),
-        const SizedBox(height: 16),
-        ...state.certificates.map((cert) => Padding(
-          padding: const EdgeInsets.only(bottom: 16),
-          child: _buildCertificateCard(cert),
-        )),
-        if (inProgress.isNotEmpty) ...[
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 100),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           const SizedBox(height: 8),
-          _buildInProgressSection(inProgress),
+          _buildHeader(),
+          const SizedBox(height: 20),
+          if (state.certificates.isEmpty)
+            _buildEmptyState(inProgress)
+          else ...[
+            ...state.certificates.map((cert) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildCertificateCard(cert),
+            )),
+          ],
+          if (inProgress.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _buildInProgressSection(inProgress),
+          ],
         ],
-      ],
+      ),
     );
   }
 
   Widget _buildHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'My Certificates',
-          style: AppTextStyles.titleLarge,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Certificates you have earned from completed courses.',
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedForeground),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () {
+              context.findAncestorStateOfType<MainShellState>()?.switchToTab(0);
+            },
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE7E5ED),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.arrow_back_rounded,
+                color: Color(0xFF0F172A),
+                size: 22,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: Text(
+                'My Certificates',
+                style: GoogleFonts.outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 44),
+        ],
+      ),
     );
   }
 
   Widget _buildCertificateCard(dynamic cert) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Padding(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
         padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(Icons.verified, color: AppColors.primary, size: 28),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 15,
+              spreadRadius: 1,
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    cert.courseName ?? 'Course Certificate',
-                    style: AppTextStyles.titleSmall,
-                  ),
-                  const SizedBox(height: 4),
-                  if (cert.issuedAt != null)
-                    Text(
-                      'Issued: ${cert.issuedAt}',
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedForeground),
-                    ),
-                  if (cert.verificationCode != null)
-                    Text(
-                      'Code: ${cert.verificationCode}',
-                      style: AppTextStyles.labelSmall.copyWith(color: AppColors.mutedForeground),
-                    ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: AppColors.mutedForeground),
           ],
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              Container(
+                width: 4,
+                height: double.infinity,
+                margin: const EdgeInsets.only(right: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.workspace_premium_rounded,
+                  color: AppColors.primary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      cert.courseName ?? 'Course Certificate',
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF0F172A),
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (cert.issuedAt != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        cert.issuedAt!,
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                    ],
+                    if (cert.verificationCode != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Code: ${cert.verificationCode}',
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF475569),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildInProgressSection(List<EnrolledCourseModel> courses) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'In Progress',
-          style: AppTextStyles.titleMedium,
-        ),
-        const SizedBox(height: 12),
-        ...courses.map((course) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _buildInProgressCard(course),
-        )),
-      ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'In Progress',
+            style: GoogleFonts.outfit(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF0F172A),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...courses.map((course) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _buildInProgressCard(course),
+          )),
+        ],
+      ),
     );
   }
 
   Widget _buildInProgressCard(EnrolledCourseModel course) {
-    final isEligible = course.progress >= 90;
-    final remaining = 100 - course.progress;
+    final hasImage = course.course.thumbnailUrl != null && course.course.thumbnailUrl!.isNotEmpty;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return GestureDetector(
+      onTap: () {
+        if (course.firstLessonId != null) {
+          Navigator.pushNamed(context, '/course-player', arguments: {
+            'slug': course.course.slug,
+            'lessonId': course.firstLessonId,
+          });
+        } else {
+          Navigator.pushNamed(context, '/course-detail', arguments: course.course.slug);
+        }
+      },
+      child: Container(
+        height: 180,
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Stack(
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: (isEligible ? AppColors.accent : AppColors.primary).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
+            if (hasImage)
+              Image.network(
+                course.course.thumbnailUrl!,
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _buildCourseCardFallback(),
+              )
+            else
+              _buildCourseCardFallback(),
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
                   ),
-                  child: Icon(
-                    isEligible ? Icons.verified_outlined : Icons.lock_outline,
-                    color: isEligible ? AppColors.accent : AppColors.primary,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    course.course.title,
-                    style: AppTextStyles.titleSmall,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: course.progress / 100,
-                minHeight: 6,
-                backgroundColor: AppColors.muted,
-                valueColor: AlwaysStoppedAnimation(
-                  isEligible ? AppColors.accent : AppColors.primary,
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              isEligible
-                  ? '${course.progress.toInt()}% complete - certificate eligible'
-                  : '${course.progress.toInt()}% complete - ${remaining.toInt()}% more to earn certificate',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: isEligible ? AppColors.accent : AppColors.mutedForeground,
-                fontWeight: isEligible ? FontWeight.w600 : FontWeight.normal,
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    course.course.title,
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: course.progress / 100,
+                      backgroundColor: Colors.white.withValues(alpha: 0.3),
+                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                      minHeight: 6,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${course.progress.toStringAsFixed(0)}% complete',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -216,142 +323,65 @@ class _CertificateListScreenState extends ConsumerState<CertificateListScreen> {
       ),
     );
   }
-}
 
-class _EmptyCertificates extends StatelessWidget {
-  final List<EnrolledCourseModel> inProgressCourses;
-
-  const _EmptyCertificates({this.inProgressCourses = const []});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _buildHeaderSection(),
-        const SizedBox(height: 48),
-        Center(
-          child: Column(
-            children: [
-              Icon(Icons.verified_outlined, size: 64, color: AppColors.mutedForeground.withValues(alpha: 0.5)),
-              const SizedBox(height: 16),
-              Text('No certificates yet', style: AppTextStyles.titleMedium),
-              const SizedBox(height: 8),
-              Text(
-                'Complete courses to earn certificates.',
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedForeground),
-              ),
-            ],
-          ),
+  Widget _buildCourseCardFallback() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        if (inProgressCourses.isNotEmpty) ...[
-          const SizedBox(height: 32),
-          _buildInProgressSection(),
-        ],
-      ],
+      ),
     );
   }
 
-  Widget _buildHeaderSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'My Certificates',
-          style: AppTextStyles.titleLarge,
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Certificates you have earned from completed courses.',
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedForeground),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInProgressSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'In Progress',
-          style: AppTextStyles.titleMedium,
-        ),
-        const SizedBox(height: 12),
-        ...inProgressCourses.map((course) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _InProgressCard(course: course),
-        )),
-      ],
-    );
-  }
-}
-
-class _InProgressCard extends StatelessWidget {
-  final EnrolledCourseModel course;
-
-  const _InProgressCard({required this.course});
-
-  @override
-  Widget build(BuildContext context) {
-    final isEligible = course.progress >= 90;
-    final remaining = 100 - course.progress;
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+  Widget _buildEmptyState(List<EnrolledCourseModel> inProgress) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          const SizedBox(height: 48),
+          Center(
+            child: Column(
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
-                    color: (isEligible ? AppColors.accent : AppColors.primary).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
+                    color: AppColors.muted,
+                    shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    isEligible ? Icons.verified_outlined : Icons.lock_outline,
-                    color: isEligible ? AppColors.accent : AppColors.primary,
-                    size: 20,
+                    Icons.workspace_premium_outlined,
+                    size: 64,
+                    color: AppColors.mutedForeground.withValues(alpha: 0.5),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    course.course.title,
-                    style: AppTextStyles.titleSmall,
+                const SizedBox(height: 16),
+                Text(
+                  'No certificates yet',
+                  style: GoogleFonts.outfit(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Complete a course to earn certificates',
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: const Color(0xFF475569),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: course.progress / 100,
-                minHeight: 6,
-                backgroundColor: AppColors.muted,
-                valueColor: AlwaysStoppedAnimation(
-                  isEligible ? AppColors.accent : AppColors.primary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isEligible
-                  ? '${course.progress.toInt()}% complete - certificate eligible'
-                  : '${course.progress.toInt()}% complete - ${remaining.toInt()}% more to earn certificate',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: isEligible ? AppColors.accent : AppColors.mutedForeground,
-                fontWeight: isEligible ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
+          ),
           ],
-        ),
       ),
     );
   }
