@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_colors.dart';
 
 class BBCodeRenderer extends StatelessWidget {
@@ -66,17 +67,17 @@ class BBCodeRenderer extends StatelessWidget {
       if (tag == 'b') {
         spans.add(TextSpan(
           text: innerContent,
-          style: const TextStyle(fontWeight: FontWeight.w700),
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w700),
         ));
       } else if (tag == 'i') {
         spans.add(TextSpan(
           text: innerContent,
-          style: const TextStyle(fontStyle: FontStyle.italic),
+          style: GoogleFonts.outfit(fontStyle: FontStyle.italic),
         ));
       } else if (tag == 'u') {
         spans.add(TextSpan(
           text: innerContent,
-          style: const TextStyle(decoration: TextDecoration.underline, decorationColor: AppColors.foreground),
+          style: GoogleFonts.outfit(decoration: TextDecoration.underline, decorationColor: AppColors.foreground),
         ));
       } else if (url != null && label != null) {
         spans.add(WidgetSpan(
@@ -85,7 +86,7 @@ class BBCodeRenderer extends StatelessWidget {
             onTap: () {},
             child: Text(
               label,
-              style: TextStyle(
+              style: GoogleFonts.outfit(
                 color: AppColors.primaryDark,
                 fontWeight: FontWeight.w600,
                 decoration: TextDecoration.underline,
@@ -126,7 +127,7 @@ class BBCodeRenderer extends StatelessWidget {
 
     return Padding(
       key: ValueKey('blog-table-$index'),
-      padding: const EdgeInsets.symmetric(vertical: 32),
+      padding: const EdgeInsets.symmetric(vertical: 24),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Container(
@@ -135,13 +136,8 @@ class BBCodeRenderer extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Table(
-            border: TableBorder(
-              horizontalInside: BorderSide(color: AppColors.border),
-              verticalInside: BorderSide(color: AppColors.border),
-              top: BorderSide.none,
-              bottom: BorderSide.none,
-              left: BorderSide.none,
-              right: BorderSide.none,
+            border: TableBorder.symmetric(
+              inside: BorderSide(color: AppColors.border),
             ),
             columnWidths: null,
             defaultColumnWidth: const IntrinsicColumnWidth(),
@@ -166,7 +162,7 @@ class BBCodeRenderer extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: _buildInlineText(
                       values[cellIndex],
-                      style: TextStyle(
+                      style: GoogleFonts.outfit(
                         fontSize: 14,
                         fontWeight: isHeader ? FontWeight.w700 : FontWeight.w400,
                         color: isHeader ? AppColors.foreground : AppColors.foreground.withValues(alpha: 0.85),
@@ -189,13 +185,13 @@ class BBCodeRenderer extends StatelessWidget {
     if (h1 != null) {
       return Padding(
         key: key,
-        padding: const EdgeInsets.only(top: 40),
+        padding: const EdgeInsets.only(top: 32, bottom: 12),
         child: _buildInlineText(
           h1,
-          style: const TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.w800,
-            height: 1.05,
+          style: GoogleFonts.outfit(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            height: 1.2,
             color: AppColors.foreground,
           ),
         ),
@@ -206,13 +202,13 @@ class BBCodeRenderer extends StatelessWidget {
     if (h2 != null) {
       return Padding(
         key: key,
-        padding: const EdgeInsets.only(top: 32),
+        padding: const EdgeInsets.only(top: 28, bottom: 10),
         child: _buildInlineText(
           h2,
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            height: 1.2,
+          style: GoogleFonts.outfit(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            height: 1.3,
             color: AppColors.foreground,
           ),
         ),
@@ -223,13 +219,13 @@ class BBCodeRenderer extends StatelessWidget {
     if (h3 != null) {
       return Padding(
         key: key,
-        padding: const EdgeInsets.only(top: 28),
+        padding: const EdgeInsets.only(top: 24, bottom: 8),
         child: _buildInlineText(
           h3,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            height: 1.2,
+          style: GoogleFonts.outfit(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            height: 1.3,
             color: AppColors.foreground,
           ),
         ),
@@ -243,7 +239,7 @@ class BBCodeRenderer extends StatelessWidget {
         padding: const EdgeInsets.only(top: 0),
         child: _buildInlineText(
           big,
-          style: const TextStyle(
+          style: GoogleFonts.outfit(
             fontSize: 20,
             fontWeight: FontWeight.w600,
             height: 1.5,
@@ -257,25 +253,25 @@ class BBCodeRenderer extends StatelessWidget {
     if (quote != null) {
       return Padding(
         key: key,
-        padding: const EdgeInsets.symmetric(vertical: 32),
+        padding: const EdgeInsets.symmetric(vertical: 24),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
           decoration: BoxDecoration(
             color: AppColors.primary.withValues(alpha: 0.05),
             border: Border(
               left: BorderSide(
-                color: AppColors.primary,
+                color: AppColors.accent,
                 width: 4,
               ),
             ),
           ),
           child: _buildInlineText(
             quote,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              height: 1.5,
-              color: AppColors.foreground,
+            style: GoogleFonts.outfit(
+              fontSize: 15,
+              fontWeight: FontWeight.w400,
+              height: 1.6,
+              color: AppColors.foreground.withValues(alpha: 0.85),
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -297,11 +293,11 @@ class BBCodeRenderer extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8, right: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, right: 10),
                     child: Text(
                       '\u2022',
-                      style: TextStyle(
+                      style: GoogleFonts.outfit(
                         fontSize: 16,
                         color: AppColors.foreground,
                       ),
@@ -310,9 +306,9 @@ class BBCodeRenderer extends StatelessWidget {
                   Expanded(
                     child: _buildInlineText(
                       items[i],
-                      style: const TextStyle(
+                      style: GoogleFonts.outfit(
                         fontSize: 16,
-                        height: 1.5,
+                        height: 1.6,
                         color: AppColors.foreground,
                       ),
                     ),
@@ -340,10 +336,10 @@ class BBCodeRenderer extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(top: 8, right: 8),
+                    padding: const EdgeInsets.only(top: 8, right: 10),
                     child: Text(
                       '${i + 1}.',
-                      style: const TextStyle(
+                      style: GoogleFonts.outfit(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: AppColors.foreground,
@@ -353,9 +349,9 @@ class BBCodeRenderer extends StatelessWidget {
                   Expanded(
                     child: _buildInlineText(
                       items[i],
-                      style: const TextStyle(
+                      style: GoogleFonts.outfit(
                         fontSize: 16,
-                        height: 1.5,
+                        height: 1.6,
                         color: AppColors.foreground,
                       ),
                     ),
@@ -375,10 +371,10 @@ class BBCodeRenderer extends StatelessWidget {
 
     return Padding(
       key: key,
-      padding: const EdgeInsets.only(bottom: 0),
+      padding: const EdgeInsets.only(bottom: 16),
       child: _buildInlineText(
         block,
-        style: const TextStyle(
+        style: GoogleFonts.outfit(
           fontSize: 16,
           height: 1.7,
           color: AppColors.foreground,
