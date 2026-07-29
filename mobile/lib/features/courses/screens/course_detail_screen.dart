@@ -343,9 +343,9 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
               ],
             ),
           const Spacer(),
-          Expanded(
+          Flexible(
             child: SizedBox(
-              height: 48,
+              height: 52,
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -372,7 +372,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                           : () => _handleEnroll(course, slug),
                   borderRadius: BorderRadius.circular(24),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: isEnrolled
@@ -397,6 +397,8 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                               isEnrolled
                                   ? 'Continue Learning'
                                   : 'Enroll Now',
+                              overflow: TextOverflow.visible,
+                              softWrap: false,
                               style: GoogleFonts.outfit(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
