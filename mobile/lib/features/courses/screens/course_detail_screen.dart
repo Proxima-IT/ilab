@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_text_styles.dart';
 
@@ -26,6 +27,9 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -64,63 +68,213 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
     final course = detail.course;
 
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: () => ref.read(courseDetailProvider(slug).notifier).fetchDetail(slug),
-        child: NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) => [
-            SliverAppBar(
-              expandedHeight: 200,
-              pinned: true,
-              stretch: true,
-              backgroundColor: AppColors.foreground,
-              foregroundColor: AppColors.white,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              flexibleSpace: FlexibleSpaceBar(
-                background: _buildHero(course),
+      body: Column(
+        children: [
+          SafeArea(
+            top: true,
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: _buildHero(course),
               ),
             ),
-            SliverToBoxAdapter(
-              child: _buildHeaderContent(detail),
-            ),
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _TabBarDelegate(
-                tabController: _tabController,
-                tabCount: 3,
-                labels: const ['About', 'Curriculum', 'Reviews'],
-              ),
-            ),
-          ],
-          body: TabBarView(
-            controller: _tabController,
-            children: [
-              _AboutTab(detail: detail),
-              _CurriculumTab(detail: detail),
-              _ReviewsTab(),
-            ],
           ),
-        ),
+          _buildTabBar(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _AboutTab(detail: detail),
+                _CurriculumTab(detail: detail),
+                _ReviewsTab(),
+              ],
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: _buildBottomBar(detail, slug),
     );
   }
 
+  Widget _buildTabBar() {
+    final tabs = ['About', 'Curriculum', 'Reviews'];
+    return Container(
+      color: AppColors.white,
+      child: Column(
+        children: [
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final tabWidth = constraints.maxWidth / 3;
+                return SizedBox(
+                  height: 40,
+                  child: Stack(
+                    children: [
+                      AnimatedPositioned(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        left: _tabController.index * tabWidth + 4,
+                        top: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: tabWidth - 8,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      ),
+                      Row(
+                        children: List.generate(3, (i) {
+                          final isActive = _tabController.index == i;
+                          return Expanded(
+                            child: GestureDetector(
+                              onTap: () => _tabController.animateTo(i),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                child: Text(
+                                  tabs[i],
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: isActive ? AppColors.primary : AppColors.mutedForeground,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 4),
+          Divider(height: 1, color: AppColors.border),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHero(CourseModel course) {
-    if (course.thumbnailUrl != null) {
-      return Image.network(
-        course.thumbnailUrl!,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _heroPlaceholder(),
-      );
-    }
-    return _heroPlaceholder();
+    final hasImage = course.thumbnailUrl != null && course.thumbnailUrl!.isNotEmpty;
+
+    return SizedBox(
+      height: 220,
+      child: Stack(
+        children: [
+          if (hasImage)
+            Image.network(
+              course.thumbnailUrl!,
+              width: double.infinity,
+              height: 220,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => _heroPlaceholder(),
+            )
+          else
+            _heroPlaceholder(),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.center,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.6)],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 16,
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pop(),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE7E5ED),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.arrow_back_rounded, color: Color(0xFF1A1A1A), size: 22),
+              ),
+            ),
+          ),
+          if (course.category != null || course.isFree || !course.isFree)
+            Positioned(
+              right: 16,
+              bottom: 52,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (course.category != null)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        course.category!,
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: course.isFree ? AppColors.success : AppColors.primary,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      course.isFree ? 'Free' : '৳${course.effectivePrice.toStringAsFixed(0)}',
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Positioned(
+            left: 16,
+            right: 130,
+            bottom: 16,
+            child: Text(
+              course.title,
+              style: GoogleFonts.outfit(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                height: 1.2,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _heroPlaceholder() {
     return Container(
+      width: double.infinity,
+      height: 220,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [Color(0xFF0D9488), Color(0xFF0F766E)],
@@ -132,128 +286,6 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
         child: Icon(Icons.school_rounded, color: AppColors.white, size: 48),
       ),
     );
-  }
-
-  Widget _buildHeaderContent(CourseDetailModel detail) {
-    final course = detail.course;
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (course.category != null)
-                _badge(course.category!, AppColors.primary, AppColors.primary.withValues(alpha: 0.1)),
-              if (course.level != null) ...[
-                const SizedBox(width: 8),
-                _badge(course.level!, AppColors.accent, AppColors.accent.withValues(alpha: 0.1)),
-              ],
-              if (course.mode != null) ...[
-                const SizedBox(width: 8),
-                _badge(course.mode!.replaceAll('_', ' '), AppColors.mutedForeground, AppColors.muted),
-              ],
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            course.title,
-            style: AppTextStyles.headlineSmall.copyWith(fontSize: 22),
-          ),
-          const SizedBox(height: 8),
-          if (course.enrollmentCount != null && course.enrollmentCount! > 0)
-            Row(
-              children: [
-                Icon(Icons.people_outline, size: 16, color: AppColors.mutedForeground),
-                const SizedBox(width: 4),
-                Text(
-                  '${course.enrollmentCount!} enrolled',
-                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedForeground),
-                ),
-              ],
-            ),
-          const SizedBox(height: 12),
-          _buildPriceRow(course),
-          const SizedBox(height: 16),
-          const Divider(height: 1),
-        ],
-      ),
-    );
-  }
-
-  Widget _badge(String text, Color textColor, Color bgColor) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        text,
-        style: AppTextStyles.labelMedium.copyWith(color: textColor),
-      ),
-    );
-  }
-
-  Widget _buildPriceRow(CourseModel course) {
-    if (course.isFree) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppColors.success.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          'Free',
-          style: AppTextStyles.titleSmall.copyWith(
-            color: AppColors.success,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      );
-    }
-
-    return Row(
-      children: [
-        Text(
-          '৳${course.effectivePrice.toStringAsFixed(0)}',
-          style: AppTextStyles.titleLarge.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        if (course.hasDiscount) ...[
-          const SizedBox(width: 8),
-          Text(
-            '৳${course.price.toStringAsFixed(0)}',
-            style: AppTextStyles.bodyMedium.copyWith(
-              decoration: TextDecoration.lineThrough,
-              color: AppColors.mutedForeground,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: AppColors.primaryDark,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              '${_calculateDiscount(course.price, course.effectivePrice)}% OFF',
-              style: AppTextStyles.labelSmall.copyWith(
-                color: AppColors.white,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  int _calculateDiscount(double original, double current) {
-    if (original <= 0) return 0;
-    return ((original - current) / original * 100).round();
   }
 
   Widget _buildBottomBar(CourseDetailModel detail, String slug) {
@@ -268,17 +300,16 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
 
     return Container(
       padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
+        left: 20,
+        right: 20,
         top: 12,
         bottom: MediaQuery.of(context).padding.bottom + 12,
       ),
       decoration: BoxDecoration(
-        color: AppColors.background,
-        border: Border(top: BorderSide(color: AppColors.border)),
+        color: AppColors.white,
         boxShadow: [
           BoxShadow(
-            color: AppColors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 12,
             offset: const Offset(0, -4),
           ),
@@ -286,55 +317,95 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
       ),
       child: Row(
         children: [
+          if (!isEnrolled)
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  course.isFree ? 'Free' : '৳${course.effectivePrice.toStringAsFixed(0)}',
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.foreground,
+                  ),
+                ),
+                if (course.hasDiscount)
+                  Text(
+                    '৳${course.price.toStringAsFixed(0)}',
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.mutedForeground,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+              ],
+            ),
+          const Spacer(),
           Expanded(
             child: SizedBox(
-              height: 52,
-              child: FilledButton(
-                onPressed: isEnrolled
-                    ? () {
-                        final lessonId = matchingEnrollment.firstLessonId;
-                        if (lessonId == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('No lessons available for this course yet.')),
-                          );
-                          return;
-                        }
-                        Navigator.pushNamed(
-                          context,
-                          '/lesson-player',
-                          arguments: {
-                            'slug': course.slug,
-                            'lessonId': lessonId,
-                          },
-                        );
-                      }
-                    : checkoutState.isLoading
-                        ? null
-                        : () => _handleEnroll(course, slug),
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  backgroundColor: isEnrolled ? AppColors.success : AppColors.primary,
-                ),
-                child: checkoutState.isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.white,
-                        ),
-                      )
-                    : Text(
-                        isEnrolled
-                            ? 'Continue Learning'
-                            : course.isFree
-                                ? 'Enroll Now - Free'
-                                : 'Enroll Now - ৳${course.effectivePrice.toStringAsFixed(0)}',
-                        style: AppTextStyles.buttonLarge.copyWith(color: AppColors.white),
+              height: 48,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: checkoutState.isLoading
+                      ? null
+                      : isEnrolled
+                          ? () {
+                              final lessonId = matchingEnrollment.firstLessonId;
+                              if (lessonId == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('No lessons available for this course yet.')),
+                                );
+                                return;
+                              }
+                              Navigator.pushNamed(
+                                context,
+                                '/lesson-player',
+                                arguments: {
+                                  'slug': course.slug,
+                                  'lessonId': lessonId,
+                                },
+                              );
+                            }
+                          : () => _handleEnroll(course, slug),
+                  borderRadius: BorderRadius.circular(24),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: isEnrolled
+                            ? [AppColors.success, const Color(0xFF16A34A)]
+                            : [AppColors.primary, AppColors.primaryDark],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Center(
+                      child: checkoutState.isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              isEnrolled
+                                  ? 'Continue Learning'
+                                  : 'Enroll Now',
+                              style: GoogleFonts.outfit(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -441,43 +512,6 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
   }
 }
 
-class _TabBarDelegate extends SliverPersistentHeaderDelegate {
-  final TabController tabController;
-  final int tabCount;
-  final List<String> labels;
-
-  _TabBarDelegate({
-    required this.tabController,
-    required this.tabCount,
-    required this.labels,
-  });
-
-  @override
-  double get minExtent => 48;
-  @override
-  double get maxExtent => 48;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: AppColors.background,
-      child: TabBar(
-        controller: tabController,
-        labelColor: AppColors.primary,
-        unselectedLabelColor: AppColors.mutedForeground,
-        indicatorColor: AppColors.primary,
-        indicatorWeight: 3,
-        labelStyle: AppTextStyles.labelLarge.copyWith(fontWeight: FontWeight.w700),
-        unselectedLabelStyle: AppTextStyles.labelLarge,
-        tabs: labels.map((label) => Tab(text: label)).toList(),
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => false;
-}
-
 class _AboutTab extends StatelessWidget {
   final CourseDetailModel detail;
 
@@ -488,75 +522,15 @@ class _AboutTab extends StatelessWidget {
     final course = detail.course;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (course.description != null && course.description!.isNotEmpty) ...[
-            _sectionTitle('Description'),
-            const SizedBox(height: 8),
-            Text(
-              course.description!.replaceAll(RegExp(r'<[^>]*>'), ''),
-              style: AppTextStyles.bodyMedium.copyWith(height: 1.6),
-            ),
-            const SizedBox(height: 24),
-          ],
-
-          if (detail.learningOutcomes.isNotEmpty) ...[
-            _sectionTitle('What You\'ll Learn'),
-            const SizedBox(height: 8),
-            ...detail.learningOutcomes.map((outcome) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 2),
-                    padding: const EdgeInsets.all(3),
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.check, size: 12, color: AppColors.white),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(outcome, style: AppTextStyles.bodyMedium),
-                  ),
-                ],
-              ),
-            )),
-            const SizedBox(height: 24),
-          ],
-
-          if (detail.prerequisites.isNotEmpty) ...[
-            _sectionTitle('Prerequisites'),
-            const SizedBox(height: 8),
-            ...detail.prerequisites.map((req) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 6),
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(req, style: AppTextStyles.bodyMedium)),
-                ],
-              ),
-            )),
-            const SizedBox(height: 24),
-          ],
+          const SizedBox(height: 20),
 
           if (detail.instructor != null) ...[
             _sectionTitle('Instructor'),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -567,7 +541,7 @@ class _AboutTab extends StatelessWidget {
               child: Row(
                 children: [
                   CircleAvatar(
-                    radius: 28,
+                    radius: 24,
                     backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                     backgroundImage: detail.instructorAvatar != null
                         ? NetworkImage(detail.instructorAvatar!)
@@ -575,7 +549,7 @@ class _AboutTab extends StatelessWidget {
                     child: detail.instructorAvatar == null
                         ? Text(
                             detail.instructor![0].toUpperCase(),
-                            style: AppTextStyles.titleLarge.copyWith(color: AppColors.primary),
+                            style: AppTextStyles.titleMedium.copyWith(color: AppColors.primary),
                           )
                         : null,
                   ),
@@ -589,7 +563,7 @@ class _AboutTab extends StatelessWidget {
                           style: AppTextStyles.titleSmall,
                         ),
                         if (detail.instructorBio != null) ...[
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
                             detail.instructorBio!,
                             style: AppTextStyles.bodySmall,
@@ -597,8 +571,7 @@ class _AboutTab extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
-                        if (detail.instructorCoursesCount > 0 ||
-                            detail.instructorStudentsCount > 0) ...[
+                        if (detail.instructorCoursesCount > 0 || detail.instructorStudentsCount > 0) ...[
                           const SizedBox(height: 6),
                           Row(
                             children: [
@@ -631,9 +604,75 @@ class _AboutTab extends StatelessWidget {
             const SizedBox(height: 24),
           ],
 
+          if (detail.learningOutcomes.isNotEmpty) ...[
+            _sectionTitle('Learning Outcomes'),
+            const SizedBox(height: 12),
+            ...detail.learningOutcomes.map((outcome) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.check, size: 12, color: AppColors.primary),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      outcome,
+                      style: AppTextStyles.bodyMedium.copyWith(height: 1.5),
+                    ),
+                  ),
+                ],
+              ),
+            )),
+            const SizedBox(height: 24),
+          ],
+
+          if (detail.prerequisites.isNotEmpty) ...[
+            _sectionTitle('Prerequisites'),
+            const SizedBox(height: 12),
+            ...detail.prerequisites.map((req) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 7),
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: AppColors.mutedForeground,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(req, style: AppTextStyles.bodyMedium)),
+                ],
+              ),
+            )),
+            const SizedBox(height: 24),
+          ],
+
+          if (course.description != null && course.description!.isNotEmpty) ...[
+            _sectionTitle('Description'),
+            const SizedBox(height: 12),
+            Text(
+              course.description!.replaceAll(RegExp(r'<[^>]*>'), ''),
+              style: AppTextStyles.bodyMedium.copyWith(height: 1.7, color: AppColors.mutedForeground),
+            ),
+            const SizedBox(height: 24),
+          ],
+
           if (detail.tags.isNotEmpty) ...[
             _sectionTitle('Tags'),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -717,10 +756,11 @@ class _CurriculumTabState extends State<_CurriculumTab> {
     final totalLessons = detail.sections.fold(0, (sum, s) => sum + s.lessons.length);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SizedBox(height: 20),
           Row(
             children: [
               _statChip('${detail.sections.length} sections', AppColors.primaryDark, AppColors.primary.withValues(alpha: 0.1)),
@@ -759,19 +799,11 @@ class _CurriculumTabState extends State<_CurriculumTab> {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.border),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Column(
-                children: detail.sections.map((section) => _buildSectionTile(section)).toList(),
-              ),
-            ),
-          ),
+          const SizedBox(height: 16),
+          ...detail.sections.map((section) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _buildSectionTile(section),
+          )),
           const SizedBox(height: 32),
         ],
       ),
@@ -798,62 +830,74 @@ class _CurriculumTabState extends State<_CurriculumTab> {
   Widget _buildSectionTile(CourseSection section) {
     final expanded = _expandedSections.contains(section.id);
 
-    return Column(
-      children: [
-        InkWell(
-          onTap: () => setState(() {
-            if (expanded) {
-              _expandedSections.remove(section.id);
-            } else {
-              _expandedSections.add(section.id);
-            }
-          }),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.5))),
-            ),
-            child: Row(
-              children: [
-                AnimatedRotation(
-                  duration: const Duration(milliseconds: 200),
-                  turns: expanded ? 0.25 : 0,
-                  child: Icon(Icons.chevron_right, size: 20, color: AppColors.mutedForeground),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    section.title,
-                    style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w600),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => setState(() {
+              if (expanded) {
+                _expandedSections.remove(section.id);
+              } else {
+                _expandedSections.add(section.id);
+              }
+            }),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  AnimatedRotation(
+                    duration: const Duration(milliseconds: 200),
+                    turns: expanded ? 0.25 : 0,
+                    child: Icon(Icons.chevron_right, size: 20, color: AppColors.primary),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${section.lessons.length} lessons',
-                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedForeground),
-                ),
-              ],
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      section.title,
+                      style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${section.lessons.length}',
+                      style: AppTextStyles.labelSmall.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        AnimatedCrossFade(
-          firstChild: const SizedBox.shrink(),
-          secondChild: Column(
-            children: section.lessons.map((lesson) => _buildLessonTile(lesson)).toList(),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Column(
+              children: section.lessons.map((lesson) => _buildLessonTile(lesson)).toList(),
+            ),
+            crossFadeState: expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 200),
           ),
-          crossFadeState: expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-          duration: const Duration(milliseconds: 200),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildLessonTile(CourseLesson lesson) {
     return Container(
-      padding: const EdgeInsets.only(left: 44, right: 16, top: 12, bottom: 12),
+      padding: const EdgeInsets.only(left: 50, right: 16, top: 12, bottom: 12),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.3))),
-        color: AppColors.surface.withValues(alpha: 0.3),
+        border: Border(top: BorderSide(color: AppColors.border.withValues(alpha: 0.3))),
       ),
       child: Row(
         children: [
@@ -871,11 +915,18 @@ class _CurriculumTabState extends State<_CurriculumTab> {
             ),
           ),
           if (lesson.isFree)
-            Text(
-              'Preview',
-              style: AppTextStyles.labelSmall.copyWith(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w700,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Preview',
+                style: AppTextStyles.labelSmall.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             )
           else
@@ -917,16 +968,25 @@ class _ReviewsTab extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.rate_review_outlined, size: 48, color: AppColors.mutedForeground.withValues(alpha: 0.4)),
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.rate_review_outlined, size: 28, color: AppColors.primary),
+            ),
             const SizedBox(height: 16),
             Text(
-              'Reviews coming soon',
-              style: AppTextStyles.titleMedium.copyWith(color: AppColors.mutedForeground),
+              'No reviews yet',
+              style: AppTextStyles.titleMedium.copyWith(color: AppColors.foreground),
             ),
             const SizedBox(height: 8),
             Text(
-              'Student reviews will appear here after enrollment.',
+              'Reviews will appear here once students complete the course.',
               style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedForeground),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -944,33 +1004,51 @@ class _DetailShimmer extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const ShimmerCard(height: 200, width: double.infinity),
+          const ShimmerCard(height: 220, width: double.infinity),
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
               children: [
-                const ShimmerCard(height: 20, width: 120),
-                const SizedBox(height: 12),
-                const ShimmerCard(height: 28, width: double.infinity),
-                const SizedBox(height: 8),
-                const ShimmerCard(height: 28, width: 200),
-                const SizedBox(height: 16),
-                const ShimmerCard(height: 16, width: double.infinity),
-                const SizedBox(height: 8),
-                const ShimmerCard(height: 16, width: double.infinity),
-                const SizedBox(height: 8),
-                const ShimmerCard(height: 16, width: 200),
-                const SizedBox(height: 24),
-                const ShimmerCard(height: 20, width: 150),
-                const SizedBox(height: 12),
-                const ShimmerCard(height: 60, width: double.infinity),
-                const SizedBox(height: 8),
-                const ShimmerCard(height: 60, width: double.infinity),
-                const SizedBox(height: 8),
-                const ShimmerCard(height: 60, width: double.infinity),
+                const ShimmerCard(height: 36, width: 80, margin: EdgeInsets.only(right: 8)),
+                const ShimmerCard(height: 36, width: 60, margin: EdgeInsets.only(right: 8)),
+                const ShimmerCard(height: 36, width: 70),
               ],
             ),
+          ),
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: ShimmerCard(height: 60, width: double.infinity),
+          ),
+          const SizedBox(height: 16),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: ShimmerCard(height: 20, width: 150),
+          ),
+          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: ShimmerCard(height: 80, width: double.infinity),
+          ),
+          const SizedBox(height: 20),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: ShimmerCard(height: 20, width: 180),
+          ),
+          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: ShimmerCard(height: 24, width: double.infinity),
+          ),
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: ShimmerCard(height: 24, width: double.infinity),
+          ),
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: ShimmerCard(height: 24, width: 200),
           ),
         ],
       ),
