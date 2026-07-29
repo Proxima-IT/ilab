@@ -1,15 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../config/api_config.dart';
+import '../../../shared/models/course_model.dart';
 import '../../../shared/models/user_model.dart';
 import '../../../shared/models/certificate_model.dart';
 import '../../../shared/models/enrolled_course_model.dart';
 import '../../../shared/services/api_client.dart';
+import '../../courses/services/course_service.dart';
 import '../../profile/services/profile_service.dart';
 
 class HomeDashboardState {
   final UserModel? user;
   final List<EnrolledCourseModel> enrolledCourses;
   final List<CertificateModel> certificates;
+  final List<CourseModel> freeCourses;
   final bool isLoading;
   final String? error;
 
@@ -17,6 +20,7 @@ class HomeDashboardState {
     this.user,
     this.enrolledCourses = const [],
     this.certificates = const [],
+    this.freeCourses = const [],
     this.isLoading = false,
     this.error,
   });
@@ -25,6 +29,7 @@ class HomeDashboardState {
     UserModel? user,
     List<EnrolledCourseModel>? enrolledCourses,
     List<CertificateModel>? certificates,
+    List<CourseModel>? freeCourses,
     bool? isLoading,
     String? error,
   }) {
@@ -32,6 +37,7 @@ class HomeDashboardState {
       user: user ?? this.user,
       enrolledCourses: enrolledCourses ?? this.enrolledCourses,
       certificates: certificates ?? this.certificates,
+      freeCourses: freeCourses ?? this.freeCourses,
       isLoading: isLoading ?? this.isLoading,
       error: error,
     );
@@ -41,6 +47,7 @@ class HomeDashboardState {
 class HomeDashboardNotifier extends StateNotifier<HomeDashboardState> {
   final ApiClient _api = ApiClient();
   final ProfileService _profileService = ProfileService();
+  final CourseService _courseService = CourseService();
 
   HomeDashboardNotifier() : super(const HomeDashboardState());
 
@@ -75,10 +82,17 @@ class HomeDashboardNotifier extends StateNotifier<HomeDashboardState> {
 
       final certs = await _profileService.fetchCertificates();
 
+      List<CourseModel> freeCourses = [];
+      try {
+        final freeResult = await _courseService.fetchCourses(page: 1, free: true, perPage: 8);
+        freeCourses = freeResult.items;
+      } catch (_) {}
+
       state = HomeDashboardState(
         user: user,
         enrolledCourses: enrolledCourses,
         certificates: certs,
+        freeCourses: freeCourses,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());

@@ -290,12 +290,19 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
               child: FilledButton(
                 onPressed: () {
                   if (isEnrolled) {
+                    final lessonId = matchingEnrollment.firstLessonId;
+                    if (lessonId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('No lessons available for this course yet.')),
+                      );
+                      return;
+                    }
                     Navigator.pushNamed(
                       context,
                       '/lesson-player',
                       arguments: {
                         'slug': course.slug,
-                        'lessonId': matchingEnrollment.firstLessonId,
+                        'lessonId': lessonId,
                       },
                     );
                   } else {

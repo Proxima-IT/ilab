@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/learning_service.dart';
 
@@ -15,6 +16,7 @@ class LearningPlayerState {
   final String questionText;
   final int questionPage;
   final int questionsPerPage;
+  final bool timeoutReached;
 
   const LearningPlayerState({
     this.playerData,
@@ -30,6 +32,7 @@ class LearningPlayerState {
     this.questionText = '',
     this.questionPage = 1,
     this.questionsPerPage = 5,
+    this.timeoutReached = false,
   });
 
   LearningPlayerState copyWith({
@@ -46,6 +49,7 @@ class LearningPlayerState {
     String? questionText,
     int? questionPage,
     int? questionsPerPage,
+    bool? timeoutReached,
   }) {
     return LearningPlayerState(
       playerData: playerData ?? this.playerData,
@@ -61,6 +65,7 @@ class LearningPlayerState {
       questionText: questionText ?? this.questionText,
       questionPage: questionPage ?? this.questionPage,
       questionsPerPage: questionsPerPage ?? this.questionsPerPage,
+      timeoutReached: timeoutReached ?? this.timeoutReached,
     );
   }
 
@@ -81,28 +86,93 @@ class LearningPlayerState {
     final start = (questionPage - 1) * questionsPerPage;
     return questions.skip(start).take(questionsPerPage).toList();
   }
+
+  bool get isCurriculumEmpty => playerData?.course.sections.every((s) => s.lessons.isEmpty) ?? true;
 }
 
 class LearningPlayerNotifier extends StateNotifier<LearningPlayerState> {
   final LearningService _service = LearningService();
   final String courseSlug;
   String currentLessonId;
+  Timer? _timeoutTimer;
+  bool _disposed = false;
 
   LearningPlayerNotifier({
     required this.courseSlug,
     required String lessonId,
   }) : currentLessonId = lessonId,
        super(const LearningPlayerState(isLoading: true)) {
+    _startTimeout();
     loadPlayer();
   }
 
-  Future<void> loadPlayer() async {
-    if (courseSlug.isEmpty || currentLessonId.isEmpty) return;
+  @override
+  void dispose() {
+    _disposed = true;
+    _timeoutTimer?.cancel();
+    super.dispose();
+  }
 
-    state = state.copyWith(isLoading: true, error: null);
+  void _startTimeout() {
+    _timeoutTimer?.cancel();
+    _timeoutTimer = Timer(const Duration(seconds: 10), () {
+      if (!_disposed && state.isLoading) {
+        state = state.copyWith(
+          isLoading: false,
+          error: 'Loading timed out. Please try again.',
+          timeoutReached: true,
+        );
+      }
+    });
+  }
+
+  Future<void> loadPlayer() async {
+    if (courseSlug.isEmpty) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Course not found.',
+      );
+      return;
+    }
+
+    if (currentLessonId.isEmpty) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'No lessons available yet.',
+      );
+      return;
+    }
+
+    state = state.copyWith(isLoading: true, error: null, timeoutReached: false);
+    _startTimeout();
 
     try {
       final data = await _service.getPlayer(courseSlug, currentLessonId);
+
+      final hasLessons = data.course.sections.any((s) => s.lessons.isNotEmpty);
+      if (!hasLessons) {
+        _timeoutTimer?.cancel();
+        state = LearningPlayerState(
+          isLoading: false,
+          error: 'No lessons available yet.',
+        );
+        return;
+      }
+
+      final lessonExists = data.course.sections
+          .expand((s) => s.lessons)
+          .any((l) => l.id.toString() == currentLessonId);
+      if (!lessonExists) {
+        _timeoutTimer?.cancel();
+        state = LearningPlayerState(
+          isLoading: false,
+          error: 'The requested lesson was not found in this course.',
+          playerData: data,
+        );
+        return;
+      }
+
+      _timeoutTimer?.cancel();
       final expandedIds = data.course.sections.map((s) => s.id).toSet();
       state = LearningPlayerState(
         playerData: data,
@@ -111,6 +181,7 @@ class LearningPlayerNotifier extends StateNotifier<LearningPlayerState> {
         questionPage: 1,
       );
     } catch (e) {
+      _timeoutTimer?.cancel();
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),

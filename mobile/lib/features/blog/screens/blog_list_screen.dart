@@ -15,10 +15,26 @@ class BlogListScreen extends ConsumerStatefulWidget {
 }
 
 class _BlogListScreenState extends ConsumerState<BlogListScreen> {
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     Future.microtask(() => ref.read(blogListProvider.notifier).fetchPosts());
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      ref.read(blogListProvider.notifier).loadMore();
+    }
   }
 
   @override
@@ -26,7 +42,7 @@ class _BlogListScreenState extends ConsumerState<BlogListScreen> {
     final state = ref.watch(blogListProvider);
 
     return RefreshIndicator(
-      onRefresh: () => ref.read(blogListProvider.notifier).fetchPosts(),
+      onRefresh: () => ref.read(blogListProvider.notifier).refresh(),
       child: _buildBody(state),
     );
   }
@@ -49,6 +65,7 @@ class _BlogListScreenState extends ConsumerState<BlogListScreen> {
       );
     }
     return CustomScrollView(
+      controller: _scrollController,
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
@@ -88,7 +105,43 @@ class _BlogListScreenState extends ConsumerState<BlogListScreen> {
             ),
           ),
         ),
+        SliverToBoxAdapter(
+          child: _buildFooter(state),
+        ),
       ],
     );
+  }
+
+  Widget _buildFooter(BlogListState state) {
+    if (state.isLoadingMore) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+    if (!state.hasMore && state.posts.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: Text(
+            'No more posts',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedForeground),
+          ),
+        ),
+      );
+    }
+    if (state.error != null && state.posts.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: TextButton.icon(
+            onPressed: () => ref.read(blogListProvider.notifier).loadMore(),
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Retry'),
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 }

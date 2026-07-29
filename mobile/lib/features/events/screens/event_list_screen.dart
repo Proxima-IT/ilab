@@ -15,10 +15,26 @@ class EventListScreen extends ConsumerStatefulWidget {
 }
 
 class _EventListScreenState extends ConsumerState<EventListScreen> {
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     Future.microtask(() => ref.read(eventListProvider.notifier).fetchEvents());
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      ref.read(eventListProvider.notifier).loadMore();
+    }
   }
 
   @override
@@ -26,7 +42,7 @@ class _EventListScreenState extends ConsumerState<EventListScreen> {
     final state = ref.watch(eventListProvider);
 
     return RefreshIndicator(
-      onRefresh: () => ref.read(eventListProvider.notifier).fetchEvents(),
+      onRefresh: () => ref.read(eventListProvider.notifier).refresh(),
       child: _buildBody(state),
     );
   }
@@ -49,6 +65,7 @@ class _EventListScreenState extends ConsumerState<EventListScreen> {
       );
     }
     return CustomScrollView(
+      controller: _scrollController,
       slivers: [
         SliverToBoxAdapter(
           child: Padding(
@@ -88,7 +105,43 @@ class _EventListScreenState extends ConsumerState<EventListScreen> {
             ),
           ),
         ),
+        SliverToBoxAdapter(
+          child: _buildFooter(state),
+        ),
       ],
     );
+  }
+
+  Widget _buildFooter(EventListState state) {
+    if (state.isLoadingMore) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+    if (!state.hasMore && state.events.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: Text(
+            'No more events',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedForeground),
+          ),
+        ),
+      );
+    }
+    if (state.error != null && state.events.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: TextButton.icon(
+            onPressed: () => ref.read(eventListProvider.notifier).loadMore(),
+            icon: const Icon(Icons.refresh, size: 18),
+            label: const Text('Retry'),
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 }

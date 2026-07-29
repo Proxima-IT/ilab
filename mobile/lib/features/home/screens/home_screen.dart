@@ -6,6 +6,8 @@ import '../../../shared/theme/app_text_styles.dart';
 import '../../../shared/screens/main_shell.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
+import '../../../shared/widgets/course_card.dart';
+import '../../../shared/models/course_model.dart';
 import '../../../shared/models/user_model.dart';
 import '../../../shared/models/enrolled_course_model.dart';
 import '../../../shared/models/certificate_model.dart';
@@ -76,6 +78,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 8),
           _buildStatsRow(state.enrolledCourses.length, completed.length, certificatesCount),
           const SizedBox(height: 8),
+          if (state.freeCourses.isNotEmpty) ...[
+            _buildSectionHeader('Free Courses', onSeeAll: () => Navigator.pushNamed(context, '/free-courses')),
+            _buildFreeCourses(state.freeCourses),
+          ],
           if (inProgress.isNotEmpty) ...[
             _buildSectionHeader('Continue Learning', onSeeAll: () {}),
             _buildInProgressCourses(inProgress),
@@ -268,6 +274,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFreeCourses(List<CourseModel> courses) {
+    return SizedBox(
+      height: 200,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.only(left: 16, right: 8),
+        itemCount: courses.length,
+        itemBuilder: (_, i) => SizedBox(
+          width: 180,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: CourseCard(
+              course: courses[i],
+              horizontal: true,
+              onTap: () => Navigator.pushNamed(context, '/course-detail', arguments: courses[i].slug),
+            ),
+          ),
+        ),
       ),
     );
   }

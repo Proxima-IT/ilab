@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_text_styles.dart';
 import '../../../shared/widgets/loading_widget.dart';
@@ -53,6 +53,8 @@ class LessonPlayerScreen extends ConsumerStatefulWidget {
 
 class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
   YoutubePlayerController? _youtubeController;
+  StreamSubscription<YoutubePlayerValue>? _controllerSubscription;
+  StreamSubscription<YoutubeVideoState>? _videoStateSubscription;
   Timer? _watchTimer;
   Timer? _syncTimer;
   Timer? _watermarkTimer;
@@ -87,7 +89,9 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
 
   @override
   void dispose() {
-    _youtubeController?.dispose();
+    _controllerSubscription?.cancel();
+    _videoStateSubscription?.cancel();
+    _youtubeController?.close();
     _watchTimer?.cancel();
     _syncTimer?.cancel();
     _watermarkTimer?.cancel();
@@ -102,35 +106,25 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
     final videoId = _extractYoutubeId(videoUrl);
     if (videoId == null) return;
 
-    _youtubeController = YoutubePlayerController(
-      initialVideoId: videoId,
-      flags: const YoutubePlayerFlags(
-        autoPlay: false,
-        mute: false,
-        controlsVisibleAtStart: false,
-        hideThumbnail: true,
-        enableCaption: false,
+    _youtubeController = YoutubePlayerController.fromVideoId(
+      videoId: videoId,
+      params: const YoutubePlayerParams(
+        showControls: false,
+        showFullscreenButton: false,
       ),
+      autoPlay: false,
     );
 
-    _youtubeController!.addListener(() {
-      if (!_youtubeReady && _youtubeController!.value.isReady) {
+    _controllerSubscription = _youtubeController!.listen((value) {
+      if (!_youtubeReady && value.playerState != PlayerState.unknown) {
         _youtubeReady = true;
         final lesson = state.playerData?.lesson;
         if (lesson?.watchSeconds != null && lesson!.watchSeconds! > 0) {
-          _youtubeController!.seekTo(Duration(seconds: lesson.watchSeconds!));
+          _youtubeController!.seekTo(seconds: lesson.watchSeconds!.toDouble());
         }
       }
 
-      final position = _youtubeController!.value.position;
-      if (position.inSeconds > 0) {
-        _localWatchSeconds = position.inSeconds;
-        _notifier.setWatchSeconds(position.inSeconds);
-      }
-    });
-
-    _youtubeController!.addListener(() {
-      final playerState = _youtubeController!.value.playerState;
+      final playerState = value.playerState;
       final notifier = _notifier;
       if (playerState == PlayerState.playing) {
         notifier.setIsPlaying(true);
@@ -164,11 +158,11 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
 
   void _startWatchTimer() {
     _watchTimer?.cancel();
-    _watchTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _watchTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
       if (_youtubeController != null && _youtubeReady) {
-        final pos = _youtubeController!.value.position.inSeconds;
-        _localWatchSeconds = pos;
-        _notifier.setWatchSeconds(pos);
+        final currentTime = await _youtubeController!.currentTime;
+        _localWatchSeconds = currentTime.toInt();
+        _notifier.setWatchSeconds(currentTime.toInt());
       }
     });
   }
@@ -218,9 +212,9 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
       return;
     }
     if (state.isPlaying) {
-      _youtubeController!.pause();
+      _youtubeController!.pauseVideo();
     } else {
-      _youtubeController!.play();
+      _youtubeController!.playVideo();
     }
   }
 
@@ -229,14 +223,16 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
     final duration = ref.read(learningPlayerProvider(_args)).duration;
     if (duration <= 0) return;
     final seconds = (positionPercent * duration).round();
-    _youtubeController!.seekTo(Duration(seconds: seconds));
+    _youtubeController!.seekTo(seconds: seconds.toDouble());
     _notifier.setWatchSeconds(seconds);
     _notifier.syncWatchTime();
   }
 
   void _navigateToLesson(String lessonId) {
-    _youtubeController?.pause();
-    _youtubeController?.dispose();
+    _controllerSubscription?.cancel();
+    _videoStateSubscription?.cancel();
+    _youtubeController?.pauseVideo();
+    _youtubeController?.close();
     _youtubeController = null;
     _youtubeReady = false;
     _stopWatchTimer();
@@ -266,14 +262,20 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
         ),
         body: ErrorDisplayWidget(
           message: provider.error!,
-          onRetry: () => notifier.loadPlayer(),
+          onRetry: provider.timeoutReached ? () => notifier.loadPlayer() : null,
         ),
       );
     }
 
-    final playerData = provider.playerData;
-    if (playerData == null) {
+    if (provider.isCurriculumEmpty || provider.playerData == null) {
+      final errorMessage = provider.error ?? 'No lessons available yet.';
       return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
@@ -283,12 +285,12 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
                 Icon(Icons.folder_open, size: 48, color: AppColors.mutedForeground.withValues(alpha: 0.5)),
                 const SizedBox(height: 16),
                 Text(
-                  'Classes are not added yet',
+                  provider.isCurriculumEmpty ? 'No lessons available yet' : 'Classes are not added yet',
                   style: AppTextStyles.titleMedium.copyWith(color: AppColors.foreground),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  provider.error ?? 'This enrolled course does not have any class content yet.',
+                  errorMessage,
                   style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedForeground),
                   textAlign: TextAlign.center,
                 ),
@@ -298,12 +300,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
                   children: [
                     OutlinedButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Go to dashboard'),
-                    ),
-                    const SizedBox(width: 12),
-                    OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('My courses'),
+                      child: const Text('Go back'),
                     ),
                   ],
                 ),
@@ -314,6 +311,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
       );
     }
 
+    final playerData = provider.playerData!;
     final lesson = playerData.lesson;
     final course = playerData.course;
     final videoUrl = lesson.videoEmbedUrl;
@@ -371,19 +369,9 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
                 height: playerHeight,
                 color: Colors.black,
                 child: videoId != null && _youtubeController != null
-                    ? YoutubePlayerBuilder(
-                        player: YoutubePlayer(
-                          controller: _youtubeController!,
-                          showVideoProgressIndicator: false,
-                          progressIndicatorColor: AppColors.primary,
-                          progressColors: const ProgressBarColors(
-                            playedColor: AppColors.primary,
-                            handleColor: AppColors.primary,
-                          ),
-                          bottomActions: const [],
-                          topActions: const [],
-                        ),
-                        builder: (context, player) => player,
+                    ? YoutubePlayer(
+                        controller: _youtubeController!,
+                        aspectRatio: 16 / 9,
                       )
                     : Center(
                         child: Text(
