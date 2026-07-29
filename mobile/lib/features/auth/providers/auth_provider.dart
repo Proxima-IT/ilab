@@ -65,8 +65,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
     } catch (e) {
       debugPrint('checkAuthState: Profile failed: $e');
-      await _clearSession();
-      state = const AuthState(status: AuthStatus.unauthenticated);
+      if (e is DioException &&
+          (e.type == DioExceptionType.connectionError ||
+              e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.receiveTimeout)) {
+        debugPrint('checkAuthState: Network error — keeping token, loading cached user');
+        final token = await _storage.read(key: 'auth_token');
+        final cachedUserJson = await _storage.read(key: 'auth_user');
+        if (token != null && cachedUserJson != null) {
+          final user = UserModel.fromJson(jsonDecode(cachedUserJson));
+          state = AuthState(
+            status: AuthStatus.authenticated,
+            user: user.copyWith(token: token),
+          );
+        } else {
+          await _clearSession();
+          state = const AuthState(status: AuthStatus.unauthenticated);
+        }
+      } else {
+        debugPrint('checkAuthState: Non-network error — clearing session');
+        await _clearSession();
+        state = const AuthState(status: AuthStatus.unauthenticated);
+      }
     }
   }
 
@@ -126,7 +146,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     debugPrint('Google Sign-In: Starting...');
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+      final googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'],
+        clientId: '844078283489-i8vcte69jgl4gn528esmln8udrth21aq.apps.googleusercontent.com',
+      );
       final account = await googleSignIn.signIn();
       debugPrint('Google Sign-In: Account = ${account?.email}');
       if (account == null) {

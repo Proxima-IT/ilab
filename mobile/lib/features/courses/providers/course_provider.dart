@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/models/course_model.dart';
 import '../../../shared/models/pagination_meta.dart';
+import '../../../shared/services/api_client.dart';
 import '../services/course_service.dart';
 
 class CourseListState {
@@ -107,7 +108,7 @@ class CourseListNotifier extends StateNotifier<CourseListState> {
         categories: state.categories,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: formatErrorMessage(e));
     }
   }
 
@@ -134,7 +135,7 @@ class CourseListNotifier extends StateNotifier<CourseListState> {
         categories: state.categories,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: formatErrorMessage(e));
     }
   }
 
@@ -163,7 +164,7 @@ class CourseListNotifier extends StateNotifier<CourseListState> {
         categories: state.categories,
       );
     } catch (e) {
-      state = state.copyWith(isLoadingMore: false, error: e.toString());
+      state = state.copyWith(isLoadingMore: false, error: formatErrorMessage(e));
     }
   }
 
@@ -231,7 +232,7 @@ class CourseDetailNotifier extends StateNotifier<CourseDetailState> {
       final detail = await _service.fetchCourseDetail(slug);
       state = CourseDetailState(detail: detail);
     } catch (e) {
-      state = CourseDetailState(error: e.toString());
+      state = CourseDetailState(error: formatErrorMessage(e));
     }
   }
 }

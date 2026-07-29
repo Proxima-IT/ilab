@@ -35,50 +35,63 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     });
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.primary, AppColors.primaryDark],
-          ),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Image.asset(
-                  'assets/images/ilab_logo.jpeg',
-                  width: 200,
-                  height: 200,
-                  fit: BoxFit.cover,
+      backgroundColor: AppColors.background,
+      body: SafeArea(left: false, right: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Spacer(),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.asset(
+                    'assets/images/ilab_logo.jpeg',
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'iLab',
+                const SizedBox(height: 24),
+                Text(
+                  'iLab',
+                  style: TextStyle(
+                    fontFamily: 'Outfit',
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.foreground,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Learn. Build. Earn.',
+                  style: TextStyle(
+                    fontFamily: 'Outfit',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.mutedForeground,
+                  ),
+                ),
+                const SizedBox(height: 48),
+                const CircularProgressIndicator(color: AppColors.primary),
+              ],
+            ),
+            ),
+            const Spacer(),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Text(
+                '© 2026 iLab BD. All rights reserved.',
                 style: TextStyle(
-                  fontFamily: 'Plus Jakarta Sans',
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.white,
+                  fontSize: 12,
+                  color: AppColors.mutedForeground,
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Learn. Build. Earn.',
-                style: TextStyle(
-                  fontFamily: 'Plus Jakarta Sans',
-                  fontSize: 16,
-                  color: AppColors.white,
-                ),
-              ),
-              const SizedBox(height: 48),
-              const CircularProgressIndicator(color: AppColors.white),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -4,9 +4,10 @@ import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_text_styles.dart';
 
 import '../../../shared/models/course_model.dart';
-import '../../../shared/screens/webview_screen.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
+import '../../enrollment/providers/enrollment_provider.dart';
+import '../../enrollment/screens/payment_webview.dart';
 import '../../home/providers/home_dashboard_provider.dart';
 import '../providers/course_provider.dart';
 
@@ -258,6 +259,7 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
   Widget _buildBottomBar(CourseDetailModel detail, String slug) {
     final course = detail.course;
     final dashboardState = ref.watch(homeDashboardProvider);
+    final checkoutState = ref.watch(enrollmentProvider);
 
     final matchingEnrollment = dashboardState.enrolledCourses.where(
       (e) => e.course.slug == course.slug && e.status != 'suspended' && e.status != 'expired',
@@ -288,38 +290,27 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
             child: SizedBox(
               height: 52,
               child: FilledButton(
-                onPressed: () {
-                  if (isEnrolled) {
-                    final lessonId = matchingEnrollment.firstLessonId;
-                    if (lessonId == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('No lessons available for this course yet.')),
-                      );
-                      return;
-                    }
-                    Navigator.pushNamed(
-                      context,
-                      '/lesson-player',
-                      arguments: {
-                        'slug': course.slug,
-                        'lessonId': lessonId,
-                      },
-                    );
-                  } else {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => WebViewScreen(
-                          url: 'https://ilabbd.com/enroll/${course.slug}',
-                          title: 'Enroll in ${course.title}',
-                        ),
-                      ),
-                    ).then((_) {
-                      ref.read(homeDashboardProvider.notifier).fetchDashboard();
-                      ref.read(courseDetailProvider(slug).notifier).fetchDetail(slug);
-                    });
-                  }
-                },
+                onPressed: isEnrolled
+                    ? () {
+                        final lessonId = matchingEnrollment.firstLessonId;
+                        if (lessonId == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('No lessons available for this course yet.')),
+                          );
+                          return;
+                        }
+                        Navigator.pushNamed(
+                          context,
+                          '/lesson-player',
+                          arguments: {
+                            'slug': course.slug,
+                            'lessonId': lessonId,
+                          },
+                        );
+                      }
+                    : checkoutState.isLoading
+                        ? null
+                        : () => _handleEnroll(course, slug),
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -327,16 +318,122 @@ class _CourseDetailScreenState extends ConsumerState<CourseDetailScreen>
                   ),
                   backgroundColor: isEnrolled ? AppColors.success : AppColors.primary,
                 ),
-                child: Text(
-                  isEnrolled
-                      ? 'Continue Learning'
-                      : course.isFree
-                          ? 'Enroll Now - Free'
-                          : 'Enroll Now - ৳${course.effectivePrice.toStringAsFixed(0)}',
-                  style: AppTextStyles.buttonLarge.copyWith(color: AppColors.white),
-                ),
+                child: checkoutState.isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.white,
+                        ),
+                      )
+                    : Text(
+                        isEnrolled
+                            ? 'Continue Learning'
+                            : course.isFree
+                                ? 'Enroll Now - Free'
+                                : 'Enroll Now - ৳${course.effectivePrice.toStringAsFixed(0)}',
+                        style: AppTextStyles.buttonLarge.copyWith(color: AppColors.white),
+                      ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleEnroll(CourseModel course, String slug) async {
+    final notifier = ref.read(enrollmentProvider.notifier);
+    notifier.reset();
+
+    final invoiceId = await notifier.initiateCheckout(courseId: course.id);
+
+    if (!mounted) return;
+
+    final state = ref.read(enrollmentProvider);
+
+    if (state.isFree && invoiceId != null) {
+      _showSuccessDialog(invoiceId);
+      ref.read(homeDashboardProvider.notifier).fetchDashboard();
+      ref.read(courseDetailProvider(slug).notifier).fetchDetail(slug);
+      return;
+    }
+
+    if (state.status == CheckoutStatus.error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(state.errorMessage ?? 'Checkout failed.'),
+          backgroundColor: AppColors.destructive,
+        ),
+      );
+      return;
+    }
+
+    if (state.paymentUrl == null) return;
+
+    final result = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => PaymentWebViewScreen(
+          paymentUrl: state.paymentUrl!,
+          invoiceId: invoiceId ?? '',
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (result == null) {
+      notifier.onPaymentCancelled();
+      return;
+    }
+
+    final success = result['success'] == true;
+    final cancelled = result['cancelled'] == true;
+    final resolvedInvoiceId = result['invoice_id'] as String? ?? invoiceId ?? '';
+    final error = result['error'] as String?;
+
+    if (success) {
+      notifier.onPaymentSuccess(resolvedInvoiceId);
+      _showSuccessDialog(resolvedInvoiceId);
+      ref.read(homeDashboardProvider.notifier).fetchDashboard();
+      ref.read(courseDetailProvider(slug).notifier).fetchDetail(slug);
+    } else if (cancelled) {
+      notifier.onPaymentCancelled();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Payment was cancelled.'),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } else {
+      notifier.onPaymentError(error ?? 'Payment was not completed.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error ?? 'Payment was not completed.'),
+          backgroundColor: AppColors.destructive,
+        ),
+      );
+    }
+  }
+
+  void _showSuccessDialog(String invoiceId) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.check_circle, color: AppColors.success),
+            const SizedBox(width: 8),
+            const Text('Enrolled Successfully'),
+          ],
+        ),
+        content: Text('You have been enrolled in this course. Invoice #$invoiceId'),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Continue'),
           ),
         ],
       ),

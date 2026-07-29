@@ -95,7 +95,7 @@ class HomeDashboardNotifier extends StateNotifier<HomeDashboardState> {
         freeCourses: freeCourses,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: formatErrorMessage(e));
     }
   }
 }

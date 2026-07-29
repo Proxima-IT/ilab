@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/models/blog_post_model.dart';
 import '../../../shared/models/pagination_meta.dart';
+import '../../../shared/services/api_client.dart';
 import '../services/blog_service.dart';
 
 class BlogListState {
@@ -54,7 +55,7 @@ class BlogListNotifier extends StateNotifier<BlogListState> {
         hasMore: result.meta.hasMore,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: formatErrorMessage(e));
     }
   }
 
@@ -68,7 +69,7 @@ class BlogListNotifier extends StateNotifier<BlogListState> {
         hasMore: result.meta.hasMore,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: formatErrorMessage(e));
     }
   }
 
@@ -84,7 +85,7 @@ class BlogListNotifier extends StateNotifier<BlogListState> {
         hasMore: result.meta.hasMore,
       );
     } catch (e) {
-      state = state.copyWith(isLoadingMore: false, error: e.toString());
+      state = state.copyWith(isLoadingMore: false, error: formatErrorMessage(e));
     }
   }
 }
@@ -114,7 +115,7 @@ class BlogDetailNotifier extends StateNotifier<BlogDetailState> {
       final post = await _service.fetchPostDetail(slug);
       state = BlogDetailState(post: post);
     } catch (e) {
-      state = BlogDetailState(error: e.toString());
+      state = BlogDetailState(error: formatErrorMessage(e));
     }
   }
 }

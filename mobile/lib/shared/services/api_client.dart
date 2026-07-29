@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../config/api_config.dart';
+import 'connectivity_service.dart';
 
 class ApiException implements Exception {
   final String message;
@@ -15,6 +16,21 @@ class ApiException implements Exception {
 
   @override
   String toString() => message;
+}
+
+String formatErrorMessage(dynamic error) {
+  if (error is ApiException) return error.message;
+  if (error is DioException) {
+    if (error.type == DioExceptionType.connectionError ||
+        error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout) {
+      return 'No internet connection. Please check your network and try again.';
+    }
+    final apiError = error.error;
+    if (apiError is ApiException) return apiError.message;
+    return 'Something went wrong. Please try again.';
+  }
+  return 'Something went wrong. Please try again.';
 }
 
 class ApiClient {
@@ -45,6 +61,22 @@ class ApiClient {
           handler.next(options);
         },
         onError: (error, handler) {
+          if (error.type == DioExceptionType.connectionError ||
+              error.type == DioExceptionType.connectionTimeout ||
+              error.type == DioExceptionType.receiveTimeout) {
+            ConnectivityService.instance.showOverlay();
+            handler.next(DioException(
+              requestOptions: error.requestOptions,
+              response: error.response,
+              type: error.type,
+              error: const ApiException(
+                message: 'No internet connection. Please check your network and try again.',
+              ),
+              message: 'No internet connection. Please check your network and try again.',
+            ));
+            return;
+          }
+
           if (error.response?.statusCode == 401) {
             _storage.delete(key: 'auth_token');
             _storage.delete(key: 'auth_user');

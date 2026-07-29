@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/models/notification_model.dart';
+import '../../../shared/services/api_client.dart';
 import '../services/notification_service.dart';
 
 class NotificationState {
@@ -45,7 +46,7 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
         unreadCount: unreadCount,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: formatErrorMessage(e));
     }
   }
 
@@ -70,7 +71,7 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
       final unreadCount = updated.where((n) => !n.isRead).length;
       state = state.copyWith(notifications: updated, unreadCount: unreadCount);
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: formatErrorMessage(e));
     }
   }
 

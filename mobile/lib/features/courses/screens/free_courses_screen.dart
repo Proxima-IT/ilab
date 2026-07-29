@@ -6,6 +6,7 @@ import '../../../shared/widgets/course_card.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../services/course_service.dart';
+import 'package:ilab_app/shared/services/api_client.dart';
 import 'package:ilab_app/shared/models/course_model.dart';
 
 class FreeCoursesListState {
@@ -43,7 +44,7 @@ class FreeCoursesListNotifier extends StateNotifier<FreeCoursesListState> {
         hasMore: result.meta.hasMore,
       );
     } catch (e) {
-      state = FreeCoursesListState(error: e.toString());
+      state = FreeCoursesListState(error: formatErrorMessage(e));
     }
   }
 
@@ -57,7 +58,7 @@ class FreeCoursesListNotifier extends StateNotifier<FreeCoursesListState> {
         hasMore: result.meta.hasMore,
       );
     } catch (e) {
-      state = FreeCoursesListState(error: e.toString());
+      state = FreeCoursesListState(error: formatErrorMessage(e));
     }
   }
 
@@ -80,7 +81,7 @@ class FreeCoursesListNotifier extends StateNotifier<FreeCoursesListState> {
     } catch (e) {
       state = FreeCoursesListState(
         courses: state.courses,
-        error: e.toString(),
+        error: formatErrorMessage(e),
         currentPage: state.currentPage,
         hasMore: state.hasMore,
       );

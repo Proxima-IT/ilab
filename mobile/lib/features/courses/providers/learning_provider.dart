@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/services/api_client.dart';
 import '../services/learning_service.dart';
 
 class LearningPlayerState {
@@ -184,7 +185,7 @@ class LearningPlayerNotifier extends StateNotifier<LearningPlayerState> {
       _timeoutTimer?.cancel();
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: formatErrorMessage(e),
       );
     }
   }

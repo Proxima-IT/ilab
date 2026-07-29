@@ -72,6 +72,9 @@ dependencies:
   # Date formatting
   intl: ^0.20.2
 
+  # Connectivity
+  connectivity_plus: ^6.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
