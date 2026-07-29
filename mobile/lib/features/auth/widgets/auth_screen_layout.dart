@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_text_styles.dart';
+
+const Color _authPrimary = Color(0xFFF46423);
+const Color _authPrimaryDark = Color(0xFFD4541C);
 
 class AuthScreenLayout extends StatelessWidget {
   final String title;
@@ -35,14 +39,14 @@ class AuthScreenLayout extends StatelessWidget {
     return Row(
       children: [
         Expanded(child: _buildLeftPanel()),
-        Expanded(child: _buildRightPanel()),
+        Expanded(child: _buildRightPanel(isWide: true)),
       ],
     );
   }
 
   Widget _buildNarrowLayout() {
     return SingleChildScrollView(
-      child: _buildRightPanel(),
+      child: _buildRightPanel(isWide: false),
     );
   }
 
@@ -52,7 +56,7 @@ class AuthScreenLayout extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [AppColors.primary, AppColors.primaryDark],
+          colors: [_authPrimary, _authPrimaryDark],
         ),
       ),
       padding: EdgeInsets.all(compact ? 32 : 48),
@@ -65,7 +69,7 @@ class AuthScreenLayout extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.white.withValues(alpha:0.2),
+                  color: AppColors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(
@@ -92,7 +96,7 @@ class AuthScreenLayout extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.white.withValues(alpha:0.15),
+              color: AppColors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
@@ -116,8 +120,8 @@ class AuthScreenLayout extends StatelessWidget {
           _buildBullet('Job assistance and interview prep'),
           const Spacer(),
           Text(
-            '© 2026 iLab. Future-ready learning.',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.white.withValues(alpha:0.8)),
+            '\u00a9 2026 iLab. Future-ready learning.',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.white.withValues(alpha: 0.8)),
           ),
         ],
       ),
@@ -144,7 +148,7 @@ class AuthScreenLayout extends StatelessWidget {
           child: Text(
             text,
             style: (compact ? AppTextStyles.bodyMedium : AppTextStyles.bodyLarge).copyWith(
-              color: AppColors.white.withValues(alpha:0.9),
+              color: AppColors.white.withValues(alpha: 0.9),
             ),
           ),
         ),
@@ -152,48 +156,88 @@ class AuthScreenLayout extends StatelessWidget {
     );
   }
 
-  Widget _buildRightPanel() {
+  Widget _buildRightPanel({bool isWide = false}) {
     return Container(
       color: AppColors.background,
       padding: EdgeInsets.symmetric(
         horizontal: 24,
-        vertical: compact ? 20 : 40,
+        vertical: isWide ? (compact ? 20 : 40) : 0,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 24),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 448),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: (compact ? AppTextStyles.headlineSmall : AppTextStyles.headlineMedium).copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: compact ? 4 : 8),
-                Text(
-                  subtitle,
-                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedForeground),
-                ),
-                SizedBox(height: compact ? 20 : 32),
-                child,
-                SizedBox(height: compact ? 16 : 24),
-                Center(
-                  child: Text(
-                    '',
-                    style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedForeground),
-                  ),
-                ),
-                footer,
-              ],
+      child: SafeArea(
+        top: !isWide,
+        bottom: !isWide,
+        child: Column(
+crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (!isWide) ...[
+              const SizedBox(height: 40),
+              _buildBrandingSection(),
+              const SizedBox(height: 40),
+            ],
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 448),
+              child: Column(
+                crossAxisAlignment: isWide ? CrossAxisAlignment.start : CrossAxisAlignment.stretch,
+                children: [
+                  if (isWide) ...[
+                    Text(
+                      title,
+                      style: (compact ? AppTextStyles.headlineSmall : AppTextStyles.headlineMedium).copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: compact ? 4 : 8),
+                    Text(
+                      subtitle,
+                      style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedForeground),
+                    ),
+                    SizedBox(height: compact ? 20 : 32),
+                  ],
+                  child,
+                  const SizedBox(height: 16),
+                  Center(child: footer),
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildBrandingSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Image.asset(
+            'assets/images/ilab_logo.jpeg',
+            width: 80,
+            height: 80,
+            fit: BoxFit.cover,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          'Welcome to iLab',
+          style: GoogleFonts.outfit(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: AppColors.black,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Learn. Build. Earn.',
+          style: GoogleFonts.outfit(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: AppColors.mutedForeground,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -2,11 +2,15 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../shared/screens/webview_screen.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_text_styles.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/auth_screen_layout.dart';
+
+const Color _authPrimary = Color(0xFFF46423);
+const Color _authPrimaryDark = Color(0xFFD4541C);
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -113,14 +117,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         onTap: () => Navigator.pushReplacementNamed(context, '/login'),
         child: RichText(
           text: TextSpan(
-            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedForeground),
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              color: AppColors.mutedForeground,
+            ),
             children: [
               const TextSpan(text: 'Already have an account? '),
               TextSpan(
-                text: 'Log in',
-                style: AppTextStyles.labelLarge.copyWith(
-                  color: AppColors.accent,
-                  fontWeight: FontWeight.w600,
+                text: 'Login',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: _authPrimary,
                 ),
               ),
             ],
@@ -133,7 +142,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           children: [
             SizedBox(
               width: double.infinity,
-              height: 44,
+              height: 56,
               child: OutlinedButton.icon(
                 onPressed: authState.isLoading ? null : () => ref.read(authProvider.notifier).googleLogin(),
                 icon: SvgPicture.asset(
@@ -141,14 +150,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   width: 24,
                   height: 24,
                 ),
-                label: const Text('Continue with Google'),
+                label: Text(
+                  'Continue with Google',
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.foreground,
+                  ),
+                ),
                 style: OutlinedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: AppColors.foreground,
-                  side: BorderSide(color: AppColors.border),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  textStyle: AppTextStyles.buttonMedium.copyWith(color: AppColors.foreground),
+                  side: const BorderSide(color: Color(0xFFE0E0E0)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
               ),
             ),
@@ -167,18 +183,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ],
                 ),
               ),
-            const SizedBox(height: 16),
-            _Divider(text: 'or create with email'),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
+            _Divider(text: 'or'),
+            const SizedBox(height: 20),
             _AuthField(
-              label: 'Full name',
+              label: 'Full Name',
               controller: _nameController,
               placeholder: 'Your name',
               icon: Icons.person_outline,
               keyboardType: TextInputType.name,
               validator: (v) => v == null || v.trim().isEmpty ? 'Please enter your name' : null,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             _AuthField(
               label: 'Email',
               controller: _emailController,
@@ -187,7 +203,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               keyboardType: TextInputType.emailAddress,
               validator: (v) => v == null || v.trim().isEmpty ? 'Please enter your email' : null,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             _AuthField(
               label: 'Phone (optional)',
               controller: _phoneController,
@@ -195,7 +211,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               icon: Icons.phone_android_outlined,
               keyboardType: TextInputType.phone,
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             _AuthField(
               label: 'Password',
               controller: _passwordController,
@@ -205,7 +221,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               suffix: IconButton(
                 icon: Icon(
                   _showPassword ? Icons.visibility_off : Icons.visibility,
-                  size: 18,
+                  size: 20,
                   color: AppColors.mutedForeground,
                 ),
                 onPressed: () => setState(() => _showPassword = !_showPassword),
@@ -215,7 +231,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               validator: (v) => v == null || v.isEmpty ? 'Please enter a password' : null,
             ),
             if (_passwordController.text.isNotEmpty) ...[
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(
@@ -237,16 +253,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ],
               ),
             ],
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             _AuthField(
-              label: 'Confirm password',
+              label: 'Confirm Password',
               controller: _confirmPasswordController,
               placeholder: 'Repeat your password',
               icon: Icons.lock_outline,
               obscureText: !_showPassword,
               validator: (v) => v == null || v.isEmpty ? 'Please confirm your password' : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -260,18 +276,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     visualDensity: VisualDensity.compact,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                     side: const BorderSide(color: AppColors.border),
+                    activeColor: _authPrimary,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text.rich(
                     TextSpan(
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedForeground),
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.mutedForeground,
+                      ),
                       children: [
-                        const TextSpan(text: 'I agree to iLab\'s '),
+                        const TextSpan(text: 'By registering, you agree to our '),
                         TextSpan(
                           text: 'Terms',
-                          style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent),
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: _authPrimary,
+                          ),
                           recognizer: TapGestureRecognizer()
                             ..onTap = () => Navigator.push(
                               context,
@@ -286,7 +311,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         const TextSpan(text: ' and '),
                         TextSpan(
                           text: 'Privacy Policy',
-                          style: AppTextStyles.labelMedium.copyWith(color: AppColors.accent),
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: _authPrimary,
+                          ),
                           recognizer: TapGestureRecognizer()
                             ..onTap = () => Navigator.push(
                               context,
@@ -311,9 +340,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.destructive.withOpacity( 0.3)),
+                  border: Border.all(color: AppColors.destructive.withValues(alpha: 0.3)),
                   borderRadius: BorderRadius.circular(12),
-                  color: AppColors.destructive.withOpacity( 0.05),
+                  color: AppColors.destructive.withValues(alpha: 0.05),
                 ),
                 child: Text(
                   authState.errorMessage!,
@@ -321,19 +350,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
               ),
             ],
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              height: 44,
+              height: 56,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: BorderRadius.circular(28),
                   gradient: const LinearGradient(
-                    colors: [AppColors.accent, AppColors.accentLight],
+                    colors: [_authPrimary, _authPrimaryDark],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.accent.withOpacity( 0.3),
+                      color: _authPrimary.withValues(alpha: 0.3),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -344,8 +375,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.transparent,
                     shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     disabledBackgroundColor: Colors.transparent,
                   ),
                   child: authState.isLoading
@@ -354,16 +385,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           height: 20,
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
-                      : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.check, size: 16, color: AppColors.white),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Create account',
-                              style: AppTextStyles.buttonMedium.copyWith(color: AppColors.white, fontSize: 14),
-                            ),
-                          ],
+                      : Text(
+                          'Register',
+                          style: GoogleFonts.outfit(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.white,
+                          ),
                         ),
                 ),
               ),
@@ -403,41 +431,53 @@ class _AuthField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: AppTextStyles.labelLarge.copyWith(fontSize: 12, fontWeight: FontWeight.w600),
+          style: GoogleFonts.outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AppColors.mutedForeground,
+          ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           obscureText: obscureText,
           keyboardType: keyboardType,
           validator: validator,
-          style: AppTextStyles.bodyMedium,
+          style: GoogleFonts.outfit(
+            fontSize: 16,
+            fontWeight: FontWeight.w400,
+            color: AppColors.foreground,
+          ),
           decoration: InputDecoration(
             hintText: placeholder,
-            prefixIcon: Icon(icon, size: 18, color: AppColors.mutedForeground),
+            prefixIcon: Icon(icon, size: 20, color: AppColors.mutedForeground),
             suffixIcon: suffix,
             filled: true,
-            fillColor: AppColors.card,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedForeground.withOpacity( 0.7)),
+            fillColor: const Color(0xFFE7E5ED),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            hintStyle: GoogleFonts.outfit(
+              fontSize: 16,
+              fontWeight: FontWeight.w400,
+              color: AppColors.mutedForeground.withValues(alpha: 0.5),
+            ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.border),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.border),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.accent.withOpacity( 0.4), width: 2),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: _authPrimary, width: 1),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: AppColors.destructive),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               borderSide: const BorderSide(color: AppColors.destructive),
             ),
           ),
@@ -455,18 +495,19 @@ class _Divider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Expanded(child: Divider(color: AppColors.border)),
+        const Expanded(child: Divider(color: AppColors.border, thickness: 1)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
             text,
-            style: AppTextStyles.labelSmall.copyWith(
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
               color: AppColors.mutedForeground,
-              letterSpacing: 1,
             ),
           ),
         ),
-        const Expanded(child: Divider(color: AppColors.border)),
+        const Expanded(child: Divider(color: AppColors.border, thickness: 1)),
       ],
     );
   }
