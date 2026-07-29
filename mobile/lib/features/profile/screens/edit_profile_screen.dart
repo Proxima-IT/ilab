@@ -47,7 +47,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
-    await ref.read(profileProvider.notifier).updateProfile(
+    final success = await ref.read(profileProvider.notifier).updateProfile(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
       phone: _phoneController.text.trim(),
@@ -55,7 +55,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       educationLevel: _educationLevelController.text.trim(),
       bio: _bioController.text.trim(),
     );
-    if (mounted) {
+    if (!mounted) return;
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully.')),
       );

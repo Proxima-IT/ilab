@@ -30,4 +30,7 @@ class ApiConfig {
   static const String enrollments = '/enrollments';
   static const String notificationSettings = '/student/notification-settings';
   static const String notifications = '/student/notifications';
+  static const String checkoutInit = '/checkout/init';
+  static const String checkoutCouponPreview = '/checkout/coupon/preview';
+  static const String checkoutPayments = '/checkout/payments/';
 }

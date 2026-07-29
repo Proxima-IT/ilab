@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'shared/theme/app_theme.dart';
+import 'shared/services/connectivity_service.dart';
 import 'shared/screens/main_shell.dart';
 import 'features/auth/screens/splash_screen.dart';
 import 'features/auth/screens/login_screen.dart';
@@ -15,6 +16,7 @@ import 'features/profile/screens/edit_profile_screen.dart';
 import 'features/profile/screens/change_password_screen.dart';
 import 'features/profile/screens/notification_settings_screen.dart';
 import 'features/notifications/screens/notification_screen.dart';
+import 'features/profile/screens/settings_screen.dart';
 
 class _RouteObserver extends NavigatorObserver {
   @override
@@ -24,16 +26,14 @@ class _RouteObserver extends NavigatorObserver {
 }
 
 class ILabApp extends StatelessWidget {
-  final _navigatorKey = GlobalKey<NavigatorState>();
-
-  ILabApp({super.key});
+  const ILabApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'iLab',
       debugShowCheckedModeBanner: false,
-      navigatorKey: _navigatorKey,
+      navigatorKey: ConnectivityService.navigatorKey,
       navigatorObservers: [
         _RouteObserver(),
       ],
@@ -55,6 +55,7 @@ class ILabApp extends StatelessWidget {
         '/change-password': (context) => const ChangePasswordScreen(),
         '/notification-settings': (context) => const NotificationSettingsScreen(),
         '/notifications': (context) => const NotificationScreen(),
+        '/settings': (context) => const SettingsScreen(),
       },
     );
   }

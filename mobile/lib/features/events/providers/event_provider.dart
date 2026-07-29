@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/models/event_model.dart';
 import '../../../shared/models/pagination_meta.dart';
+import '../../../shared/services/api_client.dart';
 import '../services/event_service.dart';
 
 class EventListState {
@@ -54,7 +55,7 @@ class EventListNotifier extends StateNotifier<EventListState> {
         hasMore: result.meta.hasMore,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: formatErrorMessage(e));
     }
   }
 
@@ -68,7 +69,7 @@ class EventListNotifier extends StateNotifier<EventListState> {
         hasMore: result.meta.hasMore,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: formatErrorMessage(e));
     }
   }
 
@@ -84,7 +85,7 @@ class EventListNotifier extends StateNotifier<EventListState> {
         hasMore: result.meta.hasMore,
       );
     } catch (e) {
-      state = state.copyWith(isLoadingMore: false, error: e.toString());
+      state = state.copyWith(isLoadingMore: false, error: formatErrorMessage(e));
     }
   }
 }
@@ -114,7 +115,7 @@ class EventDetailNotifier extends StateNotifier<EventDetailState> {
       final event = await _service.fetchEventDetail(slug);
       state = EventDetailState(event: event);
     } catch (e) {
-      state = EventDetailState(error: e.toString());
+      state = EventDetailState(error: formatErrorMessage(e));
     }
   }
 }

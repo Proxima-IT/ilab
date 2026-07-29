@@ -69,7 +69,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       final certs = await _service.fetchCertificates();
       state = ProfileState(user: user, certificates: certs);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: _formatError(e));
+      state = state.copyWith(isLoading: false, error: formatErrorMessage(e));
     }
   }
 
@@ -104,7 +104,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     } catch (e) {
       state = state.copyWith(
         isSavingProfile: false,
-        profileError: _formatError(e),
+        profileError: formatErrorMessage(e),
       );
       return false;
     }
@@ -135,7 +135,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     } catch (e) {
       state = state.copyWith(
         isSavingPassword: false,
-        passwordError: _formatError(e),
+        passwordError: formatErrorMessage(e),
       );
       return false;
     }
@@ -157,7 +157,7 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
     } catch (e) {
       state = state.copyWith(
         isUploadingAvatar: false,
-        error: _formatError(e),
+        error: formatErrorMessage(e),
       );
       return false;
     }
@@ -170,17 +170,6 @@ class ProfileNotifier extends StateNotifier<ProfileState> {
       passwordError: null,
       error: null,
     );
-  }
-
-  String _formatError(dynamic error) {
-    if (error is ApiException) {
-      return error.message;
-    }
-    final str = error.toString();
-    if (str.startsWith('Exception: ')) {
-      return str.substring(11);
-    }
-    return str;
   }
 }
 

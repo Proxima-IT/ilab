@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/blog_post_model.dart';
 import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
 
 class BlogCard extends StatelessWidget {
   final BlogPostModel post;
@@ -16,89 +16,117 @@ class BlogCard extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (post.cover != null)
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Image.network(
-                  post.cover!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: AppColors.muted,
-                    child: const Center(
-                      child: Icon(Icons.article_outlined, color: AppColors.mutedForeground, size: 32),
-                    ),
-                  ),
-                ),
-              )
-            else
-              Container(
-                color: AppColors.muted,
-                height: 120,
-                child: const Center(
-                  child: Icon(Icons.article_outlined, color: AppColors.mutedForeground, size: 32),
-                ),
-              ),
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(8),
+              child: post.cover != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 160,
+                        child: Image.network(
+                          post.cover!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            color: AppColors.muted,
+                            child: const Center(
+                              child: Icon(Icons.article_outlined, color: AppColors.mutedForeground, size: 32),
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : Container(
+                      color: AppColors.muted,
+                      height: 160,
+                      child: const Center(
+                        child: Icon(Icons.article_outlined, color: AppColors.mutedForeground, size: 32),
+                      ),
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      if (post.category != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            post.category!,
-                            style: AppTextStyles.labelSmall.copyWith(color: AppColors.primaryDark, fontSize: 10),
-                          ),
-                        ),
-                      const Spacer(),
-                      if (post.date != null)
-                        Text(
-                          post.formattedDate,
-                          style: AppTextStyles.labelSmall.copyWith(color: AppColors.mutedForeground, fontSize: 10),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
                   Text(
                     post.title,
-                    style: AppTextStyles.titleSmall,
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF0F172A),
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 12,
+                        backgroundColor: AppColors.primary,
+                        backgroundImage: post.authorAvatar != null
+                            ? NetworkImage(post.authorAvatar!)
+                            : null,
+                        child: post.authorAvatar == null
+                            ? Text(
+                                (post.author ?? 'U')[0].toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          post.author ?? '',
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.foreground,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        post.formattedDate,
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ),
                   if (post.excerpt != null) ...[
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                     Text(
                       post.excerpt!,
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedForeground),
+                      style: GoogleFonts.outfit(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.mutedForeground,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(Icons.schedule, size: 14, color: AppColors.mutedForeground),
-                      const SizedBox(width: 4),
-                      Text(
-                        post.readTimeMinutes != null ? '${post.readTimeMinutes} min read' : '',
-                        style: AppTextStyles.labelSmall.copyWith(color: AppColors.mutedForeground, fontSize: 10),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),

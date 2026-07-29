@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/models/certificate_model.dart';
+import '../../../shared/services/api_client.dart';
 import '../services/certificate_service.dart';
 
 class CertificateListState {
@@ -33,7 +34,7 @@ class CertificateNotifier extends StateNotifier<CertificateListState> {
       final certs = await _service.fetchCertificates();
       state = CertificateListState(certificates: certs);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: formatErrorMessage(e));
     }
   }
 }
