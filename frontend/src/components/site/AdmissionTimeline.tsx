@@ -41,8 +41,8 @@ export function AdmissionTimeline({ settings }: { settings?: WebsiteSettings["ne
   };
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-background via-background to-surface/30 py-16 md:py-24">
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section className="relative overflow-hidden bg-gradient-to-b from-background via-background to-surface/30 py-12 md:py-16">
+      <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -80,26 +80,28 @@ export function AdmissionTimeline({ settings }: { settings?: WebsiteSettings["ne
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2.5 lg:justify-end">
-                  <button
-                    type="button"
-                    onClick={openDemoClass}
-                    disabled={!hasDemoUrl}
-                    className="inline-flex h-10 cursor-pointer items-center justify-center rounded-full border border-primary/30 bg-white px-4 text-xs font-bold text-primary-dark transition hover:bg-primary hover:text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-primary-dark"
-                  >
-                    <PlayCircle className="mr-1.5 h-3.5 w-3.5" />
-                    {demoButtonLabel}
-                  </button>
-                  <a
-                    href={courseUrl}
-                    className="inline-flex h-10 items-center justify-center rounded-full border border-primary/30 bg-white px-4 text-xs font-bold text-primary-dark transition hover:bg-primary hover:text-white"
-                  >
-                    <FileText className="mr-1.5 h-3.5 w-3.5" />
-                    Course Outline
-                  </a>
+                <div className="grid gap-3 lg:flex lg:flex-wrap lg:items-center lg:justify-end lg:gap-2.5">
+                  <div className="flex flex-wrap items-center justify-center gap-2.5 lg:contents">
+                    <button
+                      type="button"
+                      onClick={openDemoClass}
+                      disabled={!hasDemoUrl}
+                      className="inline-flex h-10 cursor-pointer items-center justify-center rounded-full border border-primary/30 bg-white px-4 text-xs font-bold text-primary-dark transition hover:bg-primary hover:text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white disabled:hover:text-primary-dark"
+                    >
+                      <PlayCircle className="mr-1.5 h-3.5 w-3.5" />
+                      {demoButtonLabel}
+                    </button>
+                    <a
+                      href={courseUrl}
+                      className="inline-flex h-10 items-center justify-center rounded-full border border-primary/30 bg-white px-4 text-xs font-bold text-primary-dark transition hover:bg-primary hover:text-white"
+                    >
+                      <FileText className="mr-1.5 h-3.5 w-3.5" />
+                      Course Outline
+                    </a>
+                  </div>
                   <a
                     href={enrollUrl}
-                    className="inline-flex h-10 items-center justify-center rounded-full gradient-orange px-5 text-xs font-bold text-white shadow-orange-glow transition hover:scale-[1.02] active:scale-[0.98]"
+                    className="mx-auto inline-flex h-10 items-center justify-center rounded-full gradient-orange px-5 text-xs font-bold text-white shadow-orange-glow transition hover:scale-[1.02] active:scale-[0.98] lg:mx-0"
                   >
                     Enroll Now!
                   </a>

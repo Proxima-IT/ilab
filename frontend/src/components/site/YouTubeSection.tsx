@@ -43,37 +43,9 @@ export function YouTubeSection({
           transition={{ duration: 0.5 }}
           className="relative overflow-hidden rounded-2xl bg-foreground"
         >
-          <div className="grid items-center gap-6 px-5 py-8 sm:grid-cols-[1fr_auto] sm:gap-8 sm:px-8 sm:py-10 md:px-12 md:py-12 lg:px-14">
-            {/* Left: copy + YouTube card */}
-            <div className="flex flex-col justify-center text-center sm:text-left">
-              <h2 className="text-xl font-extrabold leading-tight tracking-tight text-background sm:text-2xl md:text-3xl">
-                Get free learning tips <br className="hidden sm:block" />
-                Subscribe to iLab&apos;s YouTube{" "}
-                <span className="text-accent">Subscribe</span>
-              </h2>
-              <p className="mt-2 max-w-sm text-xs leading-relaxed text-background/60 sm:text-sm">
-                Watch tutorials, career advice, and quick learning hacks every week.
-              </p>
-
-              {/* YouTube channel card */}
-              {youtubeUrl ? (
-                <a
-                  href={youtubeUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mx-auto mt-5 inline-flex w-fit items-center gap-3 rounded-xl bg-background px-4 py-3 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:shadow-xl sm:mx-0"
-                >
-                  {channelCard}
-                </a>
-              ) : (
-                <div className="mx-auto mt-5 inline-flex w-fit items-center gap-3 rounded-xl bg-background px-4 py-3 shadow-lg shadow-black/10 sm:mx-0">
-                  {channelCard}
-                </div>
-              )}
-            </div>
-
-            {/* Right: animated visual */}
-            <div className="flex justify-center sm:justify-end">
+          <div className="grid items-center gap-6 px-5 py-8 sm:grid-cols-[auto_1fr] sm:gap-10 sm:px-8 sm:py-10 md:px-12 md:py-12 lg:px-14">
+            {/* Left: animated visual */}
+            <div className="flex justify-center sm:justify-start">
               <motion.div
                 animate={{ y: [0, -8, 0] }}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
@@ -118,6 +90,34 @@ export function YouTubeSection({
                   <Sparkles className="h-4 w-4" />
                 </motion.div>
               </motion.div>
+            </div>
+
+            {/* Right: copy + YouTube card */}
+            <div className="flex flex-col justify-center text-center sm:pl-6 sm:text-left md:pl-10 lg:pl-14">
+              <h2 className="text-xl font-extrabold leading-tight tracking-tight text-background sm:text-2xl md:text-3xl">
+                Get free learning tips <br className="hidden sm:block" />
+                Subscribe to iLab&apos;s YouTube{" "}
+                <span className="text-accent">Subscribe</span>
+              </h2>
+              <p className="mt-2 max-w-sm text-xs leading-relaxed text-background/60 sm:text-sm">
+                Watch tutorials, career advice, and quick learning hacks every week.
+              </p>
+
+              {/* YouTube channel card */}
+              {youtubeUrl ? (
+                <a
+                  href={youtubeUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mx-auto mt-5 inline-flex w-fit items-center gap-3 rounded-xl bg-background px-4 py-3 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:shadow-xl sm:mx-0"
+                >
+                  {channelCard}
+                </a>
+              ) : (
+                <div className="mx-auto mt-5 inline-flex w-fit items-center gap-3 rounded-xl bg-background px-4 py-3 shadow-lg shadow-black/10 sm:mx-0">
+                  {channelCard}
+                </div>
+              )}
             </div>
           </div>
         </motion.div>

@@ -76,7 +76,7 @@ export function Courses() {
           <Carousel
             opts={{ align: "start", loop: true }}
             plugins={[autoplay.current]}
-            className="relative px-2"
+            className="relative"
           >
             <CarouselContent className="-ml-4 md:-ml-6">
               {items.map((c, i) => (
@@ -90,8 +90,10 @@ export function Courses() {
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="-left-2 md:-left-6 h-11 w-11 bg-card border-2 border-primary/30 text-primary-dark hover:bg-primary hover:text-white" />
-            <CarouselNext className="-right-2 md:-right-6 h-11 w-11 bg-card border-2 border-primary/30 text-primary-dark hover:bg-primary hover:text-white" />
+            <div className="mt-8 flex items-center justify-center gap-3">
+              <CarouselPrevious className="static h-11 w-11 translate-y-0 bg-card border-2 border-primary/30 text-primary-dark hover:bg-primary hover:text-white" />
+              <CarouselNext className="static h-11 w-11 translate-y-0 bg-card border-2 border-primary/30 text-primary-dark hover:bg-primary hover:text-white" />
+            </div>
           </Carousel>
         )}
       </div>

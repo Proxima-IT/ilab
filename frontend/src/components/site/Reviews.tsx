@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Quote, Star } from "lucide-react";
+import { Quote, Star, X } from "lucide-react";
 import {
   fetchPublicReviews,
   type HomeReview,
@@ -62,6 +62,7 @@ function ReviewHeader({ review }: { review: HomeReview }) {
 export function Reviews({ settings }: { settings?: WebsiteSettings["reviews"] }) {
   const [reviews, setReviews] = useState<HomeReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedReview, setSelectedReview] = useState<HomeReview | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -115,17 +116,36 @@ export function Reviews({ settings }: { settings?: WebsiteSettings["reviews"] })
         ) : (
           <div className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
             {reviews.map((review, index) => (
-              <ReviewCard key={review.id} review={review} index={index} />
+              <ReviewCard
+                key={review.id}
+                review={review}
+                index={index}
+                onReadMore={() => setSelectedReview(review)}
+              />
             ))}
           </div>
         )}
       </div>
+
+      <ReviewTextModal
+        review={selectedReview}
+        onClose={() => setSelectedReview(null)}
+      />
     </section>
   );
 }
 
-function ReviewCard({ review, index }: { review: HomeReview; index: number }) {
+function ReviewCard({
+  review,
+  index,
+  onReadMore,
+}: {
+  review: HomeReview;
+  index: number;
+  onReadMore: () => void;
+}) {
   const embedUrl = useMemo(() => youtubeEmbedUrl(review.video), [review.video]);
+  const hasLongText = review.text.length > 210;
 
   return (
     <motion.div
@@ -133,14 +153,14 @@ function ReviewCard({ review, index }: { review: HomeReview; index: number }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-60px" }}
       transition={{ duration: 0.5, delay: (index % 3) * 0.1 }}
-      className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-card"
+      className="relative flex h-[360px] flex-col overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all hover:shadow-card"
     >
       <ReviewHeader review={review} />
 
       {(review.type === "text" || (review.type === "video" && !embedUrl)) && (
         <>
           <Quote className="absolute right-5 top-5 h-7 w-7 text-primary/10" />
-          <p className="mt-5 leading-relaxed text-foreground line-clamp-6">
+          <p className="mt-5 text-sm leading-relaxed text-foreground line-clamp-7">
             "{review.text}"
           </p>
         </>
@@ -185,6 +205,59 @@ function ReviewCard({ review, index }: { review: HomeReview; index: number }) {
           )}
         </>
       )}
+
+      {hasLongText && (
+        <button
+          type="button"
+          onClick={onReadMore}
+          className="mt-auto w-fit rounded-full bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary-dark transition hover:bg-primary hover:text-white"
+        >
+          See more
+        </button>
+      )}
     </motion.div>
+  );
+}
+
+function ReviewTextModal({
+  review,
+  onClose,
+}: {
+  review: HomeReview | null;
+  onClose: () => void;
+}) {
+  if (!review) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] grid place-items-center bg-black/70 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.2 }}
+        className="relative w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close review"
+          className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-surface text-foreground transition hover:bg-primary hover:text-white"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        <ReviewHeader review={review} />
+
+        <div className="mt-6 max-h-[60vh] overflow-y-auto pr-2">
+          <Quote className="mb-3 h-8 w-8 text-primary/20" />
+          <p className="whitespace-pre-line text-base leading-8 text-foreground">
+            "{review.text}"
+          </p>
+        </div>
+      </motion.div>
+    </div>
   );
 }

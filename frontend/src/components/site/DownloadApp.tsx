@@ -18,26 +18,40 @@ export function DownloadApp({ settings }: { settings?: WebsiteSettings["download
           transition={{ duration: 0.5 }}
           className="relative overflow-hidden rounded-2xl bg-foreground"
         >
-          <div className="grid items-center gap-4 px-5 py-6 sm:grid-cols-[1fr_auto] sm:gap-6 sm:px-8 sm:py-8 md:px-12 md:py-10 lg:px-14">
-            {/* Left: copy */}
-            <div className="flex flex-col justify-center text-center sm:text-left">
-              <h2 className="text-xl font-extrabold leading-tight tracking-tight text-background sm:text-2xl md:text-3xl">
+          <div className="grid items-center gap-6 px-5 py-6 sm:grid-cols-[0.8fr_1.2fr] sm:px-8 sm:py-8 md:px-12 md:py-10 lg:px-14">
+            {/* Left: compact phone mockup */}
+            <div className="flex justify-center">
+              <div className="relative w-full max-w-[120px] sm:max-w-[140px] md:max-w-[160px]">
+                <div className="relative overflow-hidden rounded-[1.5rem] border-[3px] border-background/20 bg-background/5">
+                  <div className="absolute top-0 left-1/2 z-10 mt-1.5 h-[14px] w-16 -translate-x-1/2 rounded-full bg-foreground" />
+                  <img
+                    src={appImage}
+                    alt="iLab mobile app preview"
+                    className="aspect-[9/16] w-full -translate-x-1.5 scale-[1.04] object-cover object-center"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Right: copy */}
+            <div className="flex flex-col justify-center text-center sm:items-start sm:text-left">
+              <h2 className="text-3xl font-extrabold leading-tight tracking-tight text-background sm:text-4xl md:text-5xl">
                 {settings?.title || "Download iLab App"}
               </h2>
-              <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-background/60 sm:max-w-sm sm:text-sm">
+              <p className="mt-4 max-w-xs text-base leading-relaxed text-background/70 sm:max-w-md md:text-lg">
                 {settings?.description || "Excel your learning curve and embrace new experiences on the go."}
               </p>
 
               <a
                 href={settings?.button_url || "#"}
-                className="mx-auto mt-4 inline-flex w-fit items-center gap-2 rounded-full bg-background px-4 py-2 transition-opacity hover:opacity-90 sm:mx-0"
+                className="mx-auto mt-6 inline-flex w-fit items-center gap-3 rounded-full bg-background px-6 py-3 transition-opacity hover:opacity-90 sm:mx-0"
               >
-                <Play className="h-4 w-4 fill-foreground text-foreground" />
+                <Play className="h-5 w-5 fill-foreground text-foreground" />
                 <div className="flex flex-col leading-none">
-                  <span className="text-[9px] font-medium uppercase tracking-wider text-foreground/70">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-foreground/70">
                     {settings?.button_label_top || "GET IT ON"}
                   </span>
-                  <span className="text-xs font-bold text-foreground">
+                  <span className="text-sm font-bold text-foreground">
                     {settings?.button_label || "Google Play"}
                   </span>
                 </div>
@@ -61,20 +75,6 @@ export function DownloadApp({ settings }: { settings?: WebsiteSettings["download
                 <div>
                   <p className="text-sm font-bold text-background">{settings?.downloads_count || "25K+"}</p>
                   <p className="text-[10px] text-background/60">Downloads</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Right: compact phone mockup */}
-            <div className="flex justify-center sm:justify-end">
-              <div className="relative w-full max-w-[120px] sm:max-w-[140px] sm:-translate-x-8 md:max-w-[160px] md:-translate-x-12 lg:-translate-x-16">
-                <div className="relative overflow-hidden rounded-[1.5rem] border-[3px] border-background/20 bg-background/5">
-                  <div className="absolute top-0 left-1/2 z-10 mt-1.5 h-[14px] w-16 -translate-x-1/2 rounded-full bg-foreground" />
-                  <img
-                    src={appImage}
-                    alt="iLab mobile app preview"
-                    className="aspect-[9/16] w-full -translate-x-1.5 scale-[1.04] object-cover object-center"
-                  />
                 </div>
               </div>
             </div>

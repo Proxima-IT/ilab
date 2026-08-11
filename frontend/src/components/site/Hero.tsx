@@ -72,7 +72,7 @@ function TrustStats({ settings }: { settings?: WebsiteSettings["hero"] }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.6, delay: 0.45 }}
-      className="mt-14 grid gap-6 sm:grid-cols-2 xl:grid-cols-4"
+      className="mt-14 grid grid-cols-2 gap-6 xl:grid-cols-4"
     >
       {stats.map((s, i) => {
         const Icon = FALLBACK_STATS[i]?.icon || Users;
@@ -83,12 +83,12 @@ function TrustStats({ settings }: { settings?: WebsiteSettings["hero"] }) {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.5 + i * 0.1 }}
-          className="flex items-center gap-3"
+          className="flex flex-col items-center text-center"
         >
-          <Icon className="h-10 w-10 text-primary-dark" strokeWidth={1.5} />
+          <Icon className="mb-2 h-10 w-10 text-primary-dark" strokeWidth={1.5} />
           <span className="text-base leading-tight">
             <span className="block text-2xl font-extrabold text-foreground">{s.value}</span>
-            <span className="text-foreground font-bold text-lg">{s.label}</span>
+            <span className="block text-lg font-bold text-foreground">{s.label}</span>
           </span>
         </motion.li>
       )})}
@@ -144,10 +144,10 @@ export function Hero({ settings }: { settings?: WebsiteSettings["hero"] }) {
           "radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--primary) 18%, transparent), transparent 34%), radial-gradient(circle at 72% 14%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 32%), linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, var(--background)) 0%, var(--background) 45%, color-mix(in srgb, var(--surface) 82%, var(--primary) 18%) 100%)",
       }}
     >
-      <div className="lg:grid lg:grid-cols-2 lg:min-h-[680px]">
+      <div className="lg:grid lg:min-h-[680px] lg:grid-cols-2">
         {/* Left content */}
-        <div className="px-4 sm:px-6 lg:px-8 xl:px-16 py-12 md:py-16 lg:py-20 flex items-center">
-          <div className="w-full max-w-xl mx-auto lg:mx-0 lg:ml-auto lg:mr-8">
+        <div className="flex items-center px-4 py-12 sm:px-6 md:py-16 lg:py-20 lg:pl-[max(2rem,calc((100vw-80rem)/2+2rem))] lg:pr-8">
+          <div className="mx-auto w-full max-w-xl lg:mx-0 lg:mr-8">
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -183,7 +183,7 @@ export function Hero({ settings }: { settings?: WebsiteSettings["hero"] }) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="lg:hidden px-4 sm:px-6 pb-12 md:pb-20"
+          className="px-4 pb-12 sm:px-6 md:pb-20 lg:hidden"
         >
           <div className="relative rounded-2xl overflow-hidden aspect-[16/10] shadow-card">
             <img

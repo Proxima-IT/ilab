@@ -77,9 +77,9 @@ export default function HomePage() {
           <Hero settings={settings?.hero} />
           <AdmissionTimeline settings={settings?.next_batch_schedule} />
           <BatchPreview settings={settings?.next_batch} />
-          <WhatWeOffer settings={settings?.offers} />
           <FreeCourses />
           <Courses />
+          <WhatWeOffer settings={settings?.offers} />
           <Reviews settings={settings?.reviews} />
           <Blog />
           <DownloadApp settings={settings?.download_app} />
