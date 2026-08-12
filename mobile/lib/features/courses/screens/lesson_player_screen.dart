@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_text_styles.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
+import '../../../shared/widgets/youtube_webview_player.dart';
 import '../providers/learning_provider.dart';
 import '../services/learning_service.dart';
 
@@ -28,22 +28,6 @@ String _formatDate(String? date) {
   return '${months[dt.month - 1]} ${dt.day}, ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
 }
 
-String? _extractYoutubeId(String? url) {
-  if (url == null || url.isEmpty) return null;
-  final uri = Uri.tryParse(url);
-  if (uri == null) return null;
-  if (uri.host.contains('youtube.com')) {
-    if (uri.path.contains('/embed/')) {
-      return uri.pathSegments.last;
-    }
-    return uri.queryParameters['v'];
-  }
-  if (uri.host.contains('youtu.be')) {
-    return uri.pathSegments.first;
-  }
-  return null;
-}
-
 class LessonPlayerScreen extends ConsumerStatefulWidget {
   const LessonPlayerScreen({super.key});
 
@@ -52,9 +36,7 @@ class LessonPlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
-  YoutubePlayerController? _youtubeController;
-  StreamSubscription<YoutubePlayerValue>? _controllerSubscription;
-  StreamSubscription<YoutubeVideoState>? _videoStateSubscription;
+  final GlobalKey<YoutubeWebViewPlayerState> _playerKey = GlobalKey();
   Timer? _watchTimer;
   Timer? _syncTimer;
   Timer? _watermarkTimer;
@@ -62,6 +44,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
   bool _youtubeReady = false;
   int _localWatchSeconds = 0;
   Map<String, String> _args = {};
+  bool _argsExtracted = false;
 
   static const List<_WatermarkPosition> _watermarkPositions = [
     _WatermarkPosition(4, 4),
@@ -76,6 +59,20 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _watermarkTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+        if (mounted) {
+          setState(() {
+            _watermarkIndex = (_watermarkIndex + 1) % _watermarkPositions.length;
+          });
+        }
+      });
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_argsExtracted) {
       final routeArgs = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
       if (routeArgs != null) {
         _args = {
@@ -83,15 +80,12 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
           'lessonId': routeArgs['lessonId'] as String? ?? '',
         };
       }
-      _initPlayer();
-    });
+      _argsExtracted = true;
+    }
   }
 
   @override
   void dispose() {
-    _controllerSubscription?.cancel();
-    _videoStateSubscription?.cancel();
-    _youtubeController?.close();
     _watchTimer?.cancel();
     _syncTimer?.cancel();
     _watermarkTimer?.cancel();
@@ -100,70 +94,54 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
 
   LearningPlayerNotifier get _notifier => ref.read(learningPlayerProvider(_args).notifier);
 
-  void _initPlayer() {
+  void _onPlayerReady() {
+    _youtubeReady = true;
     final state = ref.read(learningPlayerProvider(_args));
-    final videoUrl = state.playerData?.lesson.videoEmbedUrl;
-    final videoId = _extractYoutubeId(videoUrl);
-    if (videoId == null) return;
+    final lesson = state.playerData?.lesson;
+    if (lesson?.watchSeconds != null && lesson!.watchSeconds! > 0) {
+      _playerKey.currentState?.seekTo(lesson.watchSeconds!);
+    }
+  }
 
-    _youtubeController = YoutubePlayerController.fromVideoId(
-      videoId: videoId,
-      params: const YoutubePlayerParams(
-        showControls: false,
-        showFullscreenButton: false,
-      ),
-      autoPlay: false,
-    );
+  void _onPlayerPlay() {
+    final notifier = _notifier;
+    notifier.setIsPlaying(true);
+    notifier.setIsTracking(true);
+    _startWatchTimer();
+    _startSyncTimer();
+  }
 
-    _controllerSubscription = _youtubeController!.listen((value) {
-      if (!_youtubeReady && value.playerState != PlayerState.unknown) {
-        _youtubeReady = true;
-        final lesson = state.playerData?.lesson;
-        if (lesson?.watchSeconds != null && lesson!.watchSeconds! > 0) {
-          _youtubeController!.seekTo(seconds: lesson.watchSeconds!.toDouble());
-        }
-      }
+  void _onPlayerPause() {
+    final notifier = _notifier;
+    notifier.setIsPlaying(false);
+    notifier.setIsTracking(false);
+    _stopWatchTimer();
+    _stopSyncTimer();
+    notifier.syncWatchTime();
+  }
 
-      final playerState = value.playerState;
-      final notifier = _notifier;
-      if (playerState == PlayerState.playing) {
-        notifier.setIsPlaying(true);
-        notifier.setIsTracking(true);
-        _startWatchTimer();
-        _startSyncTimer();
-      } else if (playerState == PlayerState.paused) {
-        notifier.setIsPlaying(false);
-        notifier.setIsTracking(false);
-        _stopWatchTimer();
-        _stopSyncTimer();
-        notifier.syncWatchTime();
-      } else if (playerState == PlayerState.ended) {
-        notifier.setIsPlaying(false);
-        notifier.setIsTracking(false);
-        _stopWatchTimer();
-        _stopSyncTimer();
-        final duration = state.playerData?.lesson.duration ?? _localWatchSeconds;
-        notifier.setWatchSeconds(duration);
-        notifier.syncWatchTime();
-        _markCompleteOnEnd();
-      }
-    });
+  void _onPlayerEnded() {
+    final notifier = _notifier;
+    notifier.setIsPlaying(false);
+    notifier.setIsTracking(false);
+    _stopWatchTimer();
+    _stopSyncTimer();
+    final state = ref.read(learningPlayerProvider(_args));
+    final duration = state.playerData?.lesson.duration ?? _localWatchSeconds;
+    notifier.setWatchSeconds(duration);
+    notifier.syncWatchTime();
+    _markCompleteOnEnd();
+  }
 
-    _watermarkTimer = Timer.periodic(const Duration(seconds: 5), (_) {
-      setState(() {
-        _watermarkIndex = (_watermarkIndex + 1) % _watermarkPositions.length;
-      });
-    });
+  void _onTimeUpdate(int seconds) {
+    _localWatchSeconds = seconds;
+    _notifier.setWatchSeconds(seconds);
   }
 
   void _startWatchTimer() {
     _watchTimer?.cancel();
-    _watchTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
-      if (_youtubeController != null && _youtubeReady) {
-        final currentTime = await _youtubeController!.currentTime;
-        _localWatchSeconds = currentTime.toInt();
-        _notifier.setWatchSeconds(currentTime.toInt());
-      }
+    _watchTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      // Time updates are handled by the YoutubeWebViewPlayer onTimeUpdate callback.
     });
   }
 
@@ -205,42 +183,41 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
 
   void _togglePlayback() {
     final state = ref.read(learningPlayerProvider(_args));
-    if (_youtubeController == null || !_youtubeReady) {
+    final player = _playerKey.currentState;
+    if (player == null || !_youtubeReady) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Video player is loading. Please try again.')),
       );
       return;
     }
     if (state.isPlaying) {
-      _youtubeController!.pauseVideo();
+      player.pause();
     } else {
-      _youtubeController!.playVideo();
+      player.play();
     }
   }
 
   void _seekVideo(double positionPercent) {
-    if (_youtubeController == null || !_youtubeReady) return;
+    final player = _playerKey.currentState;
+    if (player == null || !_youtubeReady) return;
     final duration = ref.read(learningPlayerProvider(_args)).duration;
     if (duration <= 0) return;
     final seconds = (positionPercent * duration).round();
-    _youtubeController!.seekTo(seconds: seconds.toDouble());
+    player.seekTo(seconds);
     _notifier.setWatchSeconds(seconds);
     _notifier.syncWatchTime();
   }
 
   void _navigateToLesson(String lessonId) {
-    _controllerSubscription?.cancel();
-    _videoStateSubscription?.cancel();
-    _youtubeController?.pauseVideo();
-    _youtubeController?.close();
-    _youtubeController = null;
     _youtubeReady = false;
     _stopWatchTimer();
     _stopSyncTimer();
     setState(() {
       _args = {..._args, 'lessonId': lessonId};
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initPlayer());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notifier.navigateToLesson(lessonId);
+    });
   }
 
   @override
@@ -315,7 +292,6 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
     final lesson = playerData.lesson;
     final course = playerData.course;
     final videoUrl = lesson.videoEmbedUrl;
-    final videoId = _extractYoutubeId(videoUrl);
     final watchPercent = provider.watchPercent;
     final duration = provider.duration;
     final isCompleted = lesson.isCompleted == true;
@@ -339,7 +315,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildVideoPlayer(videoId, videoUrl, watchPercent, duration, provider.isPlaying),
+                  _buildVideoPlayer(videoUrl, watchPercent, duration, provider.isPlaying),
                   _buildLessonInfo(lesson, course, isCompleted, notifier, provider.isSaving),
                   _buildTabBar(provider.activeTab, notifier),
                   _buildTabContent(provider, notifier),
@@ -353,7 +329,9 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
     );
   }
 
-  Widget _buildVideoPlayer(String? videoId, String? videoUrl, int watchPercent, int duration, bool isPlaying) {
+  Widget _buildVideoPlayer(String? videoUrl, int watchPercent, int duration, bool isPlaying) {
+    final hasVideo = videoUrl != null && videoUrl.isNotEmpty;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final playerWidth = constraints.maxWidth;
@@ -368,10 +346,16 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
                 width: playerWidth,
                 height: playerHeight,
                 color: Colors.black,
-                child: videoId != null && _youtubeController != null
-                    ? YoutubePlayer(
-                        controller: _youtubeController!,
-                        aspectRatio: 16 / 9,
+                child: hasVideo
+                    ? YoutubeWebViewPlayer(
+                        key: _playerKey,
+                        videoEmbedUrl: videoUrl,
+                        watchSeconds: ref.read(learningPlayerProvider(_args)).playerData?.lesson.watchSeconds ?? 0,
+                        onReady: _onPlayerReady,
+                        onPlay: _onPlayerPlay,
+                        onPause: _onPlayerPause,
+                        onEnded: _onPlayerEnded,
+                        onTimeUpdate: _onTimeUpdate,
                       )
                     : Center(
                         child: Text(
@@ -383,7 +367,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
                         ),
                       ),
               ),
-              if (videoId != null && _youtubeReady)
+              if (hasVideo && _youtubeReady)
                 Positioned(
                   left: _watermarkPositions[_watermarkIndex].leftPercent,
                   top: _watermarkPositions[_watermarkIndex].topPercent,
@@ -407,7 +391,7 @@ class _LessonPlayerScreenState extends ConsumerState<LessonPlayerScreen> {
                     ),
                   ),
                 ),
-              if (videoId != null && _youtubeReady)
+              if (hasVideo && _youtubeReady)
                 Positioned(
                   left: 0,
                   right: 0,

@@ -1,10 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../config/api_config.dart';
 import '../../../shared/theme/app_colors.dart';
-import '../../../shared/theme/app_text_styles.dart';
 import '../../../shared/services/api_client.dart';
+
+const Color _authPrimary = Color(0xFFF46423);
+const Color _authPrimaryDark = Color(0xFFD4541C);
+
+class _NotificationTile {
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final String key;
+
+  const _NotificationTile({
+    required this.icon,
+    required this.label,
+    required this.subtitle,
+    required this.key,
+  });
+}
+
+const List<_NotificationTile> _tiles = [
+  _NotificationTile(icon: Icons.email_outlined, label: 'Email notifications', subtitle: 'Receive updates via email', key: 'email'),
+  _NotificationTile(icon: Icons.smartphone_outlined, label: 'Push notifications', subtitle: 'Receive push alerts', key: 'push'),
+  _NotificationTile(icon: Icons.notifications_active_outlined, label: 'New lecture added', subtitle: 'When a new lecture is published', key: 'new_lecture'),
+  _NotificationTile(icon: Icons.local_offer_outlined, label: 'Special offers', subtitle: 'Promotions and discounts', key: 'special_offer'),
+  _NotificationTile(icon: Icons.event_outlined, label: 'Events', subtitle: 'Upcoming events and webinars', key: 'event'),
+  _NotificationTile(icon: Icons.person_outline, label: 'Profile updates', subtitle: 'Changes to your profile', key: 'profile_update'),
+  _NotificationTile(icon: Icons.check_circle_outlined, label: 'Course completion', subtitle: 'When you finish a course', key: 'course_completion'),
+  _NotificationTile(icon: Icons.workspace_premium_outlined, label: 'Certificate ready', subtitle: 'Your certificate is available', key: 'certificate_ready'),
+  _NotificationTile(icon: Icons.message_outlined, label: 'Admin messages', subtitle: 'Messages from administrators', key: 'admin_message'),
+  _NotificationTile(icon: Icons.help_outline, label: 'Q&A answers', subtitle: 'Replies to your questions', key: 'qna_answer'),
+  _NotificationTile(icon: Icons.sms_outlined, label: 'SMS notifications', subtitle: 'Receive updates via SMS', key: 'sms'),
+];
 
 class NotificationSettingsScreen extends ConsumerStatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -18,11 +49,20 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
   bool _isLoading = true;
   bool _isSaving = false;
   Map<String, bool> _settings = {};
+  Map<String, bool> _originalSettings = {};
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+  }
+
+  bool get _hasChanges {
+    if (_settings.length != _originalSettings.length) return true;
+    for (final entry in _settings.entries) {
+      if (_originalSettings[entry.key] != entry.value) return true;
+    }
+    return false;
   }
 
   Future<void> _loadSettings() async {
@@ -31,20 +71,26 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
       final response = await _api.get(ApiConfig.notificationSettings);
       final data = response.data as Map<String, dynamic>;
       final responseData = data['data'] as Map<String, dynamic>? ?? data;
+      final defaults = {
+        'email': true,
+        'push': true,
+        'new_lecture': true,
+        'special_offer': true,
+        'event': true,
+        'profile_update': true,
+        'course_completion': true,
+        'certificate_ready': true,
+        'admin_message': true,
+        'qna_answer': true,
+        'sms': false,
+      };
+      final loaded = <String, bool>{};
+      for (final entry in defaults.entries) {
+        loaded[entry.key] = responseData[entry.key] as bool? ?? entry.value;
+      }
       setState(() {
-        _settings = {
-          'email': responseData['email'] as bool? ?? true,
-          'push': responseData['push'] as bool? ?? true,
-          'new_lecture': responseData['new_lecture'] as bool? ?? true,
-          'special_offer': responseData['special_offer'] as bool? ?? true,
-          'event': responseData['event'] as bool? ?? true,
-          'profile_update': responseData['profile_update'] as bool? ?? true,
-          'course_completion': responseData['course_completion'] as bool? ?? true,
-          'certificate_ready': responseData['certificate_ready'] as bool? ?? true,
-          'admin_message': responseData['admin_message'] as bool? ?? true,
-          'qna_answer': responseData['qna_answer'] as bool? ?? true,
-          'sms': responseData['sms'] as bool? ?? false,
-        };
+        _settings = Map.from(loaded);
+        _originalSettings = Map.from(loaded);
       });
     } catch (_) {
       setState(() {
@@ -61,6 +107,7 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
           'qna_answer': true,
           'sms': false,
         };
+        _originalSettings = Map.from(_settings);
       });
     } finally {
       setState(() => _isLoading = false);
@@ -100,97 +147,184 @@ class _NotificationSettingsScreenState extends ConsumerState<NotificationSetting
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Notification Settings')),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : ListView(
-              padding: const EdgeInsets.all(16),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: 100),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 8),
+                          ...List.generate(_tiles.length, (index) {
+                            return Padding(
+                              padding: EdgeInsets.only(
+                                left: 20,
+                                right: 20,
+                                bottom: index == _tiles.length - 1 ? 0 : 12,
+                              ),
+                              child: _buildToggleCard(_tiles[index]),
+                            );
+                          }),
+                          if (_hasChanges) ...[
+                            const SizedBox(height: 24),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              child: _buildSaveButton(),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE7E5ED),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Color(0xFF0F172A)),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Text(
+            'Notification Settings',
+            style: GoogleFonts.outfit(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF0F172A),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleCard(_NotificationTile tile) {
+    final value = _settings[tile.key] ?? false;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 15,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE7E5ED),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(tile.icon, size: 20, color: const Color(0xFF0F172A)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Card(
-                  elevation: 0,
-                  color: AppColors.card,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(color: AppColors.border.withValues(alpha: 0.5)),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildToggleTile(Icons.email, 'Email notifications', 'email'),
-                      const Divider(height: 1, indent: 56),
-                      _buildToggleTile(Icons.smartphone, 'Push notifications', 'push'),
-                      const Divider(height: 1, indent: 56),
-                      _buildToggleTile(Icons.notifications_active, 'New lecture added', 'new_lecture'),
-                      const Divider(height: 1, indent: 56),
-                      _buildToggleTile(Icons.local_offer, 'Special offers', 'special_offer'),
-                      const Divider(height: 1, indent: 56),
-                      _buildToggleTile(Icons.event, 'Events', 'event'),
-                      const Divider(height: 1, indent: 56),
-                      _buildToggleTile(Icons.person, 'Profile updates', 'profile_update'),
-                      const Divider(height: 1, indent: 56),
-                      _buildToggleTile(Icons.check_circle, 'Course completion', 'course_completion'),
-                      const Divider(height: 1, indent: 56),
-                      _buildToggleTile(Icons.workspace_premium, 'Certificate ready', 'certificate_ready'),
-                      const Divider(height: 1, indent: 56),
-                      _buildToggleTile(Icons.message, 'Admin messages', 'admin_message'),
-                      const Divider(height: 1, indent: 56),
-                      _buildToggleTile(Icons.help, 'Q&A answers', 'qna_answer'),
-                      const Divider(height: 1, indent: 56),
-                      _buildToggleTile(Icons.sms, 'SMS notifications', 'sms'),
-                    ],
+                Text(
+                  tile.label,
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF0F172A),
                   ),
                 ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.primary, AppColors.primaryDark],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: FilledButton(
-                      onPressed: _isSaving ? null : _handleSave,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: _isSaving
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : Text('Save Changes', style: AppTextStyles.buttonMedium),
-                    ),
+                const SizedBox(height: 2),
+                Text(
+                  tile.subtitle,
+                  style: GoogleFonts.outfit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.mutedForeground,
                   ),
                 ),
               ],
             ),
+          ),
+          Switch(
+            value: value,
+            onChanged: _isSaving ? null : (_) => _toggle(tile.key),
+            activeTrackColor: _authPrimary.withValues(alpha: 0.4),
+            activeThumbColor: _authPrimary,
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildToggleTile(IconData icon, String label, String key) {
-    final value = _settings[key] ?? false;
-    return ListTile(
-      leading: Icon(icon, color: AppColors.primary, size: 22),
-      title: Text(
-        label,
-        style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w500),
+  Widget _buildSaveButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          gradient: const LinearGradient(
+            colors: [_authPrimary, _authPrimaryDark],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _authPrimary.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ElevatedButton(
+          onPressed: _isSaving ? null : _handleSave,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            disabledBackgroundColor: Colors.transparent,
+          ),
+          child: _isSaving
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                )
+              : Text(
+                  'Save Changes',
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+        ),
       ),
-      trailing: Switch(
-        value: value,
-        onChanged: _isSaving ? null : (_) => _toggle(key),
-        activeColor: AppColors.primary,
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 }

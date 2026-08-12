@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/theme/app_colors.dart';
-import '../../../shared/theme/app_text_styles.dart';
-import '../../../shared/widgets/course_card.dart';
-import '../../../shared/widgets/loading_widget.dart';
-import '../../../shared/widgets/error_widget.dart';
-import '../services/course_service.dart';
-import 'package:ilab_app/shared/services/api_client.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:ilab_app/shared/models/course_model.dart';
+import 'package:ilab_app/shared/services/api_client.dart';
+import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/error_widget.dart';
+import '../../../shared/screens/main_shell.dart';
+import '../services/course_service.dart';
 
 class FreeCoursesListState {
   final List<CourseModel> courses;
@@ -127,108 +126,323 @@ class _FreeCoursesScreenState extends ConsumerState<FreeCoursesScreen> {
     final state = ref.watch(freeCoursesListProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Free Courses'),
-      ),
-      body: RefreshIndicator(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: RefreshIndicator(
         onRefresh: () => ref.read(freeCoursesListProvider.notifier).refresh(),
-        child: _buildBody(state),
+        child: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          SliverToBoxAdapter(child: _buildHeader()),
+          _buildContent(state),
+          if (state.isLoadingMore)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 3, color: AppColors.primary)),
+              ),
+            ),
+        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+        ],
+      ),
+      ),
+    ),
+  );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () {
+              final shell = context.findAncestorStateOfType<MainShellState>();
+              if (shell != null) {
+                shell.switchToTab(0);
+              } else {
+                Navigator.of(context).pop();
+              }
+            },
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE7E5ED),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.arrow_back_rounded,
+                color: Color(0xFF0F172A),
+                size: 22,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: Text(
+                'Free Courses',
+                style: GoogleFonts.outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF0F172A),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 44),
+        ],
       ),
     );
   }
 
-  Widget _buildBody(FreeCoursesListState state) {
+  Widget _buildContent(FreeCoursesListState state) {
     if (state.isLoading && state.courses.isEmpty) {
-      return const ShimmerGrid();
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: _FreeCoursesShimmer(),
+      );
     }
     if (state.error != null && state.courses.isEmpty) {
-      return ErrorDisplayWidget(
-        message: state.error!,
-        onRetry: () => ref.read(freeCoursesListProvider.notifier).fetchCourses(),
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: ErrorDisplayWidget(
+          message: state.error!,
+          onRetry: () => ref.read(freeCoursesListProvider.notifier).fetchCourses(),
+        ),
       );
     }
     if (state.courses.isEmpty) {
-      return const EmptyStateWidget(
-        icon: Icons.card_giftcard,
-        title: 'No free courses available',
-        subtitle: 'Check back later for new free courses.',
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: _buildEmptyState(),
       );
     }
-    return CustomScrollView(
-      controller: _scrollController,
-      slivers: [
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.only(left: 16, top: 12, bottom: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Free Courses',
-                  style: AppTextStyles.titleLarge.copyWith(color: AppColors.foreground),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Start learning without any cost',
-                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedForeground),
-                ),
-              ],
-            ),
+    return SliverPadding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      sliver: SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (_, i) => Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: _buildCourseCard(state.courses[i]),
           ),
+          childCount: state.courses.length,
         ),
-        SliverPadding(
-          padding: const EdgeInsets.all(16),
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.75,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (_, i) => CourseCard(
-                course: state.courses[i],
-                onTap: () => Navigator.pushNamed(context, '/course-detail', arguments: state.courses[i].slug),
-              ),
-              childCount: state.courses.length,
-            ),
-          ),
-        ),
-        SliverToBoxAdapter(child: _buildFooter(state)),
-      ],
+      ),
     );
   }
 
-  Widget _buildFooter(FreeCoursesListState state) {
-    if (state.isLoadingMore) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
-      );
-    }
-    if (!state.hasMore && state.courses.isNotEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Center(
-          child: Text(
-            'No more courses',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedForeground),
-          ),
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.muted,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.card_giftcard,
+                size: 64,
+                color: Color(0xFF475569),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No free courses available',
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF0F172A),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Check back later for new free courses',
+              style: GoogleFonts.outfit(
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                color: const Color(0xFF475569),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
-      );
-    }
-    if (state.error != null && state.courses.isNotEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Center(
-          child: TextButton.icon(
-            onPressed: () => ref.read(freeCoursesListProvider.notifier).loadMore(),
-            icon: const Icon(Icons.refresh, size: 18),
-            label: const Text('Retry'),
-          ),
+      ),
+    );
+  }
+
+  Widget _buildCourseCard(CourseModel course) {
+    final hasImage = course.thumbnailUrl != null && course.thumbnailUrl!.isNotEmpty;
+
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/course-detail', arguments: course.slug),
+      child: Container(
+        height: 180,
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 15,
+              spreadRadius: 1,
+            ),
+          ],
         ),
-      );
-    }
-    return const SizedBox.shrink();
+        child: Stack(
+          children: [
+            if (hasImage)
+              Image.network(
+                course.thumbnailUrl!,
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _buildCourseCardFallback(),
+              )
+            else
+              _buildCourseCardFallback(),
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
+                  ),
+                ),
+              ),
+            ),
+            if (course.category != null)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    course.category!,
+                    style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white),
+                  ),
+                ),
+              ),
+            Positioned(
+              top: 12,
+              left: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF22C55E).withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  'Free',
+                  style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Text(
+                course.title,
+                style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCourseCardFallback() {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+    );
+  }
+}
+
+class _FreeCoursesShimmer extends StatelessWidget {
+  const _FreeCoursesShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+            child: Row(
+              children: [
+                const _ShimmerBlock(width: 44, height: 44, borderRadius: 22),
+                const Spacer(),
+                Text(
+                  'Free Courses',
+                  style: GoogleFonts.outfit(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.3),
+                  ),
+                ),
+                const Spacer(),
+                const SizedBox(width: 44),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          for (int i = 0; i < 4; i++) ...[
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 0, 20, 16),
+              child: _ShimmerBlock(height: 180, borderRadius: 24),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ShimmerBlock extends StatelessWidget {
+  final double height;
+  final double? width;
+  final double borderRadius;
+
+  const _ShimmerBlock({this.height = 120, this.width, this.borderRadius = 14});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE7E5ED),
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
+    );
   }
 }

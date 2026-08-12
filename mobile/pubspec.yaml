@@ -54,9 +54,6 @@ dependencies:
   # WebView
   webview_flutter: ^4.13.1
 
-  # YouTube player
-  youtube_player_iframe: ^5.1.1
-
   # OTP input
   pinput: ^6.0.1
 

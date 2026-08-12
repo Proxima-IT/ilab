@@ -129,10 +129,7 @@ class LearningPlayerNotifier extends StateNotifier<LearningPlayerState> {
 
   Future<void> loadPlayer() async {
     if (courseSlug.isEmpty) {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Course not found.',
-      );
+      state = state.copyWith(error: 'Course not found.');
       return;
     }
 
