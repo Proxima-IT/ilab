@@ -33,4 +33,5 @@ class ApiConfig {
   static const String checkoutInit = '/checkout/init';
   static const String checkoutCouponPreview = '/checkout/coupon/preview';
   static const String checkoutPayments = '/checkout/payments/';
+  static const String websiteSettings = '/website-settings';
 }

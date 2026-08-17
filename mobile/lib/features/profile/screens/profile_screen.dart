@@ -27,7 +27,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     super.initState();
     Future.microtask(() {
       ref.read(profileProvider.notifier).fetchProfile();
-      ref.read(homeDashboardProvider.notifier).fetchDashboard();
     });
   }
 

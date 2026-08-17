@@ -140,14 +140,7 @@ class _MyCoursesScreenState extends ConsumerState<MyCoursesScreen> {
   }
 
   Widget _buildCourseCard(EnrolledCourseModel course) {
-    final colors = [
-      AppColors.primary,
-      AppColors.accent,
-      const Color(0xFF8B5CF6),
-      const Color(0xFF3B82F6),
-      const Color(0xFFEC4989),
-    ];
-    final color = colors[course.id % colors.length];
+    final hasImage = course.course.thumbnailUrl != null && course.course.thumbnailUrl!.isNotEmpty;
     final isCompleted = course.progress >= 100;
 
     return Padding(
@@ -172,20 +165,23 @@ class _MyCoursesScreenState extends ConsumerState<MyCoursesScreen> {
           clipBehavior: Clip.antiAlias,
           child: Row(
             children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.05)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(14),
+                  bottomLeft: Radius.circular(14),
                 ),
-                child: Center(
-                  child: isCompleted
-                      ? Icon(Icons.check_circle, color: AppColors.primary, size: 32)
-                      : Icon(Icons.book_outlined, color: color, size: 32),
+                child: SizedBox(
+                  width: 110,
+                  height: 110,
+                  child: hasImage
+                      ? Image.network(
+                          course.course.thumbnailUrl!,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => _buildPlaceholder(course, isCompleted),
+                        )
+                      : _buildPlaceholder(course, isCompleted),
                 ),
               ),
               const SizedBox(width: 12),
@@ -201,7 +197,7 @@ class _MyCoursesScreenState extends ConsumerState<MyCoursesScreen> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       if (isCompleted)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -223,25 +219,53 @@ class _MyCoursesScreenState extends ConsumerState<MyCoursesScreen> {
                           child: LinearProgressIndicator(
                             value: course.progress / 100,
                             backgroundColor: AppColors.muted,
-                            valueColor: AlwaysStoppedAnimation<Color>(color),
+                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
                             minHeight: 5,
                           ),
                         ),
                         const SizedBox(height: 4),
-                        if (course.totalLessons > 0)
-                          Text(
-                            '${course.completedLessons}/${course.totalLessons} lessons \u00b7 ${course.progress.toStringAsFixed(0)}%',
-                            style: AppTextStyles.labelSmall.copyWith(
-                              color: AppColors.mutedForeground,
+                        Row(
+                          children: [
+                            if (course.totalLessons > 0)
+                              Text(
+                                '${course.completedLessons}/${course.totalLessons} lessons',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.mutedForeground,
+                                ),
+                              )
+                            else
+                              Text(
+                                'No lessons yet',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.mutedForeground,
+                                ),
+                              ),
+                            const Spacer(),
+                            Text(
+                              '${course.progress.toStringAsFixed(0)}%',
+                              style: AppTextStyles.labelSmall.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
-                          )
-                        else
-                          Text(
-                            'No lessons yet',
-                            style: AppTextStyles.labelSmall.copyWith(
-                              color: AppColors.mutedForeground,
-                            ),
+                          ],
+                        ),
+                        if (course.firstLessonId != null) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(Icons.play_circle_filled, size: 14, color: AppColors.primary),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Continue learning',
+                                style: AppTextStyles.labelSmall.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
+                        ],
                       ],
                     ],
                   ),
@@ -259,6 +283,32 @@ class _MyCoursesScreenState extends ConsumerState<MyCoursesScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder(EnrolledCourseModel course, bool isCompleted) {
+    final colors = [
+      AppColors.primary,
+      AppColors.accent,
+      const Color(0xFF8B5CF6),
+      const Color(0xFF3B82F6),
+      const Color(0xFFEC4989),
+    ];
+    final color = colors[course.id % colors.length];
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.05)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: isCompleted
+            ? Icon(Icons.check_circle, color: AppColors.primary, size: 28)
+            : Icon(Icons.book_outlined, color: color, size: 28),
       ),
     );
   }
@@ -300,7 +350,7 @@ class _MyCoursesShimmer extends StatelessWidget {
             delegate: SliverChildBuilderDelegate(
               (_, _) => const Padding(
                 padding: EdgeInsets.only(bottom: 12),
-                child: ShimmerCard(height: 100),
+                child: ShimmerCard(height: 110),
               ),
               childCount: 5,
             ),

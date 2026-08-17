@@ -50,7 +50,7 @@ class EnrolledCourseModel {
           final progressCourseId = section?['course_id'];
           return _isTruthy(p['is_completed']) &&
               lessonIds.contains(progLessonId.toString()) &&
-              progressCourseId.toString() == courseIdStr;
+              progressCourseId?.toString() == courseIdStr;
         })
         .length;
 

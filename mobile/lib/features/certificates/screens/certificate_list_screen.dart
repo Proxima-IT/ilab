@@ -69,7 +69,14 @@ class _CertificateListScreenState extends ConsumerState<CertificateListScreen> {
           else ...[
             ...state.certificates.map((cert) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: _buildCertificateCard(cert),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.pushNamed(context, '/certificate-detail',
+                    arguments: cert,
+                  );
+                },
+                child: _buildCertificateCard(cert),
+              ),
             )),
           ],
           if (inProgress.isNotEmpty) ...[
@@ -241,7 +248,7 @@ class _CertificateListScreenState extends ConsumerState<CertificateListScreen> {
     return GestureDetector(
       onTap: () {
         if (course.firstLessonId != null) {
-          Navigator.pushNamed(context, '/course-player', arguments: {
+          Navigator.pushNamed(context, '/lesson-player', arguments: {
             'slug': course.course.slug,
             'lessonId': course.firstLessonId,
           });

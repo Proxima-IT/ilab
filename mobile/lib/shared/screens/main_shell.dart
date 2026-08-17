@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../theme/app_colors.dart';
 import '../../features/home/screens/home_screen.dart';
 import '../../features/courses/screens/course_list_screen.dart';
@@ -13,6 +14,18 @@ import '../../features/notifications/providers/notification_provider.dart';
 
 final GlobalKey<MainShellState> mainShellKey = GlobalKey<MainShellState>();
 
+class _TabItem {
+  final int index;
+  final String label;
+  final IconData icon;
+
+  const _TabItem({
+    required this.index,
+    required this.label,
+    required this.icon,
+  });
+}
+
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
@@ -20,30 +33,26 @@ class MainShell extends ConsumerStatefulWidget {
   ConsumerState<MainShell> createState() => MainShellState();
 }
 
-class _TabItem {
-  final IconData icon;
-  final String label;
-  final int index;
-
-  const _TabItem({
-    required this.icon,
-    required this.label,
-    required this.index,
-  });
-}
-
 class MainShellState extends ConsumerState<MainShell> {
   int _currentIndex = 0;
+  final Set<int> _visitedTabs = {0};
   final _scaffoldKey = GlobalKey<ScaffoldState>();
+  static const List<int> _navToScreen = [0, 1, 2, 4];
 
-  static const double _inactiveTabWidth = 56;
-  static const double _tabGap = 16;
-  static const double _labelGap = 6;
+  static const List<Widget> _screens = [
+    HomeScreen(),
+    CourseListScreen(),
+    BlogListScreen(),
+    EventListScreen(),
+    ProfileScreen(),
+    CertificateListScreen(),
+  ];
+
   static const List<_TabItem> _tabs = [
-    _TabItem(icon: Icons.home_outlined, label: 'Home', index: 0),
-    _TabItem(icon: Icons.menu_book_outlined, label: 'Courses', index: 1),
-    _TabItem(icon: Icons.article_outlined, label: 'Blog', index: 2),
-    _TabItem(icon: Icons.person_outlined, label: 'Profile', index: 4),
+    _TabItem(index: 0, label: 'Home', icon: Icons.home_outlined),
+    _TabItem(index: 1, label: 'Courses', icon: Icons.menu_book_outlined),
+    _TabItem(index: 2, label: 'Blog', icon: Icons.article_outlined),
+    _TabItem(index: 3, label: 'Profile', icon: Icons.person_outlined),
   ];
 
   @override
@@ -55,44 +64,8 @@ class MainShellState extends ConsumerState<MainShell> {
   void switchToTab(int index) {
     setState(() {
       _currentIndex = index;
+      _visitedTabs.add(index);
     });
-  }
-
-  int? _navIndexForScreen(int screenIndex) {
-    for (int i = 0; i < _tabs.length; i++) {
-      if (_tabs[i].index == screenIndex) return i;
-    }
-    return null;
-  }
-
-  double _getLabelWidth(String label) {
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: label,
-        style: GoogleFonts.outfit(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: const Color(0xFF1A1A1A),
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    return textPainter.width.ceilToDouble();
-  }
-
-  double _getTabWidth(int navIndex) {
-    if (_tabs[navIndex].index == _currentIndex) {
-      return _inactiveTabWidth + _labelGap + _getLabelWidth(_tabs[navIndex].label);
-    }
-    return _inactiveTabWidth;
-  }
-
-  double _getOffsetForIndex(int navIndex) {
-    double offset = 0;
-    for (int i = 0; i < navIndex; i++) {
-      offset += _getTabWidth(i) + _tabGap;
-    }
-    return offset;
   }
 
   void openDrawer() {
@@ -229,6 +202,16 @@ class MainShellState extends ConsumerState<MainShell> {
                               Navigator.pushNamed(context, '/free-courses');
                             },
                           ),
+                          const SizedBox(height: 16),
+                          _buildDrawerItem(
+                            icon: Icons.library_books_outlined,
+                            label: 'My Courses',
+                            isActive: false,
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.pushNamed(context, '/my-courses');
+                            },
+                          ),
                           const SizedBox(height: 8),
                           Container(
                             height: 1,
@@ -293,122 +276,70 @@ class MainShellState extends ConsumerState<MainShell> {
           ),
         ),
       ),
-      body: Stack(
+      body: Column(
         children: [
-          SafeArea(
-            top: true,
-            bottom: false,
-            child: IndexedStack(
-              index: _currentIndex,
-              children: const [
-                HomeScreen(),
-                CourseListScreen(),
-                BlogListScreen(),
-                EventListScreen(),
-                ProfileScreen(),
-                CertificateListScreen(),
-              ],
+          Expanded(
+            child: SafeArea(
+              top: true,
+              bottom: false,
+              child: IndexedStack(
+                index: _currentIndex,
+                children: _screens.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final screen = entry.value;
+                  if (index == _currentIndex || _visitedTabs.contains(index)) {
+                    return screen;
+                  }
+                  return const SizedBox.shrink();
+                }).toList(),
+              ),
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 20,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                height: 72,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(36),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    if (_tabs.any((t) => t.index == _currentIndex))
+          SafeArea(
+            top: false,
+            bottom: true,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              height: 72,
+              color: AppColors.primary,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final availableWidth = constraints.maxWidth;
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
                       AnimatedPositioned(
                         duration: const Duration(milliseconds: 300),
                         curve: Curves.easeInOut,
-                        left: _getOffsetForIndex(_navIndexForScreen(_currentIndex)!),
+                        left: _getOffsetForIndex(_navIndexForScreen(_currentIndex), availableWidth),
                         top: 8,
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 300),
                           curve: Curves.easeInOut,
-                          width: _getTabWidth(_navIndexForScreen(_currentIndex)!),
+                          width: _getTabWidth(availableWidth),
                           height: 56,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFE7E5ED),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE7E5ED),
                             borderRadius: BorderRadius.all(Radius.circular(28)),
                           ),
                         ),
                       ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildNavItem(navIndex: 0),
-                        const SizedBox(width: 16),
-                        _buildNavItem(navIndex: 1),
-                        const SizedBox(width: 16),
-                        _buildNavItem(navIndex: 2),
-                        const SizedBox(width: 16),
-                        _buildNavItem(navIndex: 3),
-                      ],
-                    ),
-                  ],
-                ),
+                      Row(
+                        mainAxisSize: MainAxisSize.max,
+                        children: [
+                          Expanded(child: _buildNavItem(0, availableWidth)),
+                          Expanded(child: _buildNavItem(1, availableWidth)),
+                          Expanded(child: _buildNavItem(2, availableWidth)),
+                          Expanded(child: _buildNavItem(3, availableWidth)),
+                        ],
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem({required int navIndex}) {
-    final tab = _tabs[navIndex];
-    final isActive = tab.index == _currentIndex;
-    const iconColor = Color(0xFF1A1A1A);
-    return GestureDetector(
-      onTap: () => switchToTab(tab.index),
-      child: Container(
-        width: _getTabWidth(navIndex),
-        height: 56,
-        alignment: Alignment.center,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(tab.icon, size: 28, color: iconColor),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              alignment: Alignment.centerLeft,
-              child: isActive
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(width: 6),
-                        Text(
-                          tab.label,
-                          style: GoogleFonts.outfit(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: iconColor,
-                          ),
-                        ),
-                      ],
-                    )
-                  : const SizedBox(width: 0),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -463,4 +394,39 @@ class MainShellState extends ConsumerState<MainShell> {
         ),
     );
   }
+
+  Widget _buildNavItem(int navIndex, double availableWidth) {
+    final tab = _tabs[navIndex];
+    return GestureDetector(
+      onTap: () => switchToTab(_navToScreen[tab.index]),
+      child: Container(
+        width: _getTabWidth(availableWidth),
+        height: 56,
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(tab.icon, size: 28, color: Colors.white),
+            const SizedBox(height: 4),
+            Text(
+              tab.label,
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  double _getTabWidth(double availableWidth) => availableWidth / 4;
+
+  double _getOffsetForIndex(int navIndex, double availableWidth) =>
+      navIndex * (availableWidth / 4);
+
+  int _navIndexForScreen(int screenIndex) => _navToScreen.indexOf(screenIndex);
 }

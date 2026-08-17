@@ -4,9 +4,11 @@ import '../../../config/api_config.dart';
 import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_text_styles.dart';
 import '../../../shared/screens/main_shell.dart';
+import '../../../shared/screens/webview_screen.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../../../shared/models/user_model.dart';
+import '../../../shared/models/course_model.dart';
 import '../../../shared/models/enrolled_course_model.dart';
 import '../../../shared/models/certificate_model.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -41,26 +43,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final authState = ref.watch(authProvider);
     final dashboardState = ref.watch(homeDashboardProvider);
     final userName = dashboardState.user?.name ?? authState.user?.name ?? 'Student';
+    debugPrint('🔍 HomeScreen build: error=${dashboardState.error} isLoading=${dashboardState.isLoading} hasData=${dashboardState.user != null}');
 
+    if (dashboardState.error != null && dashboardState.user == null) {
+      debugPrint('🔍 HomeScreen: Rendering ERROR widget');
+      return RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: ErrorDisplayWidget(
+          message: dashboardState.error!,
+          onRetry: _onRefresh,
+        ),
+      );
+    }
+
+    if (dashboardState.isLoading && dashboardState.user == null) {
+      debugPrint('🔍 HomeScreen: Rendering SHIMMER widget');
+      return RefreshIndicator(
+        onRefresh: _onRefresh,
+        child: const _DashboardShimmer(),
+      );
+    }
+
+    debugPrint('🔍 HomeScreen: Rendering CONTENT widget');
     return RefreshIndicator(
       onRefresh: _onRefresh,
-      child: dashboardState.isLoading && dashboardState.user == null
-          ? const _DashboardShimmer()
-          : dashboardState.error != null && dashboardState.user == null
-              ? ErrorDisplayWidget(
-                  message: dashboardState.error!,
-                  onRetry: _onRefresh,
-                )
-              : _buildContent(dashboardState, userName),
+      child: _buildContent(dashboardState, userName),
     );
   }
 
   Widget _buildContent(HomeDashboardState state, String userName) {
     final inProgress = state.enrolledCourses.where((c) => c.progress > 0 && c.progress < 100).toList();
-    final totalHours = state.enrolledCourses.fold<double>(0, (sum, c) => sum + c.totalHours);
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 88),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -74,7 +90,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: _buildHeroCard(),
           ),
           const SizedBox(height: 20),
-          _buildStatsGrid(state.enrolledCourses.length, totalHours),
+          _buildUpcomingBatchSchedule(state),
           const SizedBox(height: 20),
           if (inProgress.isNotEmpty) ...[
             _buildActiveLesson(inProgress.first),
@@ -84,11 +100,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             _buildSectionHeader('Continue Learning', onSeeAll: () {}),
             _buildInProgressCourses(inProgress),
           ],
-          _buildSectionHeader('My Courses', onSeeAll: () => Navigator.pushNamed(context, '/my-courses')),
-          _buildMyCourses(state.enrolledCourses),
+          if (state.courses.isNotEmpty) ...[
+            _buildSectionHeader('Our Courses', onSeeAll: () => context.findAncestorStateOfType<MainShellState>()?.switchToTab(1)),
+            _buildHorizontalCourses(state.courses.take(3).toList()),
+            const SizedBox(height: 20),
+          ],
           if (state.certificates.isNotEmpty) ...[
             _buildSectionHeader('Recent Certificates'),
             _buildCertificatesSection(state.certificates.take(3).toList()),
+          ],
+          if (state.freeCourses.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _buildSectionHeader('Free Courses', onSeeAll: () => Navigator.pushNamed(context, '/free-courses')),
+            _buildHorizontalCourses(state.freeCourses.take(4).toList()),
           ],
           const SizedBox(height: 24),
         ],
@@ -323,73 +347,177 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildStatsGrid(int enrolledCount, double totalHours) {
-    final hoursStr = totalHours >= 1
-        ? '${totalHours.toStringAsFixed(1)} Hours'
-        : '${(totalHours * 60).toStringAsFixed(0)} Min';
+  Widget _buildUpcomingBatchSchedule(HomeDashboardState state) {
+    final schedule = state.nextBatchSchedule;
+    final title = schedule?.title ?? 'Upcoming practical batch schedule (06-Sep-2026)';
+    final enrollmentStart = schedule?.enrollmentStartDate ?? 'September 10, 2026';
+    final enrollmentEnd = schedule?.enrollmentEndDate ?? 'September 24, 2026';
+    final demoUrl = schedule?.demoUrl ?? '';
+    final courseUrl = schedule?.courseUrl ?? '';
+    final demoButtonLabel = schedule?.demoButtonLabel ?? 'ফ্রি ক্লাস ভিডিও';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildStatCard(
-              icon: Icons.book_outlined,
-              value: '$enrolledCount',
-              label: 'Courses Enrolled',
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 15,
+              spreadRadius: 1,
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildStatCard(
-              icon: Icons.timer_outlined,
-              value: hoursStr,
-              label: 'Hours Spent',
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.calendar_month_outlined, size: 16, color: AppColors.primary),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: AppTextStyles.titleSmall.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            _buildScheduleRow('Enrollment Start', enrollmentStart),
+            const SizedBox(height: 6),
+            _buildScheduleRow('Enrollment End', enrollmentEnd),
+            const SizedBox(height: 12),
+            _buildActionButtons(demoUrl, courseUrl, demoButtonLabel),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildStatCard({required IconData icon, required String value, required String label}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 15,
-            spreadRadius: 1,
+  Widget _buildScheduleRow(String label, String value) {
+    return Row(
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: const BoxDecoration(
+            color: AppColors.primary,
+            shape: BoxShape.circle,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedForeground),
+        ),
+        const Spacer(),
+        Text(
+          value,
+          style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(String demoUrl, String courseUrl, String demoButtonLabel) {
+    final hasDemoUrl = demoUrl.trim().isNotEmpty;
+    final hasCourseUrl = courseUrl.trim().isNotEmpty;
+
+    void openUrl(String url) {
+      if (url.isEmpty) return;
+      if (url.startsWith('/')) {
+        if (url == '/courses') {
+          mainShellKey.currentState?.switchToTab(1);
+          return;
+        }
+        Navigator.pushNamed(context, url);
+        return;
+      }
+      final uri = Uri.tryParse(url);
+      if (uri != null && uri.hasScheme) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => WebViewScreen(
+              url: url,
+              title: 'iLab',
             ),
-            child: Icon(icon, size: 18, color: AppColors.primary),
           ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: AppTextStyles.titleLarge.copyWith(fontWeight: FontWeight.w700),
+        );
+      }
+    }
+
+    void navigateToEnroll() {
+      if (!hasCourseUrl) return;
+      final segments = courseUrl.split('/');
+      final slug = segments.lastWhere((s) => s.isNotEmpty, orElse: () => '');
+      if (slug.isNotEmpty && slug != 'courses') {
+        Navigator.pushNamed(context, '/course-detail', arguments: slug);
+      } else {
+        openUrl(courseUrl);
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: hasDemoUrl ? () => openUrl(demoUrl) : null,
+                icon: const Icon(Icons.play_circle_outline, size: 16),
+                label: Text(demoButtonLabel, style: const TextStyle(fontSize: 13)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: hasCourseUrl ? () => openUrl(courseUrl) : null,
+                icon: const Icon(Icons.description_outlined, size: 16),
+                label: const Text('Course Outline', style: TextStyle(fontSize: 13)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: hasCourseUrl ? navigateToEnroll : null,
+          icon: const Icon(Icons.arrow_forward, size: 16),
+          label: const Text('Enroll Now!'),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.white,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: AppTextStyles.labelMedium.copyWith(color: AppColors.mutedForeground),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -407,7 +535,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           GestureDetector(
             onTap: () {
               if (course.firstLessonId != null) {
-                Navigator.pushNamed(context, '/course-player', arguments: {
+                Navigator.pushNamed(context, '/lesson-player', arguments: {
                   'slug': course.course.slug,
                   'lessonId': course.firstLessonId,
                 });
@@ -498,6 +626,139 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Widget _buildHorizontalCourses(List<CourseModel> courses) {
+    return SizedBox(
+      height: 200,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.only(left: 20, right: 8),
+        itemCount: courses.length,
+        itemBuilder: (_, i) => _buildHorizontalCourseCard(courses[i]),
+      ),
+    );
+  }
+
+  Widget _buildHorizontalCourseCard(CourseModel course) {
+    final hasImage = course.thumbnailUrl != null && course.thumbnailUrl!.isNotEmpty;
+
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/course-detail', arguments: course.slug),
+      child: Container(
+        width: 220,
+        margin: const EdgeInsets.only(right: 12),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 15,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            if (hasImage)
+              Image.network(
+                course.thumbnailUrl!,
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _buildCourseCardFallback(),
+              )
+            else
+              _buildCourseCardFallback(),
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
+                  ),
+                ),
+              ),
+            ),
+            if (course.category != null)
+              Positioned(
+                top: 12,
+                right: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    course.category!,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white),
+                  ),
+                ),
+              ),
+            if (course.isFree)
+              Positioned(
+                top: 12,
+                left: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Color(0xFF22C55E).withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'Free',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
+                  ),
+                ),
+              ),
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    course.title,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  if (!course.isFree)
+                    course.hasDiscount
+                        ? Row(
+                            children: [
+                              Text(
+                                '৳${course.effectivePrice.toStringAsFixed(0)}',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '৳${course.price.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                  decoration: TextDecoration.lineThrough,
+                                ),
+                              ),
+                            ],
+                          )
+                        : Text(
+                            '৳${course.price.toStringAsFixed(0)}',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+                          ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildInProgressCard(EnrolledCourseModel course) {
     final colors = [AppColors.primary, AppColors.accent, const Color(0xFF8B5CF6), const Color(0xFF3B82F6), const Color(0xFFEC4989)];
     final color = colors[course.id % colors.length];
@@ -505,7 +766,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return GestureDetector(
       onTap: () {
         if (course.firstLessonId != null) {
-          Navigator.pushNamed(context, '/course-player', arguments: {
+          Navigator.pushNamed(context, '/lesson-player', arguments: {
             'slug': course.course.slug,
             'lessonId': course.firstLessonId,
           });
@@ -580,154 +841,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildMyCourses(List<EnrolledCourseModel> courses) {
-    if (courses.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.school_outlined, size: 48, color: AppColors.mutedForeground.withValues(alpha: 0.5)),
-              const SizedBox(height: 12),
-              Text(
-                'You haven\'t enrolled in any courses yet.',
-                style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedForeground),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => context.findAncestorStateOfType<MainShellState>()?.switchToTab(1),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
-                child: const Text('Browse Courses'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        children: [
-          for (int i = 0; i < courses.length; i++) ...[
-            if (i > 0) const SizedBox(height: 12),
-            _buildMyCourseCard(courses[i]),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMyCourseCard(EnrolledCourseModel course) {
-    final hasImage = course.course.thumbnailUrl != null && course.course.thumbnailUrl!.isNotEmpty;
-    final isCompleted = course.progress >= 100;
-    final hoursStr = course.totalHours >= 1
-        ? '${course.totalHours.toStringAsFixed(1)}h'
-        : '${(course.totalHours * 60).toStringAsFixed(0)}min';
-
-    return GestureDetector(
-      onTap: () {
-        if (course.firstLessonId != null) {
-          Navigator.pushNamed(context, '/course-player', arguments: {
-            'slug': course.course.slug,
-            'lessonId': course.firstLessonId,
-          });
-        } else {
-          Navigator.pushNamed(context, '/course-detail', arguments: course.course.slug);
-        }
-      },
-      child: Container(
-        height: 180,
-        width: double.infinity,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Stack(
-          children: [
-            if (hasImage)
-              Image.network(
-                course.course.thumbnailUrl!,
-                width: double.infinity,
-                height: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _buildCourseCardFallback(),
-              )
-            else
-              _buildCourseCardFallback(),
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    course.course.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  if (course.totalLessons > 0)
-                    Text(
-                      '${course.completedLessons}/${course.totalLessons} lessons \u00b7 ${course.progress.toStringAsFixed(0)}%',
-                      style: const TextStyle(color: Colors.white, fontSize: 14),
-                    )
-                  else
-                    const Text(
-                      'No lessons yet',
-                      style: TextStyle(color: Colors.white, fontSize: 14),
-                    ),
-                  if (isCompleted)
-                    const Text(
-                      'Completed',
-                      style: TextStyle(color: Colors.white, fontSize: 14),
-                    ),
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: course.progress / 100,
-                      backgroundColor: Colors.white.withValues(alpha: 0.3),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                      minHeight: 4,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    hoursStr,
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildCourseCardFallback() {
     return Container(
       width: double.infinity,
@@ -773,7 +886,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildCertificateCard(CertificateModel cert) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, '/certificate-detail', arguments: cert.id),
+      onTap: () => Navigator.pushNamed(context, '/certificate-detail', arguments: cert),
       child: Container(
         width: 200,
         margin: const EdgeInsets.only(right: 12),
@@ -834,6 +947,7 @@ class _DashboardShimmer extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 88),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -157,30 +157,36 @@ class ApiAuthResponse {
 }
 
 class ApiAuthData {
-  final UserModel user;
+  final UserModel? user;
   final String token;
   final String? tokenType;
   final bool? profileCompleted;
   final bool? phoneVerificationRequired;
   final bool? emailVerificationRequired;
+  final bool? verificationRequired;
+  final String? email;
 
   const ApiAuthData({
-    required this.user,
-    required this.token,
+    this.user,
+    this.token = '',
     this.tokenType,
     this.profileCompleted,
     this.phoneVerificationRequired,
     this.emailVerificationRequired,
+    this.verificationRequired,
+    this.email,
   });
 
   factory ApiAuthData.fromJson(Map<String, dynamic> json) {
     return ApiAuthData(
-      user: UserModel.fromJson(json['user'] as Map<String, dynamic>),
+      user: json['user'] != null ? UserModel.fromJson(json['user'] as Map<String, dynamic>) : null,
       token: json['token'] as String? ?? '',
       tokenType: json['token_type'] as String?,
       profileCompleted: json['profile_completed'] as bool?,
       phoneVerificationRequired: json['phone_verification_required'] as bool?,
       emailVerificationRequired: json['email_verification_required'] as bool?,
+      verificationRequired: json['verification_required'] as bool?,
+      email: json['email'] as String?,
     );
   }
 }

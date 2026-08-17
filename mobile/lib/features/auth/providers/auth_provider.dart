@@ -97,11 +97,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final response = await _authService.login(login: login, password: password);
-      if (response.success && response.data != null) {
-        await _saveSession(response.data!.user, response.data!.token);
+      if (response.success && response.data != null && response.data!.user != null) {
+        final user = response.data!.user!;
+        await _saveSession(user, response.data!.token);
         state = AuthState(
           status: AuthStatus.authenticated,
-          user: response.data!.user.copyWith(token: response.data!.token),
+          user: user.copyWith(token: response.data!.token),
         );
       } else {
         state = state.copyWith(
@@ -126,13 +127,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      await _authService.register(
+      final response = await _authService.register(
         name: name,
         email: email,
         phone: phone,
         password: password,
         passwordConfirmation: passwordConfirmation,
       );
+      if (!response.success) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: response.message,
+        );
+        return;
+      }
       state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(
@@ -167,11 +175,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
       debugPrint('Google Sign-In: Calling backend...');
       final response = await _authService.googleAuth(idToken: idToken);
       debugPrint('Google Sign-In: Backend response = $response');
-      if (response.success && response.data != null) {
-        await _saveSession(response.data!.user, response.data!.token);
+      if (response.success && response.data != null && response.data!.user != null) {
+        final user = response.data!.user!;
+        await _saveSession(user, response.data!.token);
         state = AuthState(
           status: AuthStatus.authenticated,
-          user: response.data!.user.copyWith(token: response.data!.token),
+          user: user.copyWith(token: response.data!.token),
         );
       } else {
         state = state.copyWith(
@@ -189,6 +198,34 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> verifyEmail({
+    required String email,
+    required String otp,
+  }) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final response = await _authService.verifyOtp(email: email, otp: otp);
+      if (response.success && response.data != null && response.data!.token.isNotEmpty) {
+        final user = response.data!.user;
+        await _saveSession(user, response.data!.token);
+        state = AuthState(
+          status: AuthStatus.authenticated,
+          user: user?.copyWith(token: response.data!.token),
+        );
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: response.message,
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _getErrorMessage(e),
+      );
+    }
+  }
+
   Future<void> logout() async {
     try {
       await _authService.logout();
@@ -197,9 +234,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
-  Future<void> _saveSession(UserModel user, String token) async {
+  Future<void> _saveSession(UserModel? user, String token) async {
     await _storage.write(key: 'auth_token', value: token);
-    await _storage.write(key: 'auth_user', value: jsonEncode(user.toJson()));
+    if (user != null) {
+      await _storage.write(key: 'auth_user', value: jsonEncode(user.toJson()));
+    }
   }
 
   Future<void> _clearSession() async {

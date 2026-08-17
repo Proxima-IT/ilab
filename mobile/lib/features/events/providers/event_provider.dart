@@ -90,7 +90,7 @@ class EventListNotifier extends StateNotifier<EventListState> {
   }
 }
 
-final eventListProvider = StateNotifierProvider<EventListNotifier, EventListState>((ref) {
+final eventListProvider = StateNotifierProvider.autoDispose<EventListNotifier, EventListState>((ref) {
   return EventListNotifier();
 });
 
@@ -120,6 +120,6 @@ class EventDetailNotifier extends StateNotifier<EventDetailState> {
   }
 }
 
-final eventDetailProvider = StateNotifierProvider.family<EventDetailNotifier, EventDetailState, String>((ref, slug) {
+final eventDetailProvider = StateNotifierProvider.autoDispose.family<EventDetailNotifier, EventDetailState, String>((ref, slug) {
   return EventDetailNotifier(slug);
 });

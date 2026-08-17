@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/services/api_client.dart';
+import '../../certificates/providers/certificate_provider.dart';
 import '../services/learning_service.dart';
 
 class LearningPlayerState {
@@ -93,15 +94,18 @@ class LearningPlayerState {
 
 class LearningPlayerNotifier extends StateNotifier<LearningPlayerState> {
   final LearningService _service = LearningService();
+  final Ref _ref;
   final String courseSlug;
   String currentLessonId;
   Timer? _timeoutTimer;
   bool _disposed = false;
 
   LearningPlayerNotifier({
+    required Ref ref,
     required this.courseSlug,
     required String lessonId,
-  }) : currentLessonId = lessonId,
+  }) : _ref = ref,
+       currentLessonId = lessonId,
        super(const LearningPlayerState(isLoading: true)) {
     _startTimeout();
     loadPlayer();
@@ -244,6 +248,7 @@ class LearningPlayerNotifier extends StateNotifier<LearningPlayerState> {
     try {
       await _service.syncWatchTime(currentLessonId, state.watchSeconds);
       await _service.markComplete(currentLessonId);
+      _ref.invalidate(certificateProvider);
       await loadPlayer();
     } finally {
       state = state.copyWith(isSaving: false);
@@ -368,9 +373,10 @@ class LearningPlayerNotifier extends StateNotifier<LearningPlayerState> {
   }
 }
 
-final learningPlayerProvider = StateNotifierProvider.family<LearningPlayerNotifier, LearningPlayerState, Map<String, String>>(
+final learningPlayerProvider = StateNotifierProvider.autoDispose.family<LearningPlayerNotifier, LearningPlayerState, Map<String, String>>(
   (ref, args) {
     return LearningPlayerNotifier(
+      ref: ref,
       courseSlug: args['slug'] ?? '',
       lessonId: args['lessonId'] ?? '',
     );

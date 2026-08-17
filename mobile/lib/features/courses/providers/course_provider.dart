@@ -199,7 +199,7 @@ class CourseListNotifier extends StateNotifier<CourseListState> {
   }
 }
 
-final courseListProvider = StateNotifierProvider<CourseListNotifier, CourseListState>((ref) {
+final courseListProvider = StateNotifierProvider.autoDispose<CourseListNotifier, CourseListState>((ref) {
   return CourseListNotifier();
 });
 
@@ -237,6 +237,6 @@ class CourseDetailNotifier extends StateNotifier<CourseDetailState> {
   }
 }
 
-final courseDetailProvider = StateNotifierProvider.family<CourseDetailNotifier, CourseDetailState, String>((ref, slug) {
+final courseDetailProvider = StateNotifierProvider.autoDispose.family<CourseDetailNotifier, CourseDetailState, String>((ref, slug) {
   return CourseDetailNotifier(slug);
 });

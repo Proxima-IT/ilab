@@ -39,6 +39,6 @@ class CertificateNotifier extends StateNotifier<CertificateListState> {
   }
 }
 
-final certificateProvider = StateNotifierProvider<CertificateNotifier, CertificateListState>((ref) {
+final certificateProvider = StateNotifierProvider.autoDispose<CertificateNotifier, CertificateListState>((ref) {
   return CertificateNotifier();
 });

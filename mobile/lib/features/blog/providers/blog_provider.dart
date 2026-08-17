@@ -90,7 +90,7 @@ class BlogListNotifier extends StateNotifier<BlogListState> {
   }
 }
 
-final blogListProvider = StateNotifierProvider<BlogListNotifier, BlogListState>((ref) {
+final blogListProvider = StateNotifierProvider.autoDispose<BlogListNotifier, BlogListState>((ref) {
   return BlogListNotifier();
 });
 
@@ -120,6 +120,6 @@ class BlogDetailNotifier extends StateNotifier<BlogDetailState> {
   }
 }
 
-final blogDetailProvider = StateNotifierProvider.family<BlogDetailNotifier, BlogDetailState, String>((ref, slug) {
+final blogDetailProvider = StateNotifierProvider.autoDispose.family<BlogDetailNotifier, BlogDetailState, String>((ref, slug) {
   return BlogDetailNotifier(slug);
 });

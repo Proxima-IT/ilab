@@ -6,6 +6,7 @@ import 'features/auth/screens/splash_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/auth/screens/forgot_password_screen.dart';
+import 'features/auth/screens/verify_email_screen.dart';
 import 'features/courses/screens/course_detail_screen.dart';
 import 'features/courses/screens/free_courses_screen.dart';
 import 'features/courses/screens/lesson_player_screen.dart';
@@ -17,6 +18,8 @@ import 'features/profile/screens/change_password_screen.dart';
 import 'features/profile/screens/notification_settings_screen.dart';
 import 'features/notifications/screens/notification_screen.dart';
 import 'features/profile/screens/settings_screen.dart';
+import 'features/certificates/screens/certificate_detail_screen.dart';
+import 'shared/models/certificate_model.dart';
 
 class _RouteObserver extends NavigatorObserver {
   @override
@@ -44,6 +47,7 @@ class ILabApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/forgot-password': (context) => const ForgotPasswordScreen(),
+        '/verify-email': (context) => const VerifyEmailScreen(),
         '/home': (context) => MainShell(key: mainShellKey),
         '/my-courses': (context) => const MyCoursesScreen(),
         '/free-courses': (context) => const FreeCoursesScreen(),
@@ -56,6 +60,10 @@ class ILabApp extends StatelessWidget {
         '/notification-settings': (context) => const NotificationSettingsScreen(),
         '/notifications': (context) => const NotificationScreen(),
         '/settings': (context) => const SettingsScreen(),
+        '/certificate-detail': (context) {
+          final cert = ModalRoute.of(context)!.settings.arguments;
+          return CertificateDetailScreen(certificate: cert as CertificateModel);
+        },
       },
     );
   }
