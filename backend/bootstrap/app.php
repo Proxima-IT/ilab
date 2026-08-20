@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->append(CheckMaintenanceMode::class);
 
+        // Explicitly exclude the UddoktaPay webhook from CSRF verification
+        $middleware->validateCsrfTokens(except: [
+            'api/v1/webhook/uddoktapay',
+        ]);
+
         $middleware->alias([
             'admin.activity' => AdminActivityLogger::class,
         ]);
