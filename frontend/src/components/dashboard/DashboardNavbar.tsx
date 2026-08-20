@@ -204,7 +204,7 @@ export default function DashboardNavbar({
         </button>
 
         <Link to="/" className="flex items-center gap-2">
-          <SiteLogo size="xs" showWordmark />
+          <SiteLogo size="sm" showWordmark={false} />
         </Link>
 
         <AnimatePresence mode="wait">

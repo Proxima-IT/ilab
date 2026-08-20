@@ -4,7 +4,7 @@ import { Award, FileImage, FileText, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useStudent } from "@/hooks/useStudentData";
-import ilabLogo from "@/assets/ilab_logo.jpeg";
+import ilabLogo from "@/assets/iLab_logo.png";
 import {
   certificateService,
   type StudentCertificate,

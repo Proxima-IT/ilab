@@ -155,11 +155,8 @@ export function Header() {
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 h-16 md:h-20 md:flex md:justify-between">
-          <Link to="/" className="group min-w-0 py-1">
-            <SiteLogo
-              size="xl"
-              className="[&_img]:rounded-full [&_img]:object-cover md:[&_img]:h-16 md:[&_img]:w-16"
-            />
+          <Link to="/" className="group min-w-0 py-1 flex items-center">
+            <SiteLogo size="lg" showWordmark={false} />
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">

@@ -1,4 +1,4 @@
-import ilabLogo from "@/assets/ilab_logo.jpeg";
+import ilabLogo from "@/assets/iLab_logo.png";
 import { cn } from "@/lib/utils";
 
 const sizes = {
@@ -13,6 +13,7 @@ const sizes = {
 type SiteLogoProps = {
   size?: keyof typeof sizes;
   className?: string;
+  imgClassName?: string;
   /** Show the "iLab" wordmark beside the logo image */
   showWordmark?: boolean;
   wordmarkClassName?: string;
@@ -21,6 +22,7 @@ type SiteLogoProps = {
 export function SiteLogo({
   size = "sm",
   className,
+  imgClassName,
   showWordmark = false,
   wordmarkClassName,
 }: SiteLogoProps) {
@@ -28,8 +30,8 @@ export function SiteLogo({
     <span className={cn("inline-flex min-w-0 items-center gap-2.5", className)}>
       <img
         src={ilabLogo}
-        alt="iLab BD — Fast Solutions, Trusted Service"
-        className={cn(sizes[size], "shrink-0 rounded-full object-contain")}
+        alt="iLab BD"
+        className={cn(sizes[size], "shrink-0 rounded-full object-cover", imgClassName)}
       />
       {showWordmark && (
         <span
