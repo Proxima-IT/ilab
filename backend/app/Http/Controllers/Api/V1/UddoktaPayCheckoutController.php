@@ -376,7 +376,12 @@ class UddoktaPayCheckoutController extends Controller
     public function webhook(Request $request)
     {
         $apiKey = $this->apiKey();
-        $webhookKey = (string) $request->header('RT-UDDOKTAPAY-API-KEY', '');
+        $webhookKey = (string) (
+        $request->header('rt-uddoktapay-api-key')
+        ?? $request->header('RT-UDDOKTAPAY-API-KEY')
+        ?? $request->server('HTTP_RT_UDDOKTAPAY_API_KEY')
+        ?? ''
+    );
 
         if (! $apiKey || ! hash_equals($apiKey, $webhookKey)) {
             Log::warning('Unauthorized Webhook attempt');
@@ -407,7 +412,7 @@ class UddoktaPayCheckoutController extends Controller
 
     public function success(Request $request)
     {
-        $invoiceId = $request->query('invoice_id');
+        $invoiceId = $request->input('invoice_id') ?? $request->query('invoice_id');
 
         if (! $invoiceId) {
             return redirect($this->frontendUrl('/courses?payment=invalid'));
@@ -416,20 +421,20 @@ class UddoktaPayCheckoutController extends Controller
         $verified = $this->verifyGatewayPayment($invoiceId);
 
         if (($verified['status'] ?? null) === 'COMPLETED') {
-            $payment = $this->completeVerifiedPayment($verified, $request->query());
+            $payment = $this->completeVerifiedPayment($verified, $request->all());
 
             return redirect($this->frontendUrl('/enroll/success?invoice_id=' . urlencode($payment?->id ?? $invoiceId)));
         }
 
         if (($verified['status'] ?? null) === 'ERROR') {
-            $this->failVerifiedPayment($verified, $request->query());
+            $this->failVerifiedPayment($verified, $request->all());
 
             return redirect($this->frontendUrl('/courses?payment=failed'));
         }
 
         if ($this->isGatewayPendingStatus($verified['status'] ?? null)) {
             if ($this->isBankPaymentPayload($verified)) {
-                $payment = $this->recordPendingVerifiedPayment($verified, $request->query());
+                $payment = $this->recordPendingVerifiedPayment($verified, $request->all());
 
                 return redirect($this->frontendUrl('/enroll/success?invoice_id=' . urlencode($payment?->id ?? $invoiceId) . '&payment=pending'));
             }
@@ -442,14 +447,14 @@ class UddoktaPayCheckoutController extends Controller
 
     public function cancel(Request $request)
     {
-        $invoiceId = $request->query('invoice_id');
+        $invoiceId = $request->input('invoice_id') ?? $request->query('invoice_id');
 
         if ($invoiceId) {
             $verified = $this->verifyGatewayPayment($invoiceId);
             $payment = $this->findPaymentFromGatewayPayload($verified ?: ['invoice_id' => $invoiceId]);
 
             if ($payment && $payment->status === 'pending') {
-                $this->failPendingPayment($payment, ['cancel_response' => $request->query(), 'verified_response' => $verified], 'failed');
+                $this->failPendingPayment($payment, ['cancel_response' => $request->all(), 'verified_response' => $verified], 'failed');
             }
         }
 
