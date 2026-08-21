@@ -8,8 +8,6 @@ import { FreeCourses } from "@/components/site/FreeCourses";
 import { Courses } from "@/components/site/Courses";
 import { Reviews } from "@/components/site/Reviews";
 import { Blog } from "@/components/site/Blog";
-import { DownloadApp } from "@/components/site/DownloadApp";
-import { YouTubeSection } from "@/components/site/YouTubeSection";
 import { Footer } from "@/components/site/Footer";
 import {
   fetchWebsiteSettings,
@@ -82,8 +80,6 @@ export default function HomePage() {
           <WhatWeOffer settings={settings?.offers} />
           <Reviews settings={settings?.reviews} />
           <Blog />
-          <DownloadApp settings={settings?.download_app} />
-          <YouTubeSection socialMedia={settings?.system?.social_media} />
         </>
       )}
       <Footer />

@@ -133,10 +133,10 @@ Route::prefix('v1')->group(function () {
     | Public Payment Redirect Routes
     |--------------------------------------------------------------------------
     */
-    Route::get('/checkout/uddoktapay/success', [UddoktaPayCheckoutController::class, 'success'])
+    Route::match(['get', 'post'], '/checkout/uddoktapay/success', [UddoktaPayCheckoutController::class, 'success'])
         ->middleware('throttle:30,1');
 
-    Route::get('/checkout/uddoktapay/cancel', [UddoktaPayCheckoutController::class, 'cancel'])
+    Route::match(['get', 'post'], '/checkout/uddoktapay/cancel', [UddoktaPayCheckoutController::class, 'cancel'])
         ->middleware('throttle:30,1');
 
     /*
