@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:animated_notch_bottom_bar/animated_notch_bottom_bar/animated_notch_bottom_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -14,18 +15,6 @@ import '../../features/notifications/providers/notification_provider.dart';
 
 final GlobalKey<MainShellState> mainShellKey = GlobalKey<MainShellState>();
 
-class _TabItem {
-  final int index;
-  final String label;
-  final IconData icon;
-
-  const _TabItem({
-    required this.index,
-    required this.label,
-    required this.icon,
-  });
-}
-
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
@@ -35,9 +24,11 @@ class MainShell extends ConsumerStatefulWidget {
 
 class MainShellState extends ConsumerState<MainShell> {
   int _currentIndex = 0;
+  int _activeNavIndex = 0;
   final Set<int> _visitedTabs = {0};
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   static const List<int> _navToScreen = [0, 1, 2, 4];
+  late final NotchBottomBarController _notchBottomBarController;
 
   static const List<Widget> _screens = [
     HomeScreen(),
@@ -48,24 +39,31 @@ class MainShellState extends ConsumerState<MainShell> {
     CertificateListScreen(),
   ];
 
-  static const List<_TabItem> _tabs = [
-    _TabItem(index: 0, label: 'Home', icon: Icons.home_outlined),
-    _TabItem(index: 1, label: 'Courses', icon: Icons.menu_book_outlined),
-    _TabItem(index: 2, label: 'Blog', icon: Icons.article_outlined),
-    _TabItem(index: 3, label: 'Profile', icon: Icons.person_outlined),
-  ];
-
   @override
   void initState() {
     super.initState();
+    _notchBottomBarController = NotchBottomBarController(index: 0);
     Future.microtask(() => ref.read(notificationProvider.notifier).fetchNotifications());
   }
 
   void switchToTab(int index) {
+    final navIndex = _navToScreen.indexOf(index);
     setState(() {
       _currentIndex = index;
       _visitedTabs.add(index);
+      if (navIndex != -1) {
+        _activeNavIndex = navIndex;
+      }
     });
+    if (navIndex != -1) {
+      _notchBottomBarController.jumpTo(navIndex);
+    }
+  }
+
+  @override
+  void dispose() {
+    _notchBottomBarController.dispose();
+    super.dispose();
   }
 
   void openDrawer() {
@@ -78,6 +76,7 @@ class MainShellState extends ConsumerState<MainShell> {
     final user = authState.user;
 
     return Scaffold(
+      extendBody: false,
       key: _scaffoldKey,
       drawer: Drawer(
         child: SafeArea(
@@ -276,72 +275,105 @@ class MainShellState extends ConsumerState<MainShell> {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SafeArea(
-              top: true,
-              bottom: false,
-              child: IndexedStack(
-                index: _currentIndex,
-                children: _screens.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final screen = entry.value;
-                  if (index == _currentIndex || _visitedTabs.contains(index)) {
-                    return screen;
-                  }
-                  return const SizedBox.shrink();
-                }).toList(),
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: IndexedStack(
+          index: _currentIndex,
+          children: _screens.asMap().entries.map((entry) {
+            final index = entry.key;
+            final screen = entry.value;
+            if (index == _currentIndex || _visitedTabs.contains(index)) {
+              return screen;
+            }
+            return const SizedBox.shrink();
+          }).toList(),
+        ),
+      ),
+      bottomNavigationBar: LayoutBuilder(
+        builder: (context, constraints) {
+          const double kCircleRadius = 30.0;
+          const double kCircleMargin = 8.0;
+          const int itemCount = 4;
+          final double screenWidth = constraints.maxWidth;
+          final double firstItemPos = screenWidth * 0.05;
+          final double lastItemPos = screenWidth * 0.95 - (kCircleRadius + kCircleMargin) * 2;
+          final double itemDistance = (lastItemPos - firstItemPos) / (itemCount - 1);
+          final double activeItemPos = firstItemPos + itemDistance * _activeNavIndex;
+          final double notchCenterX = activeItemPos + kCircleMargin + kCircleRadius;
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              SafeArea(
+                bottom: true,
+                left: false,
+                right: false,
+                top: false,
+                child: AnimatedNotchBottomBar(
+                  notchBottomBarController: _notchBottomBarController,
+                  color: AppColors.primary,
+                  notchColor: Colors.white,
+                  durationInMilliSeconds: 300,
+                  showLabel: true,
+                  itemLabelStyle: TextStyle(fontSize: 10.0, color: Colors.white),
+                  removeMargins: true,
+                  kIconSize: 30.0,
+                  showBottomRadius: false,
+                  kBottomRadius: 0,
+                  bottomBarItems: [
+                    BottomBarItem(
+                      inActiveItem: Icon(Icons.home_outlined, color: Colors.white),
+                      activeItem: Icon(Icons.home_filled, color: AppColors.primary),
+                      itemLabel: 'Home',
+                    ),
+                    BottomBarItem(
+                      inActiveItem: Icon(Icons.menu_book_outlined, color: Colors.white),
+                      activeItem: Icon(Icons.menu_book, color: AppColors.primary),
+                      itemLabel: 'Courses',
+                    ),
+                    BottomBarItem(
+                      inActiveItem: Icon(Icons.article_outlined, color: Colors.white),
+                      activeItem: Icon(Icons.article, color: AppColors.primary),
+                      itemLabel: 'Blog',
+                    ),
+                    BottomBarItem(
+                      inActiveItem: Icon(Icons.person_outlined, color: Colors.white),
+                      activeItem: Icon(Icons.person, color: AppColors.primary),
+                      itemLabel: 'Profile',
+                    ),
+                  ],
+                  onTap: (index) {
+                    setState(() {
+                      _activeNavIndex = index;
+                      _currentIndex = _navToScreen[index];
+                      _visitedTabs.add(_currentIndex);
+                    });
+                  },
+                ),
               ),
-            ),
-          ),
-          SafeArea(
-            top: false,
-            bottom: true,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              height: 72,
-              color: AppColors.primary,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final availableWidth = constraints.maxWidth;
-                  return Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      AnimatedPositioned(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        left: _getOffsetForIndex(_navIndexForScreen(_currentIndex), availableWidth),
-                        top: 8,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeInOut,
-                          width: _getTabWidth(availableWidth),
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE7E5ED),
-                            borderRadius: BorderRadius.all(Radius.circular(28)),
-                          ),
-                        ),
-                      ),
-                      Row(
-                        mainAxisSize: MainAxisSize.max,
-                        children: [
-                          Expanded(child: _buildNavItem(0, availableWidth)),
-                          Expanded(child: _buildNavItem(1, availableWidth)),
-                          Expanded(child: _buildNavItem(2, availableWidth)),
-                          Expanded(child: _buildNavItem(3, availableWidth)),
-                        ],
-                      ),
-                    ],
-                  );
-                },
+              Positioned(
+                top: 70.0,
+                left: notchCenterX - 50,
+                width: 100,
+                child: IgnorePointer(
+                  child: Text(
+                    _labelForNavIndex(_activeNavIndex),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 10.0, color: Colors.white),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
+  }
+
+  String _labelForNavIndex(int navIndex) {
+    const labels = ['Home', 'Courses', 'Blog', 'Profile'];
+    return labels[navIndex];
   }
 
   Widget _buildDrawerItem({
@@ -394,39 +426,5 @@ class MainShellState extends ConsumerState<MainShell> {
         ),
     );
   }
-
-  Widget _buildNavItem(int navIndex, double availableWidth) {
-    final tab = _tabs[navIndex];
-    return GestureDetector(
-      onTap: () => switchToTab(_navToScreen[tab.index]),
-      child: Container(
-        width: _getTabWidth(availableWidth),
-        height: 56,
-        alignment: Alignment.center,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(tab.icon, size: 28, color: Colors.white),
-            const SizedBox(height: 4),
-            Text(
-              tab.label,
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  double _getTabWidth(double availableWidth) => availableWidth / 4;
-
-  double _getOffsetForIndex(int navIndex, double availableWidth) =>
-      navIndex * (availableWidth / 4);
-
-  int _navIndexForScreen(int screenIndex) => _navToScreen.indexOf(screenIndex);
 }
+

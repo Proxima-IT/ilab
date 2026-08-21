@@ -15,12 +15,16 @@ class AuthState {
   final UserModel? user;
   final String? errorMessage;
   final bool isLoading;
+  final bool requiresEmailVerification;
+  final String? pendingEmail;
 
   const AuthState({
     this.status = AuthStatus.initial,
     this.user,
     this.errorMessage,
     this.isLoading = false,
+    this.requiresEmailVerification = false,
+    this.pendingEmail,
   });
 
   AuthState copyWith({
@@ -28,12 +32,16 @@ class AuthState {
     UserModel? user,
     String? errorMessage,
     bool? isLoading,
+    bool? requiresEmailVerification,
+    String? pendingEmail,
   }) {
     return AuthState(
       status: status ?? this.status,
       user: user ?? this.user,
       errorMessage: errorMessage ?? this.errorMessage,
       isLoading: isLoading ?? this.isLoading,
+      requiresEmailVerification: requiresEmailVerification ?? this.requiresEmailVerification,
+      pendingEmail: pendingEmail ?? this.pendingEmail,
     );
   }
 }
@@ -104,6 +112,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
           status: AuthStatus.authenticated,
           user: user.copyWith(token: response.data!.token),
         );
+      } else if (!response.success && response.data != null && response.data!.emailVerificationRequired == true) {
+        state = state.copyWith(
+          isLoading: false,
+          requiresEmailVerification: true,
+          pendingEmail: response.data!.email,
+        );
       } else {
         state = state.copyWith(
           isLoading: false,
@@ -111,6 +125,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
         );
       }
     } catch (e) {
+      if (e is DioException) {
+        final responseData = e.response?.data;
+        if (responseData is Map<String, dynamic>) {
+          final authResponse = ApiAuthResponse.fromJson(responseData);
+          if (!authResponse.success && authResponse.data != null && authResponse.data!.emailVerificationRequired == true) {
+            state = state.copyWith(
+              isLoading: false,
+              requiresEmailVerification: true,
+              pendingEmail: authResponse.data!.email,
+            );
+            return;
+          }
+        }
+      }
       state = state.copyWith(
         isLoading: false,
         errorMessage: _getErrorMessage(e),

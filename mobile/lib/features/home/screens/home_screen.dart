@@ -5,13 +5,13 @@ import '../../../shared/theme/app_colors.dart';
 import '../../../shared/theme/app_text_styles.dart';
 import '../../../shared/screens/main_shell.dart';
 import '../../../shared/screens/webview_screen.dart';
+import '../../../shared/widgets/course_card.dart';
 import '../../../shared/widgets/loading_widget.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../../../shared/models/user_model.dart';
 import '../../../shared/models/course_model.dart';
 import '../../../shared/models/enrolled_course_model.dart';
 import '../../../shared/models/certificate_model.dart';
-import '../../auth/providers/auth_provider.dart';
 import '../../notifications/providers/notification_provider.dart';
 import '../providers/home_dashboard_provider.dart';
 
@@ -33,16 +33,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     await ref.read(homeDashboardProvider.notifier).fetchDashboard();
   }
 
-  String _firstName(String fullName) {
-    return fullName.split(' ').first;
-  }
-
   @override
   Widget build(BuildContext context) {
     debugPrint('🔤 Active Font: ${DefaultTextStyle.of(context).style.fontFamily}');
-    final authState = ref.watch(authProvider);
     final dashboardState = ref.watch(homeDashboardProvider);
-    final userName = dashboardState.user?.name ?? authState.user?.name ?? 'Student';
     debugPrint('🔍 HomeScreen build: error=${dashboardState.error} isLoading=${dashboardState.isLoading} hasData=${dashboardState.user != null}');
 
     if (dashboardState.error != null && dashboardState.user == null) {
@@ -67,11 +61,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     debugPrint('🔍 HomeScreen: Rendering CONTENT widget');
     return RefreshIndicator(
       onRefresh: _onRefresh,
-      child: _buildContent(dashboardState, userName),
+      child: _buildContent(dashboardState),
     );
   }
 
-  Widget _buildContent(HomeDashboardState state, String userName) {
+  Widget _buildContent(HomeDashboardState state) {
     final inProgress = state.enrolledCourses.where((c) => c.progress > 0 && c.progress < 100).toList();
 
     return SingleChildScrollView(
@@ -82,8 +76,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           const SizedBox(height: 8),
           _buildCustomHeader(state),
-          const SizedBox(height: 20),
-          _buildGreeting(state, userName),
+          const SizedBox(height: 16),
+          _buildQuickNavCircles(),
           const SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -128,19 +122,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => context.findAncestorStateOfType<MainShellState>()?.openDrawer(),
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: const BoxDecoration(
-                color: Color(0xFFE7E5ED),
-                shape: BoxShape.circle,
+          _buildAvatar(user, 40),
+          const Expanded(
+            child: Center(
+              child: Text(
+                'iLab Academy',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.foreground,
+                ),
               ),
-              child: const Icon(Icons.menu_rounded, color: AppColors.foreground),
             ),
           ),
-          const Spacer(),
           GestureDetector(
             onTap: () => Navigator.pushNamed(context, '/notifications'),
             child: Container(
@@ -172,8 +166,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 16),
-          _buildAvatar(user, 40),
         ],
       ),
     );
@@ -223,45 +215,71 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildGreeting(HomeDashboardState state, String userName) {
-    final user = state.user;
-    final firstName = user != null ? _firstName(user.name) : 'Student';
+  Widget _buildQuickNavCircles() {
+    const items = [
+      _QuickNavItem(label: 'My Courses', icon: Icons.menu_book, gradient: [Color(0xFF0D9488), Color(0xFF14B8A6)], route: '/my-courses'),
+      _QuickNavItem(label: 'Events', icon: Icons.event, gradient: [Color(0xFFF76A21), Color(0xFFFF8A4C)], route: 'switch_to_events'),
+      _QuickNavItem(label: 'Reviews', icon: Icons.reviews, gradient: [Color(0xFF8B5CF6), Color(0xFFA78BFA)], route: 'reviews'),
+      _QuickNavItem(label: 'Blog', icon: Icons.article_rounded, gradient: [Color(0xFF3B82F6), Color(0xFF60A5FA)], route: 'switch_to_blog'),
+      _QuickNavItem(label: 'Free Courses', icon: Icons.lock_open_rounded, gradient: [Color(0xFFEC4989), Color(0xFFF472B6)], route: '/free-courses'),
+    ];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          RichText(
-            text: TextSpan(
-              style: AppTextStyles.titleLarge.copyWith(fontSize: 28),
-              children: [
-                TextSpan(
-                  text: 'Hello, ',
-                  style: const TextStyle(fontWeight: FontWeight.w300, color: AppColors.foreground),
-                ),
-                TextSpan(
-                  text: '$firstName!',
-                  style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.foreground),
-                ),
-              ],
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: items.map((item) {
+          return Expanded(
+            child: GestureDetector(
+              onTap: () {
+                switch (item.route) {
+                  case 'switch_to_events':
+                    context.findAncestorStateOfType<MainShellState>()?.switchToTab(3);
+                    break;
+                  case 'switch_to_blog':
+                    context.findAncestorStateOfType<MainShellState>()?.switchToTab(2);
+                    break;
+                  case 'reviews':
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Reviews coming soon')),
+                    );
+                    break;
+                  default:
+                    Navigator.pushNamed(context, item.route);
+                }
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: item.gradient,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(item.icon, color: Colors.white, size: 24),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    item.label,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.foreground,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          RichText(
-            text: TextSpan(
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.mutedForeground),
-              children: [
-                const TextSpan(text: 'Welcome to '),
-                TextSpan(
-                  text: 'iLab',
-                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700),
-                ),
-                const TextSpan(text: ' — Learn. Build. Earn.'),
-              ],
-            ),
-          ),
-        ],
+          );
+        }).toList(),
       ),
     );
   }
@@ -628,132 +646,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget _buildHorizontalCourses(List<CourseModel> courses) {
     return SizedBox(
-      height: 200,
+      height: 400,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.only(left: 20, right: 8),
         itemCount: courses.length,
-        itemBuilder: (_, i) => _buildHorizontalCourseCard(courses[i]),
-      ),
-    );
-  }
-
-  Widget _buildHorizontalCourseCard(CourseModel course) {
-    final hasImage = course.thumbnailUrl != null && course.thumbnailUrl!.isNotEmpty;
-
-    return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, '/course-detail', arguments: course.slug),
-      child: Container(
-        width: 220,
-        margin: const EdgeInsets.only(right: 12),
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 15,
-              spreadRadius: 1,
+        itemBuilder: (_, i) => Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: SizedBox(
+            width: 280,
+            child: CourseCard(
+              course: courses[i],
+              onView: () => Navigator.pushNamed(context, '/course-detail', arguments: courses[i].slug),
+              onEnroll: () => Navigator.pushNamed(context, '/course-detail', arguments: courses[i].slug),
             ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            if (hasImage)
-              Image.network(
-                course.thumbnailUrl!,
-                width: double.infinity,
-                height: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _buildCourseCardFallback(),
-              )
-            else
-              _buildCourseCardFallback(),
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
-                  ),
-                ),
-              ),
-            ),
-            if (course.category != null)
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    course.category!,
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white),
-                  ),
-                ),
-              ),
-            if (course.isFree)
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF22C55E).withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'Free',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
-                  ),
-                ),
-              ),
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    course.title,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  if (!course.isFree)
-                    course.hasDiscount
-                        ? Row(
-                            children: [
-                              Text(
-                                '৳${course.effectivePrice.toStringAsFixed(0)}',
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '৳${course.price.toStringAsFixed(0)}',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.white.withValues(alpha: 0.6),
-                                  decoration: TextDecoration.lineThrough,
-                                ),
-                              ),
-                            ],
-                          )
-                        : Text(
-                            '৳${course.price.toStringAsFixed(0)}',
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
-                          ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -836,20 +743,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCourseCardFallback() {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
         ),
       ),
     );
@@ -956,11 +849,13 @@ class _DashboardShimmer extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                const ShimmerCard(height: 48, width: 48),
-                const Spacer(),
-                const ShimmerCard(height: 28, width: 28),
-                const SizedBox(width: 16),
                 const ShimmerCard(height: 40, width: 40),
+                const Expanded(
+                  child: Center(
+                    child: ShimmerCard(height: 20, width: 120),
+                  ),
+                ),
+                const ShimmerCard(height: 48, width: 48),
               ],
             ),
           ),
@@ -1020,4 +915,12 @@ class _DashboardShimmer extends StatelessWidget {
       ),
     );
   }
+}
+
+class _QuickNavItem {
+  final String label;
+  final IconData icon;
+  final List<Color> gradient;
+  final String route;
+  const _QuickNavItem({required this.label, required this.icon, required this.gradient, required this.route});
 }

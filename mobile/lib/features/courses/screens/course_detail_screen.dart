@@ -530,21 +530,79 @@ class _AboutTab extends StatelessWidget {
         children: [
           const SizedBox(height: 20),
 
+          // ---- Metadata chips ----
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (course.level != null)
+                _metadataChip(
+                  course.level!,
+                  Icons.signal_cellular_alt_rounded,
+                  AppColors.primary.withValues(alpha: 0.08),
+                  AppColors.primaryDark,
+                ),
+              if (course.mode != null)
+                _metadataChip(
+                  course.mode!,
+                  Icons.laptop_chromebook_rounded,
+                  const Color(0xFFFEF3C7),
+                  const Color(0xFFB45309),
+                ),
+              if (course.language != null)
+                _metadataChip(
+                  course.language!,
+                  Icons.language_rounded,
+                  const Color(0xFFE0F2FE),
+                  const Color(0xFF0369A1),
+                ),
+              if (course.totalHours != null && course.totalHours! > 0)
+                _metadataChip(
+                  '${course.totalHours}h',
+                  Icons.schedule_rounded,
+                  const Color(0xFFFFEDD5),
+                  const Color(0xFFC2410C),
+                ),
+              if (course.lessonCount != null && course.lessonCount! > 0)
+                _metadataChip(
+                  '${course.lessonCount} lessons',
+                  Icons.menu_book_rounded,
+                  const Color(0xFFF0FDF4),
+                  const Color(0xFF15803D),
+                ),
+              if (course.enrollmentCount != null && course.enrollmentCount! > 0)
+                _metadataChip(
+                  '${course.enrollmentCount} enrolled',
+                  Icons.people_rounded,
+                  AppColors.primary.withValues(alpha: 0.06),
+                  AppColors.primaryDark,
+                ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
           if (detail.instructor != null) ...[
             _sectionTitle('Instructor'),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.card,
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.surface,
+                    AppColors.surface.withValues(alpha: 0.5),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
               ),
               child: Row(
                 children: [
                   CircleAvatar(
                     radius: 24,
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.12),
                     backgroundImage: detail.instructorAvatar != null
                         ? NetworkImage(detail.instructorAvatar!)
                         : null,
@@ -562,7 +620,7 @@ class _AboutTab extends StatelessWidget {
                       children: [
                         Text(
                           detail.instructor!,
-                          style: AppTextStyles.titleSmall,
+                          style: AppTextStyles.titleSmall.copyWith(color: AppColors.primaryDark),
                         ),
                         if (detail.instructorBio != null) ...[
                           const SizedBox(height: 2),
@@ -574,26 +632,55 @@ class _AboutTab extends StatelessWidget {
                           ),
                         ],
                         if (detail.instructorCoursesCount > 0 || detail.instructorStudentsCount > 0) ...[
-                          const SizedBox(height: 6),
-                          Row(
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
                             children: [
-                              if (detail.instructorCoursesCount > 0) ...[
-                                Icon(Icons.menu_book_rounded, size: 14, color: AppColors.primary),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${detail.instructorCoursesCount} courses',
-                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedForeground),
+                              if (detail.instructorCoursesCount > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.menu_book_rounded, size: 12, color: AppColors.primary),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        '${detail.instructorCoursesCount} courses',
+                                        style: AppTextStyles.labelSmall.copyWith(
+                                          color: AppColors.primaryDark,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(width: 12),
-                              ],
-                              if (detail.instructorStudentsCount > 0) ...[
-                                Icon(Icons.people_rounded, size: 14, color: AppColors.primary),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${detail.instructorStudentsCount} students',
-                                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.mutedForeground),
+                              if (detail.instructorStudentsCount > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.accent.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.people_rounded, size: 12, color: AppColors.accent),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        '${detail.instructorStudentsCount} students',
+                                        style: AppTextStyles.labelSmall.copyWith(
+                                          color: AppColors.accent,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ],
                             ],
                           ),
                         ],
@@ -609,65 +696,114 @@ class _AboutTab extends StatelessWidget {
           if (detail.learningOutcomes.isNotEmpty) ...[
             _sectionTitle('Learning Outcomes'),
             const SizedBox(height: 12),
-            ...detail.learningOutcomes.map((outcome) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 2),
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.check, size: 12, color: AppColors.primary),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      outcome,
-                      style: AppTextStyles.bodyMedium.copyWith(height: 1.5),
-                    ),
-                  ),
-                ],
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.success.withValues(alpha: 0.15)),
               ),
-            )),
+              child: Column(
+                children: detail.learningOutcomes.map((outcome) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 2),
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.check_circle_rounded, size: 14, color: AppColors.success),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          outcome,
+                          style: AppTextStyles.bodyMedium.copyWith(
+                            height: 1.5,
+                            color: const Color(0xFF166534),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )).toList(),
+              ),
+            ),
             const SizedBox(height: 24),
           ],
 
           if (detail.prerequisites.isNotEmpty) ...[
             _sectionTitle('Prerequisites'),
             const SizedBox(height: 12),
-            ...detail.prerequisites.map((req) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.only(top: 7),
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: AppColors.mutedForeground,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(req, style: AppTextStyles.bodyMedium)),
-                ],
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.12)),
               ),
-            )),
+              child: Column(
+                children: detail.prerequisites.map((req) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 6),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [AppColors.primary, AppColors.primaryLight],
+                          ),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          req,
+                          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.foreground),
+                        ),
+                      ),
+                    ],
+                  ),
+                )).toList(),
+              ),
+            ),
             const SizedBox(height: 24),
           ],
 
           if (course.description != null && course.description!.isNotEmpty) ...[
             _sectionTitle('Description'),
             const SizedBox(height: 12),
-            Text(
-              course.description!.replaceAll(RegExp(r'<[^>]*>'), ''),
-              style: AppTextStyles.bodyMedium.copyWith(height: 1.7, color: AppColors.mutedForeground),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border(
+                  left: BorderSide(
+                    color: AppColors.primary.withValues(alpha: 0.4),
+                    width: 3,
+                  ),
+                ),
+              ),
+              child: Text(
+                course.description!.replaceAll(RegExp(r'<[^>]*>'), ''),
+                style: AppTextStyles.bodyMedium.copyWith(
+                  height: 1.7,
+                  color: AppColors.foreground,
+                ),
+              ),
             ),
             const SizedBox(height: 24),
           ],
@@ -700,9 +836,54 @@ class _AboutTab extends StatelessWidget {
   }
 
   Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: AppTextStyles.titleMedium.copyWith(fontWeight: FontWeight.w700),
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 22,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [AppColors.primary, AppColors.primaryLight],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: AppTextStyles.titleMedium.copyWith(
+            fontWeight: FontWeight.w700,
+            color: AppColors.primaryDark,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _metadataChip(String label, IconData icon, Color bgColor, Color textColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: textColor.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: textColor),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: AppTextStyles.labelSmall.copyWith(
+              color: textColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

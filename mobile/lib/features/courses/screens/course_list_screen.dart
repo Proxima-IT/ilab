@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../shared/models/course_model.dart';
 import '../../../shared/theme/app_colors.dart';
+import '../../../shared/widgets/course_card.dart';
 import '../../../shared/widgets/error_widget.dart';
 import '../providers/course_provider.dart';
 
@@ -410,144 +411,10 @@ class _CourseListScreenState extends ConsumerState<CourseListScreen> {
   }
 
   Widget _buildCourseCard(CourseModel course) {
-    final hasImage = course.thumbnailUrl != null && course.thumbnailUrl!.isNotEmpty;
-
-    return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, '/course-detail', arguments: course.slug),
-      child: Container(
-        height: 180,
-        width: double.infinity,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 15,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
-        child: Stack(
-          children: [
-            if (hasImage)
-              Image.network(
-                course.thumbnailUrl!,
-                width: double.infinity,
-                height: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _buildCourseCardFallback(),
-              )
-            else
-              _buildCourseCardFallback(),
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.7)],
-                  ),
-                ),
-              ),
-            ),
-            if (course.category != null)
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    course.category!,
-                    style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.white),
-                  ),
-                ),
-              ),
-            if (course.isFree)
-              Positioned(
-                top: 12,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF22C55E).withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'Free',
-                    style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white),
-                  ),
-                ),
-              ),
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    course.title,
-                    style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  if (!course.isFree) _buildPriceRow(course),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPriceRow(CourseModel course) {
-    if (course.hasDiscount) {
-      return Row(
-        children: [
-          Text(
-            '৳${course.effectivePrice.toStringAsFixed(0)}',
-            style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            '৳${course.price.toStringAsFixed(0)}',
-            style: GoogleFonts.outfit(
-              fontSize: 12,
-              fontWeight: FontWeight.w400,
-              color: Colors.white.withValues(alpha: 0.6),
-              decoration: TextDecoration.lineThrough,
-            ),
-          ),
-        ],
-      );
-    }
-    if (course.price > 0) {
-      return Text(
-        '৳${course.price.toStringAsFixed(0)}',
-        style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
-      );
-    }
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildCourseCardFallback() {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+    return CourseCard(
+      course: course,
+      onView: () => Navigator.pushNamed(context, '/course-detail', arguments: course.slug),
+      onEnroll: () => Navigator.pushNamed(context, '/course-detail', arguments: course.slug),
     );
   }
 }

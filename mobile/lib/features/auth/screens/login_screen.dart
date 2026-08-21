@@ -45,6 +45,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ref.listen<AuthState>(authProvider, (prev, next) {
       if (next.status == AuthStatus.authenticated) {
         Navigator.pushReplacementNamed(context, '/home');
+      } else if (next.requiresEmailVerification && next.pendingEmail != null) {
+        Navigator.pushReplacementNamed(context, '/verify-email', arguments: next.pendingEmail);
       }
     });
 

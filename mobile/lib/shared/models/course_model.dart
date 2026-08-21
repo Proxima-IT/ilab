@@ -21,6 +21,8 @@ class CourseModel {
   final String? language;
   final String? introVideo;
   final List<String> tags;
+  final String? instructor;
+  final int? totalHours;
 
   const CourseModel({
     required this.id,
@@ -43,6 +45,8 @@ class CourseModel {
     this.language,
     this.introVideo,
     this.tags = const [],
+    this.instructor,
+    this.totalHours,
   });
 
   factory CourseModel.fromJson(Map<String, dynamic> json) {
@@ -66,6 +70,27 @@ class CourseModel {
     final rawTags = json['tags'];
     final tagsList = rawTags is List ? rawTags.map((e) => e.toString()).toList() : <String>[];
 
+    final rawInstructor = json['instructor'];
+    final instructorValue = rawInstructor is Map
+        ? rawInstructor['name'] as String?
+        : null;
+
+    final rawSections = json['sections'] as List<dynamic>?;
+    int totalHoursValue = 0;
+    int totalLessonsValue = 0;
+    if (rawSections != null) {
+      for (final section in rawSections) {
+        final lessons = section['lessons'] as List<dynamic>?;
+        if (lessons != null) {
+          totalLessonsValue += lessons.length;
+          for (final lesson in lessons) {
+            totalHoursValue += (lesson['duration'] as num?)?.toInt() ?? 0;
+          }
+        }
+      }
+      totalHoursValue = totalHoursValue ~/ 3600;
+    }
+
     return CourseModel(
       id: json['id'] as int? ?? 0,
       title: json['title'] as String? ?? '',
@@ -80,7 +105,7 @@ class CourseModel {
       mode: json['type'] as String? ?? json['mode'] as String?,
       price: priceValue,
       discountPrice: discountValue,
-      lessonCount: json['lesson_count'] as int?,
+      lessonCount: json['lesson_count'] as int? ?? (totalLessonsValue > 0 ? totalLessonsValue : null),
       enrollmentCount: json['enrollments_count'] as int? ??
           json['enrollment_count'] as int?,
       rating: (json['rating'] as num?)?.toDouble(),
@@ -92,11 +117,14 @@ class CourseModel {
       language: json['language'] as String?,
       introVideo: json['intro_video'] as String?,
       tags: tagsList,
+      instructor: instructorValue,
+      totalHours: totalHoursValue > 0 ? totalHoursValue : null,
     );
   }
 
   double get effectivePrice => discountPrice ?? price;
   bool get hasDiscount => discountPrice != null && discountPrice! < price;
+  String? get tag => tags.isNotEmpty ? tags.first : null;
 }
 
 class CourseSection {
